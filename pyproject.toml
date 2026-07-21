@@ -1,0 +1,83 @@
+[build-system]
+requires = ["hatchling>=1.27"]
+build-backend = "hatchling.build"
+
+[project]
+name = "agent-source-base"
+version = "0.1.0"
+description = "Production-minded FastAPI and LangGraph agent source base"
+readme = "README.md"
+requires-python = ">=3.12,<3.14"
+dependencies = [
+    "fastapi>=0.116,<1.0",
+    "langchain>=1.3,<2.0",
+    "langchain-openai>=1.1,<2.0",
+    "langgraph>=1.0,<2.0",
+    "pydantic>=2.10,<3.0",
+    "pydantic-settings>=2.7,<3.0",
+    "uvicorn[standard]>=0.34,<1.0",
+]
+
+[dependency-groups]
+dev = [
+    "httpx>=0.28,<1.0",
+    "mypy>=1.15,<2.0",
+    "pytest>=8.3,<10.0",
+    "pytest-asyncio>=0.24,<2.0",
+    "pytest-cov>=6.0,<8.0",
+    "ruff>=0.12,<1.0",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/app"]
+
+[tool.pytest.ini_options]
+addopts = "-ra --strict-config --strict-markers --cov=app --cov-report=term-missing"
+asyncio_mode = "auto"
+testpaths = ["tests"]
+
+[tool.coverage.run]
+branch = true
+source = ["app"]
+
+[tool.coverage.report]
+exclude_also = [
+    "if TYPE_CHECKING:",
+    "if __name__ == .__main__.:",
+    "raise NotImplementedError",
+]
+fail_under = 85
+show_missing = true
+
+[tool.ruff]
+target-version = "py312"
+line-length = 100
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["ASYNC", "B", "C4", "E", "F", "I", "N", "PT", "RUF", "SIM", "UP", "W"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**/*.py" = ["S101"]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+
+[tool.mypy]
+python_version = "3.12"
+check_untyped_defs = true
+disallow_any_generics = true
+disallow_incomplete_defs = true
+disallow_untyped_defs = true
+no_implicit_optional = true
+show_error_codes = true
+strict_equality = true
+warn_redundant_casts = true
+warn_return_any = true
+warn_unused_ignores = true
+plugins = ["pydantic.mypy"]
+
+[[tool.mypy.overrides]]
+module = ["langgraph.*"]
+ignore_missing_imports = true
