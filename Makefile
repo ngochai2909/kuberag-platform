@@ -13,16 +13,16 @@ test-cov:
 	uv run pytest --cov-report=html
 
 lint:
-	uv run ruff check src tests
+	uv run ruff check apps/rag-api/src apps/rag-api/tests
 
 format:
-	uv run ruff format src tests
+	uv run ruff format apps/rag-api/src apps/rag-api/tests
 
 format-check:
-	uv run ruff format --check src tests
+	uv run ruff format --check apps/rag-api/src apps/rag-api/tests
 
 typecheck:
-	uv run mypy src tests
+	uv run mypy apps/rag-api/src apps/rag-api/tests
 
 check: lint format-check typecheck test
 
