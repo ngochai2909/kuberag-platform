@@ -2,7 +2,7 @@ services:
   backend:
     build:
       context: .
-      dockerfile: Dockerfile
+      dockerfile: apps/rag-api/Dockerfile
     init: true
     ports:
       - "${APP_PORT:-8000}:8000"

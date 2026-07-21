@@ -3,16 +3,13 @@ requires = ["hatchling>=1.27"]
 build-backend = "hatchling.build"
 
 [project]
-name = "agent-source-base"
+name = "kuberag-platform"
 version = "0.1.0"
-description = "Production-minded FastAPI and LangGraph agent source base"
+description = "KubeRAG cloud-native RAG platform monorepo"
 readme = "README.md"
 requires-python = ">=3.12,<3.14"
 dependencies = [
     "fastapi>=0.116,<1.0",
-    "langchain>=1.3,<2.0",
-    "langchain-openai>=1.1,<2.0",
-    "langgraph>=1.0,<2.0",
     "pydantic>=2.10,<3.0",
     "pydantic-settings>=2.7,<3.0",
     "uvicorn[standard]>=0.34,<1.0",
@@ -29,12 +26,12 @@ dev = [
 ]
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/app"]
+packages = ["apps/rag-api/src/app"]
 
 [tool.pytest.ini_options]
 addopts = "-ra --strict-config --strict-markers --cov=app --cov-report=term-missing"
 asyncio_mode = "auto"
-testpaths = ["tests"]
+testpaths = ["apps/rag-api/tests"]
 
 [tool.coverage.run]
 branch = true
@@ -52,13 +49,13 @@ show_missing = true
 [tool.ruff]
 target-version = "py312"
 line-length = 100
-src = ["src", "tests"]
+src = ["apps/rag-api/src", "apps/rag-api/tests"]
 
 [tool.ruff.lint]
 select = ["ASYNC", "B", "C4", "E", "F", "I", "N", "PT", "RUF", "SIM", "UP", "W"]
 
 [tool.ruff.lint.per-file-ignores]
-"tests/**/*.py" = ["S101"]
+"apps/rag-api/tests/**/*.py" = ["S101"]
 
 [tool.ruff.format]
 quote-style = "double"
@@ -66,6 +63,7 @@ indent-style = "space"
 
 [tool.mypy]
 python_version = "3.12"
+mypy_path = ["apps/rag-api/src"]
 check_untyped_defs = true
 disallow_any_generics = true
 disallow_incomplete_defs = true
@@ -77,7 +75,3 @@ warn_redundant_casts = true
 warn_return_any = true
 warn_unused_ignores = true
 plugins = ["pydantic.mypy"]
-
-[[tool.mypy.overrides]]
-module = ["langgraph.*"]
-ignore_missing_imports = true

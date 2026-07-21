@@ -1,0 +1,1 @@
+"""KubeRAG FastAPI application package."""
