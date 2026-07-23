@@ -13,9 +13,9 @@
 
 | Lớp | Công nghệ | Trạng thái | Vai trò | Lý do |
 |---|---|---|---|---|
-| Cloud | GCP Compute Engine | Required | Chạy 3 VM k3s | Chủ động cấu hình, dùng được Terraform/Ansible, kiểm soát chi phí |
-| IaC | Terraform | Required | VPC, firewall, VM, disk, IP | Tái lập hạ tầng và thể hiện IaC |
-| Configuration | Ansible | Required | Cấu hình OS, cài/join k3s | Phù hợp quản lý nhiều VM |
+| Cloud | Local machine hoặc GCP Compute Engine | Required | Chạy single-node k3s tạm thời; khôi phục 3 VM ở mốc cuối | Chủ động cấu hình, dùng được Terraform/Ansible, kiểm soát chi phí |
+| IaC | Terraform | Required | Single-node VM/local target tạm thời; VPC, firewall, VM, disk, IP ở mốc GCP | Tái lập hạ tầng và thể hiện IaC |
+| Configuration | Ansible | Required | Cấu hình OS, cài k3s single-node; join worker ở mốc 3-node | Phù hợp quản lý node và mở rộng lại nhiều VM |
 | Kubernetes | k3s | Required | Container orchestration | Nhẹ hơn kubeadm, vẫn là Kubernetes chuẩn |
 | Package | Helm | Required | Cài platform/operator | Hệ sinh thái chart rộng |
 | Overlay | Kustomize | Required | Custom app manifests | Native với kubectl, rõ khác biệt môi trường |
@@ -26,7 +26,7 @@
 | Orchestrator | Prefect | Required | Daily ingestion flow | Nhẹ và dễ tiếp cận hơn Airflow cho scope này |
 | Sources | VnExpress RSS + NVD API | Required | Dữ liệu mới hằng ngày | Hai định dạng và domain khác nhau |
 | Database | PostgreSQL | Required | OLTP, metadata, documents | Tin cậy, phù hợp dữ liệu quan hệ |
-| DB operator | CloudNativePG | Required | Primary/replica/failover | Kubernetes-native PostgreSQL lifecycle |
+| DB operator | CloudNativePG | Required | Single PostgreSQL instance tạm thời; primary/replica/failover ở mốc cuối | Kubernetes-native PostgreSQL lifecycle |
 | Vector | pgvector | Required | Embedding và similarity search | Tránh thêm vector database riêng |
 | Migration | Alembic | Required | Version schema | Chuẩn Python và chạy lặp lại được |
 | Embedding | `multilingual-e5-small` hoặc tương đương | Required | Vector hóa tiếng Việt/Anh | Nhỏ, multilingual, chạy CPU |
@@ -56,8 +56,9 @@
 GKE là Kubernetes phù hợp nhưng không được chọn cho implementation chính vì:
 
 - Dự án cần thể hiện Terraform và Ansible rõ ràng.
-- k3s 3 node là quyết định kiến trúc đã chốt.
-- Compute Engine cho phép học node, control plane và join cluster.
+- Single-node k3s là mốc tạm thời để phù hợp máy local và giảm chi phí trong giai đoạn phát triển.
+- k3s 3 node vẫn là quyết định kiến trúc cuối cần khôi phục trước final acceptance.
+- Compute Engine cho phép học node, control plane và join cluster khi quay lại topology cuối.
 - Chi phí/control dễ dự đoán hơn cho lab nhỏ.
 
 GKE chỉ là phương án thay thế nếu mentor yêu cầu managed Kubernetes.
@@ -76,7 +77,7 @@ GKE chỉ là phương án thay thế nếu mentor yêu cầu managed Kubernetes
 
 ### 3.4. CloudNativePG thay vì tự quản lý StatefulSet
 
-Tự viết StatefulSet không tự giải quyết promotion, service role, reconciliation và lifecycle an toàn. CloudNativePG cung cấp operator và CRD phù hợp để chứng minh primary/replica/failover.
+Tự viết StatefulSet không tự giải quyết promotion, service role, reconciliation và lifecycle an toàn. CloudNativePG cung cấp operator và CRD phù hợp để chạy single instance tạm thời và chứng minh primary/replica/failover khi quay lại topology 3-node.
 
 ### 3.5. llama.cpp thay vì external LLM API
 

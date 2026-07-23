@@ -2,7 +2,7 @@
 
 ## Purpose
 
-This repository implements **KubeRAG**, a secure and observable cloud-native RAG platform on a three-node k3s cluster. The required demonstration uses PostgreSQL/pgvector, Prefect, FastAPI, React/Vite and a self-hosted llama.cpp model. It does not use an external LLM API in the primary demo path.
+This repository implements **KubeRAG**, a secure and observable cloud-native RAG platform on Kubernetes. The current implementation milestone targets a temporary single-node k3s cluster for local development and constrained demo work. The final target remains a three-node k3s cluster. The required demonstration uses PostgreSQL/pgvector, Prefect, FastAPI, React/Vite and a self-hosted llama.cpp model. It does not use an external LLM API in the primary demo path.
 
 Read these files before planning or editing:
 
@@ -46,6 +46,7 @@ During migration, preserve a working main branch. Move and refactor in reviewabl
 - HTTP routes perform transport and validation only. Keep retrieval/generation logic in services.
 - Keep database, embedding and LLM calls behind typed interfaces so unit tests do not need network access.
 - The required RAG flow is deterministic: embed query → retrieve chunks → build bounded prompt → generate answer.
+- The current infrastructure target is temporary single-node k3s; keep topology-specific code and manifests easy to restore to the final 1 server + 2 worker topology.
 - Do not add LangGraph, tool-calling agents or multi-agent orchestration to required scope.
 - PostgreSQL/pgvector is the system of record and vector store.
 - Prefect owns ingestion orchestration; do not run the daily ingestion scheduler inside FastAPI.

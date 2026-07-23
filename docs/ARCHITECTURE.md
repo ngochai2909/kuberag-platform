@@ -8,7 +8,7 @@ Kiến trúc ưu tiên năm thuộc tính:
 2. **Gọn:** phù hợp ngân sách 300 USD và tài nguyên CPU/RAM hạn chế.
 3. **Quan sát được:** một request RAG có thể theo dõi qua metric, log, trace và profile.
 4. **An toàn:** custom workload chạy non-root, PSS `restricted`, image có provenance.
-5. **Có thể demo lỗi:** rate limit, alert, Pod restart và PostgreSQL failover có kịch bản kiểm thử.
+5. **Có thể demo lỗi:** rate limit, alert, Pod restart và PostgreSQL unavailable/restart có kịch bản kiểm thử. PostgreSQL failover được khôi phục ở mốc 3-node.
 
 Đây là kiến trúc production-like cho mục tiêu học tập. Nó không cung cấp control-plane HA, zonal HA hoặc production SLA.
 
@@ -32,19 +32,20 @@ flowchart TB
 
 ```mermaid
 flowchart TB
-    Internet["Internet"] --> PublicIP["Public IP"]
-    PublicIP --> Server["k3s-server\n2 vCPU / 4 GiB"]
-
-    subgraph VPC["GCP VPC - một zone"]
-        Server --> Worker1["k3s-worker-1\n2 vCPU / 8 GiB"]
-        Server --> Worker2["k3s-worker-2\n2 vCPU / 8 GiB"]
-    end
-
-    Worker1 --- Disk1["Persistent Disk"]
-    Worker2 --- Disk2["Persistent Disk"]
+    User["Browser hoặc k6"] --> Node["single-node k3s
+local machine hoặc 1 VM"]
+    Node --- Disk["Local disk hoặc Persistent Disk"]
 ```
 
-Khuyến nghị ban đầu:
+Khuyến nghị tạm thời:
+
+| Node | Cấu hình tối thiểu | Trách nhiệm ưu tiên |
+|---|---:|---|
+| `k3s-single` | 8 vCPU / 16 GiB RAM / disk đủ model và PVC | Control plane, gateway, observability, PostgreSQL, apps và llama.cpp |
+
+Mốc tạm thời chấp nhận không có node-level isolation. Scheduler vẫn phải dựa trên requests/limits, nhưng anti-affinity khác node và PostgreSQL primary/replica được hoãn tới mốc 3-node.
+
+Topology cuối cần khôi phục:
 
 | Node | Cấu hình | Trách nhiệm ưu tiên |
 |---|---:|---|
@@ -52,13 +53,11 @@ Khuyến nghị ban đầu:
 | `k3s-worker-1` | 2 vCPU, 8 GiB RAM, 50 GiB disk | Observability và một PostgreSQL instance |
 | `k3s-worker-2` | 2 vCPU, 8 GiB RAM, 50 GiB disk | Application/data/LLM và một PostgreSQL instance |
 
-Node placement là ưu tiên, không phải ranh giới tuyệt đối. Scheduler vẫn phải dựa trên requests/limits và affinity. Primary và replica PostgreSQL phải được tách node.
-
 ### 3.2. Trách nhiệm công cụ
 
 ```text
 Terraform  → VPC, subnet, firewall, VM, disk, IP, outputs
-Ansible    → OS prerequisites, k3s server, join workers, kubeconfig
+Ansible    → OS prerequisites, k3s server single-node, kubeconfig; join workers ở mốc 3-node
 Helm       → operator và nền tảng bên thứ ba
 Kustomize  → custom workloads và khác biệt theo môi trường
 Makefile   → lệnh điều phối dễ nhớ, không chứa logic bí mật
@@ -97,7 +96,7 @@ Nếu chart bên thứ ba chưa tương thích `restricted`, không được âm
 | RAG API | Deployment | 1, có thể tăng 2 khi load test |
 | Ingestion | Prefect worker/Job | 1 |
 | llama.cpp | Deployment | 1 |
-| PostgreSQL | CloudNativePG Cluster | 2 instance |
+| PostgreSQL | CloudNativePG Cluster | 1 instance tạm thời; 2 instance ở mốc 3-node |
 | OTel Collector | Deployment | 1 |
 | Loki/Tempo/Pyroscope | Single-binary/monolithic | 1 mỗi loại |
 | Prometheus/Grafana | Stateful/Deployment theo chart | 1 mỗi loại |
@@ -174,15 +173,14 @@ metadata
 ```mermaid
 flowchart LR
     Apps["API và ingestion"] --> RW["Read-write Service"]
-    RW --> Primary["PostgreSQL primary"]
-    Primary -->|"Streaming replication"| Replica["PostgreSQL replica"]
+    RW --> PG["PostgreSQL single instance"]
 ```
 
 - Application kết nối qua service ổn định do CloudNativePG quản lý, không kết nối thẳng Pod IP.
-- Primary nhận write; vector search có thể đi qua read-write service để giữ scope đơn giản.
-- Anti-affinity tách primary/replica sang hai worker.
+- Single instance nhận write và vector search trong mốc tạm thời.
 - PVC đảm bảo dữ liệu còn sau Pod restart.
-- Failover test phải đo recovery time và xác nhận API reconnect.
+- Test tạm thời phải xác nhận restart/persistence và API reconnect.
+- Anti-affinity, streaming replication và failover test được khôi phục ở mốc 3-node.
 
 ### 7.2. Logical schema
 
@@ -311,7 +309,7 @@ Prometheus scrape:
 - Envoy request count, duration, upstream errors và status codes.
 - FastAPI request count/duration, retrieval duration, LLM duration và error count.
 - Prefect ingestion success/failure/duration.
-- PostgreSQL availability, replication lag và storage khi exporter/operator cung cấp.
+- PostgreSQL availability và storage; replication lag được khôi phục ở mốc 3-node khi có replica.
 
 Label phải có cardinality hữu hạn. Không dùng raw URL, question, request ID hoặc trace ID làm metric label.
 
@@ -384,17 +382,17 @@ Mục tiêu ban đầu, cần đo và hiệu chỉnh:
 | Nhóm | RAM target khi idle | Ghi chú |
 |---|---:|---|
 | k3s/system | 1.5–2.5 GiB toàn cluster | Thay đổi theo add-on |
-| PostgreSQL 2 instance | 2–4 GiB | Giới hạn shared buffers phù hợp |
-| Observability | 4–6 GiB | Single-binary, retention ngắn |
+| PostgreSQL 1 instance | 0.8–1.5 GiB | Giới hạn shared buffers phù hợp; 2 instance ở mốc 3-node |
+| Observability | 3–5 GiB | Single-binary, retention ngắn, volume nhỏ |
 | Prefect + apps | 1–2 GiB | Một replica mỗi service |
-| Embedding + llama.cpp | 2–5 GiB | Model nhỏ quantized, không chạy song song quá mức |
+| Embedding + llama.cpp | 1.5–3 GiB | Ưu tiên Qwen 0.5B Q4, batch nhỏ, không chạy song song quá mức |
 
 Quy tắc:
 
 - Không nâng cấu hình trước khi đo.
 - Loki/Tempo/Pyroscope retention ngắn, volume nhỏ.
 - k6 ưu tiên chạy từ laptop/runner ngoài cluster để không cạnh tranh workload.
-- Có thể resize tạm một worker lên 16 GiB trong tuần cuối nếu LLM cần, sau đó hạ xuống.
+- Trên máy 16 GiB, giải phóng RAM trước khi chạy full stack; nếu dùng GCP có thể resize tạm VM lên 16 GiB rồi hạ xuống.
 
 ## 12. Failure modes và hành vi kỳ vọng
 
@@ -402,8 +400,8 @@ Quy tắc:
 |---|---|
 | FastAPI Pod bị xóa | Deployment tạo Pod mới; readiness chặn traffic trước khi sẵn sàng |
 | llama.cpp unavailable | API trả lỗi có kiểm soát; metric/log/trace và alert phản ánh lỗi |
-| PostgreSQL primary lỗi | CloudNativePG promote replica; API reconnect qua service |
-| Worker chứa primary lỗi | Replica trên worker khác được promote nếu control plane/operator còn hoạt động |
+| PostgreSQL Pod lỗi | CloudNativePG tạo lại Pod; API reconnect qua service sau readiness |
+| Node single-node lỗi | Toàn bộ demo gián đoạn; node-level failover được khôi phục ở mốc 3-node |
 | Nguồn dữ liệu lỗi | Prefect retry/backoff; run thất bại có trạng thái và alert; fixture vẫn demo được |
 | OTel Collector lỗi | Ứng dụng không được crash; telemetry có thể bị mất và phải có tín hiệu health |
 | Rate vượt giới hạn | Envoy trả `429`, không gọi FastAPI cho request bị chặn |
@@ -411,9 +409,9 @@ Quy tắc:
 
 ## 13. Giới hạn kiến trúc
 
-- Một control plane là single point of failure.
+- Single-node là single point of failure cho cả control plane và workload.
 - Cùng một zone không bảo vệ khỏi zonal outage.
-- Hai PostgreSQL instance chỉ chịu được một instance/node failure trong điều kiện phù hợp; không phải multi-region DR.
+- Mốc tạm thời không chứng minh PostgreSQL node failover; chỉ chứng minh restart/persistence.
 - Single-binary observability tối ưu tài nguyên nhưng không HA.
 - Một llama.cpp replica là single point of failure và có throughput thấp.
 - Public endpoint và TLS/auth được giữ tối giản cho demo; không phải mô hình Internet production hoàn chỉnh.

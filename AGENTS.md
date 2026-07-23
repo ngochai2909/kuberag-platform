@@ -2,7 +2,7 @@
 
 ## Purpose
 
-This repository implements **KubeRAG**, a secure and observable cloud-native RAG platform on a three-node k3s cluster. The required demo path uses PostgreSQL/pgvector, Prefect ingestion, FastAPI, React/Vite, Envoy Gateway, and a self-hosted llama.cpp model. The primary demo path must not depend on an external LLM API.
+This repository implements **KubeRAG**, a secure and observable cloud-native RAG platform on Kubernetes. The current implementation milestone targets a temporary single-node k3s cluster for local development and constrained demo work. The final target remains a three-node k3s cluster. The required demo path uses PostgreSQL/pgvector, Prefect ingestion, FastAPI, React/Vite, Envoy Gateway, and a self-hosted llama.cpp model. The primary demo path must not depend on an external LLM API.
 
 The repository is currently in **phase 2 RAG API skeleton**. The backend main path must not depend on LangGraph, LangChain, OpenAI SDKs, or external LLM APIs. Real PostgreSQL/pgvector and llama.cpp providers are added in later approved phases.
 
@@ -62,6 +62,7 @@ Dependencies must point inward: API -> services -> provider-independent interfac
 ## KubeRAG Requirements
 
 - The required RAG flow is deterministic: embed query -> retrieve chunks -> build bounded prompt -> generate answer.
+- The current infrastructure target is temporary single-node k3s; keep changes easy to restore to the final 1 server + 2 worker topology.
 - PostgreSQL/pgvector is the system of record and vector store.
 - llama.cpp owns self-hosted generation in the primary demo path.
 - Envoy Gateway owns application routing and rate limiting. Never add an in-process FastAPI rate limiter.

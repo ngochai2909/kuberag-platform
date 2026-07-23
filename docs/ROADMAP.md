@@ -25,22 +25,22 @@ flowchart TB
 
 ### Mục tiêu
 
-Dựng được hạ tầng GCP và cụm k3s 3 node; repository có cấu trúc, policy và CI skeleton rõ ràng.
+Dựng được single-node k3s tạm thời; repository có cấu trúc, policy và CI skeleton rõ ràng. Topology 3-node được khôi phục ở mốc sau khi tài nguyên cho phép.
 
 ### Kế hoạch theo ngày
 
 | Ngày | Công việc | Kết quả |
 |---|---|---|
 | 1 | Chốt docs, đổi tên/organize monorepo, cập nhật `AGENTS.md`, tạo issues/milestones | Scope và workflow được khóa |
-| 2 | Terraform VPC, firewall, 3 VM, disks, outputs; budget alert thủ công hoặc tài liệu hóa | `terraform plan` rõ, apply tạo đúng resource |
-| 3 | Ansible prerequisites, k3s server/join workers, kubeconfig, node labels | 3 node `Ready` |
+| 2 | Terraform/local automation cho một node, disk/output tối thiểu; budget alert nếu dùng GCP | plan/config rõ, apply tạo đúng resource |
+| 3 | Ansible prerequisites, k3s server single-node, kubeconfig, node labels | 1 node `Ready` |
 | 4 | Namespace, PSS `restricted`, safe/unsafe manifests; Helm/Kustomize skeleton | Pod an toàn chạy, Pod vi phạm bị từ chối |
 | 5 | Envoy Gateway, hello routes, source-base CI baseline, smoke test và evidence | `/` hoặc `/api` đi qua Envoy; CI xanh |
 
 ### Quality gate
 
 - Terraform/Ansible chạy lại không tạo thay đổi ngoài dự kiến.
-- Ba node `Ready`, có labels và resource visibility.
+- Một node `Ready`, có labels và resource visibility.
 - Có bằng chứng PSS enforce.
 - Traefik không phục vụ route dự án.
 - CI chạy lint/typecheck/test hiện có.
@@ -48,28 +48,28 @@ Dựng được hạ tầng GCP và cụm k3s 3 node; repository có cấu trúc
 ### Rủi ro/buffer
 
 - Quota/IP/firewall GCP: dùng một zone và loại VM có quota sẵn.
-- k3s join lỗi: kiểm tra token, firewall nội bộ và hostname trước khi cài app.
+- k3s join worker được hoãn; vẫn giữ playbook dễ mở rộng lại khi quay về 3-node.
 - Không refactor backend sâu trước khi foundation gate pass.
 
 ## 4. Tuần 2 — Data layer và ingestion
 
 ### Mục tiêu
 
-PostgreSQL primary/replica hoạt động, pipeline lấy hai nguồn và lưu document/chunk/embedding idempotent.
+PostgreSQL single-instance tạm thời hoạt động, pipeline lấy hai nguồn và lưu document/chunk/embedding idempotent. Primary/replica được khôi phục ở mốc 3-node.
 
 ### Kế hoạch theo ngày
 
 | Ngày | Công việc | Kết quả |
 |---|---|---|
-| 1 | Cài CloudNativePG operator, tạo 2-instance cluster, PVC, anti-affinity | Primary/replica healthy |
+| 1 | Cài CloudNativePG operator, tạo single-instance cluster tạm thời, PVC | PostgreSQL healthy |
 | 2 | Schema/Alembic, pgvector extension, constraints, sample vector query | Migration và vector search cơ bản pass |
 | 3 | Adapter VnExpress RSS và NVD API, fixture, retry/timeout/backoff | Unit tests không phụ thuộc Internet |
 | 4 | Chunking, embedding batch, dedup/upsert, ingestion run records | Chạy lại không tạo duplicate |
-| 5 | Prefect schedule/worker, integration test và CloudNativePG switchover/failover | Flow end-to-end và failover evidence |
+| 5 | Prefect schedule/worker, integration test và PostgreSQL restart/persistence test | Flow end-to-end và persistence evidence |
 
 ### Quality gate
 
-- Có primary, replica và replication health.
+- Có PostgreSQL instance healthy và PVC bound.
 - Dữ liệu còn sau Pod restart.
 - Hai nguồn hoặc fixture dự phòng đều chạy được.
 - Pipeline idempotent.
@@ -79,7 +79,7 @@ PostgreSQL primary/replica hoạt động, pipeline lấy hai nguồn và lưu d
 
 - pgvector image/extension: xác minh tương thích với CloudNativePG trước khi schema hóa.
 - Embedding tốn RAM: batch nhỏ, model nhỏ, không chạy cùng stress test.
-- Failover lỗi do cùng node: kiểm tra anti-affinity và node placement.
+- Replication/failover bị hoãn ở single-node; ghi limitation và giữ manifest dễ bật lại 2 instance.
 
 ## 5. Tuần 3 — RAG API, self-hosted LLM và frontend
 
@@ -233,5 +233,5 @@ Không cắt yêu cầu mentor. Cắt theo thứ tự:
 4. Automation nâng cao không ảnh hưởng clean install.
 5. Mọi optional.
 
-Không cắt PostgreSQL replica, self-hosted LLM, bốn signal observability, alert, k6, gateway rate limit, PSS, scans, SBOM hoặc Cosign.
+Trong mốc single-node tạm thời chỉ được hoãn PostgreSQL replica và worker join. Không cắt self-hosted LLM, bốn signal observability, alert, k6, gateway rate limit, PSS, scans, SBOM hoặc Cosign. Trước final 3-node acceptance, khôi phục PostgreSQL replica và node placement.
 

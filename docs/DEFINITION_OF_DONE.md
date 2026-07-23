@@ -9,7 +9,8 @@
 
 - [ ] Tất cả Required acceptance criteria Pass.
 - [ ] Clean install và smoke test Pass.
-- [ ] PostgreSQL failover, rate limit, alert và load test có evidence.
+- [ ] Mốc single-node: PostgreSQL restart/persistence, rate limit, alert và load test có evidence.
+- [ ] Mốc 3-node cuối: PostgreSQL failover có evidence.
 - [ ] Dashboard hiển thị metrics/logs/traces/profiles trong demo.
 - [ ] Ba custom images dùng Chainguard, scan pass, có SBOM/signature.
 - [ ] Final manifests dùng immutable digests.
