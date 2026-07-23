@@ -6,7 +6,8 @@
 - **Tên đầy đủ:** KubeRAG — A Secure and Observable Cloud-Native RAG Platform on Kubernetes
 - **Loại dự án:** Cloud-Native Platform Engineering / DevOps Capstone
 - **Thời lượng mục tiêu:** 6 tuần, một intern, full-time
-- **Môi trường chính:** Google Cloud Compute Engine, cụm k3s gồm 1 server và 2 worker
+- **Môi trường chính tạm thời:** single-node k3s để phát triển local và demo ràng buộc tài nguyên
+- **Mục tiêu cuối:** Google Cloud Compute Engine, cụm k3s gồm 1 server và 2 worker
 - **Kết quả:** production-like proof of concept, không cam kết production thực tế
 
 ## 2. Bài toán
@@ -29,9 +30,10 @@ Chất lượng nội dung do LLM sinh ra **không phải tiêu chí đánh giá
 
 ### 3.1. Mục tiêu kỹ thuật
 
-- Tạo cụm k3s 3 node trên GCP bằng Terraform và Ansible.
+- Tạo single-node k3s tạm thời bằng Terraform/Ansible hoặc local automation phù hợp.
+- Giữ thiết kế có đường quay lại cụm k3s 3 node trên GCP bằng Terraform và Ansible.
 - Dùng Envoy Gateway làm entry point duy nhất cho frontend và RAG API.
-- Lưu dữ liệu trong PostgreSQL/pgvector có 1 primary và ít nhất 1 replica.
+- Lưu dữ liệu trong PostgreSQL/pgvector. Mốc tạm thời dùng 1 instance; mốc cuối khôi phục 1 primary và ít nhất 1 replica.
 - Điều phối ingestion bằng Prefect với schedule, retry, timeout và idempotency.
 - Chạy FastAPI RAG API, React/Vite UI và llama.cpp self-hosted.
 - Dùng Prometheus, Loki, Tempo, Pyroscope và Grafana cho observability.
@@ -61,10 +63,10 @@ Chất lượng nội dung do LLM sinh ra **không phải tiêu chí đánh giá
 
 ### 5.1. Hạ tầng và Kubernetes
 
-- GCP Compute Engine với 3 VM trong cùng VPC và một zone để tối ưu chi phí.
-- Cụm k3s gồm 1 server/control plane và 2 worker.
+- Single-node k3s là phạm vi bắt buộc tạm thời để phát triển trên máy local hoặc một VM.
+- Cụm cuối quay lại 1 server/control plane và 2 worker trên GCP Compute Engine trong cùng VPC và một zone.
 - Terraform tạo network, firewall, VM, disk và output cần thiết.
-- Ansible cài, cấu hình k3s và join worker.
+- Ansible cài và cấu hình k3s server single-node; logic join worker được hoãn tới mốc 3-node.
 - Helm cài các nền tảng bên thứ ba; Kustomize quản lý workload của dự án.
 - Namespace và custom workload tuân thủ PSS `restricted`.
 - Traefik có thể tồn tại do k3s cài mặc định nhưng không phục vụ route dự án.
@@ -80,11 +82,13 @@ Chất lượng nội dung do LLM sinh ra **không phải tiêu chí đánh giá
 ### 5.3. Data storage
 
 - CloudNativePG quản lý PostgreSQL cluster.
-- Tối thiểu 2 instance: 1 primary và 1 replica.
+- Mốc tạm thời dùng 1 PostgreSQL instance có persistent volume.
+- Mốc cuối dùng tối thiểu 2 instance: 1 primary và 1 replica.
 - Mỗi instance có persistent volume.
 - Bật extension `vector` và sử dụng pgvector.
 - Có schema migration, constraint chống trùng và vector index phù hợp.
-- Có kiểm thử replication, persistence và switchover/failover.
+- Có kiểm thử persistence và restart ở mốc tạm thời.
+- Kiểm thử replication và switchover/failover được hoãn tới mốc 3-node.
 
 ### 5.4. RAG và ứng dụng
 
@@ -126,6 +130,14 @@ Chất lượng nội dung do LLM sinh ra **không phải tiêu chí đánh giá
 - Có clean-install test từ một môi trường mới hoặc đã dọn sạch.
 - Có release tag và evidence cho toàn bộ yêu cầu bắt buộc.
 
+### 5.8. Phạm vi hoãn tới mốc 3-node
+
+Các mục này không chặn mốc single-node tạm thời, nhưng phải được khôi phục trước khi quay lại đúng yêu cầu cuối:
+
+- Cụm k3s 1 server và 2 worker trên GCP.
+- PostgreSQL primary/replica tách node.
+- Replication lag, switchover/failover và node placement evidence.
+
 ## 6. Phạm vi optional
 
 Chỉ thực hiện sau khi toàn bộ required scope đã pass. Chọn tối đa một hoặc hai mục có giá trị cao:
@@ -158,7 +170,8 @@ Optional phải nằm trên branch/PR riêng và có thể loại khỏi release
 
 - Ngân sách GCP tối đa 300 USD; phải có budget alert và tắt VM khi không cần.
 - Free-trial không dùng GPU; workload AI phải chạy CPU-only.
-- Resource phải phù hợp cấu hình 1 server 4 GiB và 2 worker 8 GiB, trừ khi nâng tạm thời có phê duyệt.
+- Resource mốc tạm thời phải phù hợp máy single-node 16 GiB RAM bằng cách dùng model nhỏ, retention ngắn và không chạy workload nặng song song.
+- Resource mốc cuối phải phù hợp cấu hình 1 server 4 GiB và 2 worker 8 GiB, trừ khi nâng tạm thời có phê duyệt.
 - Không commit credential, token, private key, kubeconfig hoặc Terraform state chứa dữ liệu nhạy cảm.
 - Không thay đổi stack đã chốt nếu chưa cập nhật tài liệu và ghi lý do.
 - Một intern phải có khả năng clean install và demo hệ thống.
@@ -177,7 +190,7 @@ Optional phải nằm trên branch/PR riêng và có thể loại khỏi release
 - Ba custom image: `kuberag-api`, `kuberag-web`, `kuberag-ingestion`.
 - Terraform/Ansible dựng được hạ tầng và k3s.
 - Helm/Kustomize triển khai được platform và applications.
-- PostgreSQL/pgvector primary-replica và dữ liệu hai nguồn.
+- PostgreSQL/pgvector single-instance tạm thời và dữ liệu hai nguồn; primary-replica được khôi phục ở mốc 3-node.
 - RAG API, frontend và self-hosted LLM hoạt động end-to-end.
 - Grafana dashboard, Telegram alert và k6 report.
 - Semgrep/Trivy reports, SBOM và Cosign verification output.
@@ -193,6 +206,6 @@ Dự án thành công khi một reviewer có thể dùng repository và tài li�
 4. Tìm request tương ứng trong metrics, logs, traces và profiles.
 5. Chạy k6, quan sát RPS/latency/CPU/RAM và nhận alert.
 6. Chứng minh rate limit trả `429` ở Gateway.
-7. Chứng minh PostgreSQL replication/failover.
+7. Chứng minh PostgreSQL persistence/restart ở mốc tạm thời; replication/failover ở mốc 3-node.
 8. Chứng minh source/image đã scan, image có SBOM và chữ ký hợp lệ.
 

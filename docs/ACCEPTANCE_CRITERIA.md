@@ -20,13 +20,15 @@ Một tiêu chí Required chỉ được đánh dấu `Pass` khi có cả:
 
 Screenshot không thay thế manifest hoặc test output; manifest không thay thế runtime verification.
 
+Các mục liên quan 3-node/replica đang đánh dấu `Optional` chỉ để không chặn mốc single-node tạm thời. Khi khôi phục topology 3-node, các mục đó phải chuyển lại `Required` trước final acceptance.
+
 ## 2. Infrastructure as Code
 
 | ID      | Mức      | Tiêu chí                                                      | Cách kiểm chứng                                          | Evidence tối thiểu                        |
 | ------- | -------- | ------------------------------------------------------------- | -------------------------------------------------------- | ----------------------------------------- |
-| INF-001 | Required | Terraform tạo VPC/subnet/firewall/3 VM/disks/IP đúng thiết kế | `terraform fmt -check`, `validate`, review `plan`, apply | plan summary, VM/network inventory        |
+| INF-001 | Required | Terraform/local automation tạo single-node target tạm thời đúng thiết kế | `terraform fmt -check`/`validate` nếu dùng Terraform, review plan/config, apply | plan/config summary, node inventory        |
 | INF-002 | Required | Chạy lại Terraform sau apply không có drift ngoài dự kiến     | `terraform plan -detailed-exitcode`                      | output no changes hoặc giải thích drift   |
-| INF-003 | Required | Ansible cài k3s server và join 2 worker                       | chạy playbook từ môi trường mới                          | recap không fail, inventory               |
+| INF-003 | Required | Ansible cài k3s server single-node                            | chạy playbook từ môi trường mới                          | recap không fail, inventory               |
 | INF-004 | Required | Ansible idempotent                                            | chạy playbook lần hai                                    | `changed=0` hoặc thay đổi được giải thích |
 | INF-005 | Required | Có budget alert và hướng dẫn stop/start/destroy               | kiểm tra Billing và runbook                              | ảnh budget, runbook                       |
 | INF-006 | Required | Secret/kubeconfig/state nhạy cảm không nằm trong Git          | Trivy secret + `git ls-files` review                     | scan report                               |
@@ -35,7 +37,7 @@ Screenshot không thay thế manifest hoặc test output; manifest không thay t
 
 | ID      | Mức      | Tiêu chí                                                              | Cách kiểm chứng                                      | Evidence tối thiểu             |
 | ------- | -------- | --------------------------------------------------------------------- | ---------------------------------------------------- | ------------------------------ |
-| K8S-001 | Required | 1 server và 2 worker ở trạng thái `Ready`                             | `kubectl get nodes -o wide`                          | output nodes                   |
+| K8S-001 | Required | Single-node k3s ở trạng thái `Ready`                                   | `kubectl get nodes -o wide`                          | output nodes                   |
 | K8S-002 | Required | Node labels/placement phù hợp kiến trúc                               | `kubectl get nodes --show-labels`, list Pods by node | output/screenshot              |
 | K8S-003 | Required | Namespace custom workload enforce/audit/warn `restricted`             | xem namespace labels                                 | YAML/output                    |
 | K8S-004 | Required | Manifest an toàn chạy thành công                                      | apply safe manifest                                  | Pod Running và securityContext |
@@ -62,16 +64,16 @@ Screenshot không thay thế manifest hoặc test output; manifest không thay t
 
 | ID     | Mức      | Tiêu chí                                                          | Cách kiểm chứng             | Evidence tối thiểu      |
 | ------ | -------- | ----------------------------------------------------------------- | --------------------------- | ----------------------- |
-| DB-001 | Required | CloudNativePG cluster có 1 primary và ít nhất 1 replica           | CNPG status/Pods            | status output           |
-| DB-002 | Required | Primary và replica ở hai worker khác nhau                         | `kubectl get pods -o wide`  | node placement          |
+| DB-001 | Required | CloudNativePG cluster có 1 PostgreSQL instance tạm thời           | CNPG status/Pods            | status output           |
+| DB-002 | Optional | Primary và replica ở hai worker khác nhau khi khôi phục 3-node    | `kubectl get pods -o wide`  | node placement          |
 | DB-003 | Required | Mỗi instance có PVC bound                                         | inspect PVC/PV              | output                  |
 | DB-004 | Required | `vector` extension hoạt động                                      | SQL query extension/version | query output            |
 | DB-005 | Required | Migration tạo documents/chunks/ingestion_runs và constraints      | chạy migration từ DB rỗng   | migration log/schema    |
 | DB-006 | Required | Migration có thể chạy lại an toàn                                 | chạy upgrade lần hai        | successful/no-op output |
 | DB-007 | Required | Insert/query vector hoạt động                                     | integration test            | test output             |
-| DB-008 | Required | Replication healthy và lag quan sát được                          | CNPG/Prometheus query       | metric/status           |
-| DB-009 | Required | Switchover/failover promote replica và service tiếp tục hoạt động | failure test có thời gian   | timeline, new primary   |
-| DB-010 | Required | Dữ liệu còn sau Pod restart/failover                              | query trước/sau             | checksums/counts        |
+| DB-008 | Optional | Replication healthy và lag quan sát được khi khôi phục 3-node     | CNPG/Prometheus query       | metric/status           |
+| DB-009 | Optional | Switchover/failover promote replica và service tiếp tục hoạt động khi khôi phục 3-node | failure test có thời gian   | timeline, new primary   |
+| DB-010 | Required | Dữ liệu còn sau Pod restart trong mốc single-node                 | query trước/sau             | checksums/counts        |
 | DB-011 | Optional | Backup và restore đã kiểm thử                                     | restore vào target sạch     | restore report          |
 
 ## 6. Data ingestion
@@ -146,7 +148,7 @@ Screenshot không thay thế manifest hoặc test output; manifest không thay t
 | ALT-003 | Required | High latency/error alert được provision                 | inspect rule            | rule YAML              |
 | ALT-004 | Required | High memory/restart alert được provision                | inspect rule            | rule YAML              |
 | ALT-005 | Required | Ingestion failure alert được provision                  | inject flow failure     | Telegram + logs        |
-| ALT-006 | Required | PostgreSQL unavailable/replication alert được provision | safe simulation/query   | rule/evidence          |
+| ALT-006 | Required | PostgreSQL unavailable alert được provision; replication alert khôi phục ở mốc 3-node | safe simulation/query   | rule/evidence          |
 | ALT-007 | Required | Rate-limit spike alert được provision                   | k6 rate test            | dashboard + Telegram   |
 | ALT-008 | Required | Ít nhất một alert có đủ Pending→Firing→Resolved         | synthetic/real workload | timestamps/screenshots |
 
@@ -182,7 +184,7 @@ Screenshot không thay thế manifest hoặc test output; manifest không thay t
 | ------- | -------- | ---------------------------------------------------------------------------- | ---------------------- | ------------------ |
 | DOC-001 | Required | README có prerequisites, install, configure, test, uninstall                 | reviewer walkthrough   | README review      |
 | DOC-002 | Required | Architecture và data/telemetry flows khớp implementation                     | compare docs/manifests | review checklist   |
-| DOC-003 | Required | Runbook có Pod crash, DB failover, ingestion failure, latency/disk/model OOM | tabletop test          | runbook            |
+| DOC-003 | Required | Runbook có Pod crash, DB restart/unavailable, ingestion failure, latency/disk/model OOM; DB failover bổ sung ở mốc 3-node | tabletop test          | runbook            |
 | DOC-004 | Required | Clean install từ environment sạch thành công                                 | follow docs/scripts    | install log        |
 | DOC-005 | Required | Smoke test xác nhận service/data/observability sau install                   | run smoke suite        | report             |
 | DOC-006 | Required | Demo script 12–15 phút có fallback fixture/evidence                          | rehearsal              | script/timing      |
