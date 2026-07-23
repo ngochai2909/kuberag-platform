@@ -2,6 +2,8 @@
 
 KubeRAG is a cloud-native RAG platform monorepo. The target platform uses FastAPI, PostgreSQL/pgvector, Prefect, React/Vite, Envoy Gateway, OpenTelemetry, Prometheus/Grafana, and a self-hosted llama.cpp model on Kubernetes.
 
+The current infrastructure target is a **temporary single-node k3s environment** for local development and constrained demo work. The final target remains the original cluster shape: **1 k3s server/control-plane node and 2 k3s worker nodes** on GCP Compute Engine.
+
 Current repository state: **phase 2 RAG API skeleton**. The FastAPI backend lives in `apps/rag-api`, exposes the KubeRAG query contract, and no longer depends on LangGraph, LangChain, OpenAI SDKs, or an external LLM API. PostgreSQL/pgvector retrieval and llama.cpp generation providers are intentionally not implemented yet.
 
 ## Requirements
@@ -9,6 +11,7 @@ Current repository state: **phase 2 RAG API skeleton**. The FastAPI backend live
 - Python 3.12 or 3.13
 - [uv](https://docs.astral.sh/uv/)
 - Docker, only if building or running the local backend container
+- k3s/Ansible/Terraform prerequisites will be added in the next foundation phase
 
 ## Quick Start
 
@@ -74,7 +77,9 @@ docs/
 
 Phase 2 only replaces the legacy agent backend with typed RAG API interfaces and a deterministic skeleton. It does not implement PostgreSQL, pgvector, ingestion, llama.cpp HTTP calls, Envoy Gateway, frontend, observability, supply-chain scanning, or Kubernetes manifests.
 
-The next implementation phase should add the PostgreSQL/pgvector schema and local data-layer tests, or wire retrieval/generation providers if that plan is explicitly approved.
+The next implementation phase is the single-node foundation: Terraform/local automation for one node, Ansible k3s setup, namespace and Pod Security `restricted` validation, and a minimal Envoy Gateway route. PostgreSQL/pgvector and ingestion come after that foundation is verified.
+
+The single-node target is temporary. The 3-node GCP topology and PostgreSQL primary/replica placement must be restored before final acceptance.
 
 ## Security Notes
 
