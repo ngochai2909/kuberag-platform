@@ -1,0 +1,9 @@
+$ KUBECONFIG=/home/hai-nguyen/.kube/kuberag-k3s.yaml kubectl get ns rag data prefect loadtest observability gateway-system --show-labels
+
+NAME             STATUS   AGE   LABELS
+rag              Active   54m   kubernetes.io/metadata.name=rag,pod-security.kubernetes.io/audit=restricted,pod-security.kubernetes.io/enforce=restricted,pod-security.kubernetes.io/warn=restricted
+data             Active   54m   kubernetes.io/metadata.name=data,pod-security.kubernetes.io/audit=restricted,pod-security.kubernetes.io/enforce=restricted,pod-security.kubernetes.io/warn=restricted
+prefect          Active   54m   kubernetes.io/metadata.name=prefect,pod-security.kubernetes.io/audit=restricted,pod-security.kubernetes.io/enforce=restricted,pod-security.kubernetes.io/warn=restricted
+loadtest         Active   54m   kubernetes.io/metadata.name=loadtest,pod-security.kubernetes.io/audit=restricted,pod-security.kubernetes.io/enforce=restricted,pod-security.kubernetes.io/warn=restricted
+observability    Active   54m   kubernetes.io/metadata.name=observability
+gateway-system   Active   54m   kubernetes.io/metadata.name=gateway-system

@@ -1,0 +1,5 @@
+Partial evidence. Final NET-004 verification also needs the KubeRAG GatewayClass and route inventory.
+
+$ KUBECONFIG=/home/hai-nguyen/.kube/kuberag-k3s.yaml kubectl -n kube-system get deployment,pods,service
+
+Only coredns, local-path-provisioner, metrics-server, kube-dns, and metrics-server resources were present. No Traefik Deployment, Pod, or Service was present.

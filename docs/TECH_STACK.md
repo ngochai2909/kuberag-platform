@@ -20,7 +20,7 @@
 | Package | Helm | Required | Cài platform/operator | Hệ sinh thái chart rộng |
 | Overlay | Kustomize | Required | Custom app manifests | Native với kubectl, rõ khác biệt môi trường |
 | Gateway | Envoy Gateway | Required | Gateway API, route, rate limit | Tách network policy khỏi service |
-| Default ingress | Traefik | Present, unused | Thành phần k3s mặc định | Không phục vụ route của dự án |
+| Default ingress | Traefik | Disabled locally, unused | Thành phần k3s mặc định | Không phục vụ route của dự án |
 | Frontend | React + Vite | Required | UI truy vấn một trang | Nhẹ, nhanh, đủ cho demo |
 | Backend | FastAPI | Required | RAG HTTP API | Python, async, OpenAPI và dễ instrument |
 | Orchestrator | Prefect | Required | Daily ingestion flow | Nhẹ và dễ tiếp cận hơn Airflow cho scope này |
@@ -123,6 +123,7 @@ LangGraph/tool-calling/in-memory agent checkpoint phải được loại bỏ ho
 
 ## 5. Version và dependency policy
 
+- Local foundation pins validated on 2026-07-24: k3s `v1.35.5+k3s1`, Helm `v4.2.2`, and Envoy Gateway chart `v1.8.3`.
 - Pin Terraform provider, Helm chart và application dependency trong file lock/config.
 - Container image dùng version hoặc digest; production-like overlay dùng digest.
 - Không dùng floating tag `latest`.

@@ -4,12 +4,12 @@ This file is the shared progress tracker for the two-person KubeRAG project. Upd
 
 ## Current Snapshot
 
-- Current working branch: `feat/kuberag-rag-api-monorepo`
-- Latest implementation commit: `dcbddbd feat: bootstrap KubeRAG RAG API monorepo`
-- PR status: branch pushed; merge to `main` is still required through GitHub PR rules.
-- Direct push to `main`: blocked by repository rules, as expected.
-- Last full local verification: `make check` passed.
-- Runtime cloud/Kubernetes environment: not created yet.
+- Current working branch: `docs/readme-single-node-target`.
+- Branch baseline: `16495f1 docs: document temporary single-node target`.
+- Remote status before this checkpoint: `origin/main` remains at `8064804`; this branch requires review/merge through repository rules.
+- Last full application verification: `make check` passed in this checkpoint (`35 passed`, `98.41%` coverage).
+- Runtime environment: local single-node k3s `v1.35.5+k3s1` is running on `hainguyenpc`; GCP resources have not been created.
+- Local tooling: Helm `v4.2.2`; Envoy Gateway controller/chart `v1.8.3` in `gateway-system`.
 
 ## Completed Work
 
@@ -54,18 +54,49 @@ Verification:
 - `make check` passed.
 - Final phase 2 test result: `35 passed`, coverage `98.41%`.
 
+### Phase 3 - Local k3s Foundation
+
+Status: In progress on local single-node k3s.
+
+Completed locally:
+
+- Installed and verified local k3s `v1.35.5+k3s1` single-node cluster on `hainguyenpc`.
+- Disabled Traefik and applied node labels `kuberag.io/topology=single-node` and `kuberag.io/role=all-in-one`.
+- Applied the Kustomize local foundation overlay.
+- Created namespaces: `rag`, `data`, `prefect`, `loadtest`, `observability`, and `gateway-system`.
+- Enforced Pod Security Standards `restricted` on custom workload namespaces.
+- Deployed restricted smoke workload `kuberag-pss-smoke` in `rag`.
+- Verified an unsafe privileged/root Pod is rejected by admission.
+- Installed Helm `v4.2.2` and Envoy Gateway controller/chart `v1.8.3` in `gateway-system`.
+- Verified the Envoy Gateway controller deployment is `Available` with one `Running` Pod and zero restarts.
+
+Verification/evidence:
+
+- `docs/evidence/K8S-001/nodes-wide.txt`
+- `docs/evidence/K8S-002/nodes-labels.txt`
+- `docs/evidence/K8S-003/namespaces-pss-labels.txt`
+- `docs/evidence/K8S-004/rag-smoke-pods-services.txt`
+- `docs/evidence/K8S-004/rag-smoke-deployment-yaml.txt`
+- `docs/evidence/K8S-005/unsafe-root-pod-rejected.txt`
+- `docs/evidence/NET-001/envoy-controller-progress.txt` (partial; not acceptance pass)
+
+Pending in this foundation phase:
+
+- Capture a clean Ansible install recap for `INF-003` and a second idempotent run for `INF-004`.
+- Add declarative `GatewayClass`, `Gateway`, and `HTTPRoute` manifests.
+- Use local listener port `8080` because Apache owns host port `80` outside KubeRAG.
+- Capture Accepted/resolved conditions and an HTTP smoke result before marking `NET-001` Pass.
+- Prove Traefik does not serve any KubeRAG route.
+
 ## In Progress / Local Changes
 
-- `.github/dependabot.yml` has been deleted locally by the project owner to stop Dependabot update branches/PRs.
-- This progress file is being added after phase 2 to support two-person coordination.
+- Local single-node foundation, pinned K3s automation, Envoy controller checkpoint, and evidence are being prepared for commit.
 
 ## Not Done Yet
 
 The following required scopes are not implemented yet:
 
 - Terraform GCP infrastructure.
-- Ansible k3s setup.
-- Kubernetes namespaces and Pod Security `restricted` validation.
 - Envoy Gateway routing and gateway rate limiting.
 - PostgreSQL/pgvector and CloudNativePG.
 - Alembic migrations and database schema.
@@ -77,26 +108,25 @@ The following required scopes are not implemented yet:
 - k6 load and rate-limit tests.
 - Chainguard image hardening for all custom images.
 - Semgrep, Trivy, SBOM, Cosign signing/verification.
-- Runtime evidence under `docs/evidence/`.
+- Complete runtime evidence for gateway routing and all later platform phases.
 
 ## Recommended Next Phase
 
-Next recommended work: **Infrastructure and k3s foundation**, not database yet.
+Next recommended work: **Envoy Gateway foundation on local single-node k3s**, not database yet.
 
 Suggested scope:
 
-- Add Terraform skeleton for GCP VPC, firewall, VM, disk, and outputs.
-- Add Ansible skeleton for OS prerequisites and k3s server/worker join.
-- Add Makefile targets for non-mutating infra checks.
-- Add docs/runbook for infra setup and teardown.
-- Add static tests/checks where possible.
-- Do not run cloud `apply` unless explicitly approved.
+- Add declarative Gateway API manifests for a minimal HTTP smoke route.
+- Configure the local Envoy listener on port `8080`; keep Apache unchanged on port `80`.
+- Verify `GatewayClass`, `Gateway`, and `HTTPRoute` conditions are Accepted/resolved.
+- Prove Traefik is not serving KubeRAG routes.
+- Capture `NET-001` route condition evidence and a basic HTTP smoke result.
+- Do not create GCP resources unless explicitly approved.
 
 Relevant acceptance groups:
 
-- `INF-*` for infrastructure as code.
-- `K8S-*` for cluster and Pod Security foundation.
-- Later `NET-*` for Envoy Gateway.
+- Remaining `INF-*`/`K8S-*` evidence for idempotency and runtime inspection.
+- `NET-*` for Envoy Gateway, routing, and later rate limiting.
 
 ## Coordination Notes
 

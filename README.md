@@ -2,6 +2,8 @@
 
 KubeRAG is a cloud-native RAG platform monorepo. The target platform uses FastAPI, PostgreSQL/pgvector, Prefect, React/Vite, Envoy Gateway, OpenTelemetry, Prometheus/Grafana, and a self-hosted llama.cpp model on Kubernetes.
 
+The current infrastructure target is a **temporary single-node k3s environment** for local development and constrained demo work. The final target remains the original cluster shape: **1 k3s server/control-plane node and 2 k3s worker nodes** on GCP Compute Engine.
+
 Current repository state: **phase 2 RAG API skeleton**. The FastAPI backend lives in `apps/rag-api`, exposes the KubeRAG query contract, and no longer depends on LangGraph, LangChain, OpenAI SDKs, or an external LLM API. PostgreSQL/pgvector retrieval and llama.cpp generation providers are intentionally not implemented yet.
 
 ## Requirements
@@ -9,6 +11,16 @@ Current repository state: **phase 2 RAG API skeleton**. The FastAPI backend live
 - Python 3.12 or 3.13
 - [uv](https://docs.astral.sh/uv/)
 - Docker, only if building or running the local backend container
+- Linux host with sudo access for local k3s
+- Terraform for infrastructure validation
+- Ansible for local k3s host configuration
+- kubectl after k3s install; Helm before installing platform charts
+
+Validated local platform versions:
+
+- k3s `v1.35.5+k3s1`
+- Helm `v4.2.2`
+- Envoy Gateway Helm chart `v1.8.3`
 
 ## Quick Start
 
@@ -46,6 +58,35 @@ make check         # lint, format-check, typecheck, and test
 make lock          # intentionally refresh uv.lock
 ```
 
+## Local k3s Foundation
+
+The current infrastructure phase is local single-node k3s. It does not create GCP resources.
+
+```bash
+make infra-check
+make k3s-install
+export KUBECONFIG="$HOME/.kube/kuberag-k3s.yaml"
+make k3s-foundation-apply
+make k3s-foundation-status
+make k3s-foundation-smoke
+make k3s-unsafe-check
+```
+
+The Envoy Gateway controller is installed manually for the current checkpoint:
+
+```bash
+helm upgrade --install envoy-gateway \
+  oci://docker.io/envoyproxy/gateway-helm \
+  --version v1.8.3 \
+  --namespace gateway-system
+kubectl wait --timeout=5m --namespace gateway-system \
+  deployment/envoy-gateway --for=condition=Available
+```
+
+Gateway API routing is the next step. The local listener will use port `8080` because Apache owns host port `80`; the later GCP overlay will use standard HTTP/HTTPS ports.
+
+See `docs/runbooks/local-k3s-foundation.md` for evidence capture and rollback notes.
+
 ## Monorepo Layout
 
 ```text
@@ -74,7 +115,9 @@ docs/
 
 Phase 2 only replaces the legacy agent backend with typed RAG API interfaces and a deterministic skeleton. It does not implement PostgreSQL, pgvector, ingestion, llama.cpp HTTP calls, Envoy Gateway, frontend, observability, supply-chain scanning, or Kubernetes manifests.
 
-The next implementation phase should add the PostgreSQL/pgvector schema and local data-layer tests, or wire retrieval/generation providers if that plan is explicitly approved.
+The current implementation phase is the single-node foundation: local automation for one node, Ansible k3s setup, namespace and Pod Security `restricted` validation, and then a minimal Envoy Gateway route. PostgreSQL/pgvector and ingestion come after that foundation is verified.
+
+The single-node target is temporary. The 3-node GCP topology and PostgreSQL primary/replica placement must be restored before final acceptance.
 
 ## Security Notes
 

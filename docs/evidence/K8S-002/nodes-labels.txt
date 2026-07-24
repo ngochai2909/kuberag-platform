@@ -1,0 +1,4 @@
+$ KUBECONFIG=/home/hai-nguyen/.kube/kuberag-k3s.yaml kubectl get nodes --show-labels
+
+NAME          STATUS   ROLES           AGE   VERSION        LABELS
+hainguyenpc   Ready    control-plane   58m   v1.35.5+k3s1   beta.kubernetes.io/arch=amd64,beta.kubernetes.io/instance-type=k3s,beta.kubernetes.io/os=linux,kuberag.io/role=all-in-one,kuberag.io/topology=single-node,kubernetes.io/arch=amd64,kubernetes.io/hostname=hainguyenpc,kubernetes.io/os=linux,node-role.kubernetes.io/control-plane=true,node.kubernetes.io/instance-type=k3s
