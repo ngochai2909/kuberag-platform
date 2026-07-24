@@ -1,5 +1,20 @@
-Partial evidence. Final NET-004 verification also needs the KubeRAG GatewayClass and route inventory.
+NET-004: Pass for the local single-node foundation.
+Captured on 2026-07-24.
 
-$ KUBECONFIG=/home/hai-nguyen/.kube/kuberag-k3s.yaml kubectl -n kube-system get deployment,pods,service
+$ kubectl get ingress -A
+No resources found
 
-Only coredns, local-path-provisioner, metrics-server, kube-dns, and metrics-server resources were present. No Traefik Deployment, Pod, or Service was present.
+$ kubectl -n kube-system get deployment,pods,service
+The inventory contained coredns, local-path-provisioner, metrics-server, kube-dns, and the K3s ServiceLB Pod for the Envoy LoadBalancer Service. No Traefik Deployment, Pod, or Service was present.
+
+$ kubectl get gatewayclass,gateway,httproute -A
+NAME                                             CONTROLLER                                      ACCEPTED
+gatewayclass.gateway.networking.k8s.io/kuberag   gateway.envoyproxy.io/gatewayclass-controller   True
+
+NAMESPACE   NAME                                        CLASS     ADDRESS          PROGRAMMED
+rag         gateway.gateway.networking.k8s.io/kuberag   kuberag   192.168.10.192   True
+
+NAMESPACE   NAME
+rag         httproute.gateway.networking.k8s.io/kuberag-smoke
+
+All KubeRAG route inventory is owned by the Envoy GatewayClass. Traefik is disabled and does not serve a KubeRAG route.

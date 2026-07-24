@@ -60,30 +60,28 @@ make lock          # intentionally refresh uv.lock
 
 ## Local k3s Foundation
 
-The current infrastructure phase is local single-node k3s. It does not create GCP resources.
+The current infrastructure phase is local single-node k3s. It does not create GCP resources. Envoy Gateway is installed with Helm; project-owned Gateway API resources and the restricted smoke backend are managed with Kustomize.
 
 ```bash
 make infra-check
 make k3s-install
 export KUBECONFIG="$HOME/.kube/kuberag-k3s.yaml"
+
+helm upgrade --install envoy-gateway \
+  oci://docker.io/envoyproxy/gateway-helm \
+  --version v1.8.3 \
+  --namespace gateway-system \
+  --create-namespace
+kubectl wait --timeout=5m --namespace gateway-system \
+  deployment/envoy-gateway --for=condition=Available
+
 make k3s-foundation-apply
 make k3s-foundation-status
 make k3s-foundation-smoke
 make k3s-unsafe-check
 ```
 
-The Envoy Gateway controller is installed manually for the current checkpoint:
-
-```bash
-helm upgrade --install envoy-gateway \
-  oci://docker.io/envoyproxy/gateway-helm \
-  --version v1.8.3 \
-  --namespace gateway-system
-kubectl wait --timeout=5m --namespace gateway-system \
-  deployment/envoy-gateway --for=condition=Available
-```
-
-Gateway API routing is the next step. The local listener will use port `8080` because Apache owns host port `80`; the later GCP overlay will use standard HTTP/HTTPS ports.
+The local Gateway listens on `<node-ip>:8080` so Apache can continue using host port `80`. The local smoke route sends `/hostname` through Envoy to `kuberag-pss-smoke`; later application manifests replace it with `/` for React and `/api/` for FastAPI.
 
 See `docs/runbooks/local-k3s-foundation.md` for evidence capture and rollback notes.
 

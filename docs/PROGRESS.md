@@ -56,19 +56,21 @@ Verification:
 
 ### Phase 3 - Local k3s Foundation
 
-Status: In progress on local single-node k3s.
+Status: In progress only for remaining Ansible install/idempotency evidence; Kubernetes and Envoy smoke routing are verified locally.
 
 Completed locally:
 
 - Installed and verified local k3s `v1.35.5+k3s1` single-node cluster on `hainguyenpc`.
 - Disabled Traefik and applied node labels `kuberag.io/topology=single-node` and `kuberag.io/role=all-in-one`.
-- Applied the Kustomize local foundation overlay.
 - Created namespaces: `rag`, `data`, `prefect`, `loadtest`, `observability`, and `gateway-system`.
 - Enforced Pod Security Standards `restricted` on custom workload namespaces.
 - Deployed restricted smoke workload `kuberag-pss-smoke` in `rag`.
 - Verified an unsafe privileged/root Pod is rejected by admission.
 - Installed Helm `v4.2.2` and Envoy Gateway controller/chart `v1.8.3` in `gateway-system`.
-- Verified the Envoy Gateway controller deployment is `Available` with one `Running` Pod and zero restarts.
+- Added declarative `GatewayClass`, `Gateway`, and local smoke `HTTPRoute` manifests to Kustomize.
+- Patched the local listener to port `8080` while keeping base port `80` for the later cloud overlay.
+- Verified GatewayClass `Accepted=True`, Gateway `Programmed=True`, HTTPRoute `Accepted=True`/`ResolvedRefs=True`, and an HTTP request through Envoy to the smoke Pod.
+- Verified Traefik is absent and does not serve a KubeRAG route.
 
 Verification/evidence:
 
@@ -78,26 +80,24 @@ Verification/evidence:
 - `docs/evidence/K8S-004/rag-smoke-pods-services.txt`
 - `docs/evidence/K8S-004/rag-smoke-deployment-yaml.txt`
 - `docs/evidence/K8S-005/unsafe-root-pod-rejected.txt`
-- `docs/evidence/NET-001/envoy-controller-progress.txt` (partial; not acceptance pass)
+- `docs/evidence/NET-001/gateway-api-smoke.txt`
+- `docs/evidence/NET-004/kube-system-no-traefik.txt`
 
 Pending in this foundation phase:
 
 - Capture a clean Ansible install recap for `INF-003` and a second idempotent run for `INF-004`.
-- Add declarative `GatewayClass`, `Gateway`, and `HTTPRoute` manifests.
-- Use local listener port `8080` because Apache owns host port `80` outside KubeRAG.
-- Capture Accepted/resolved conditions and an HTTP smoke result before marking `NET-001` Pass.
-- Prove Traefik does not serve any KubeRAG route.
 
 ## In Progress / Local Changes
 
-- Local single-node foundation, pinned K3s automation, Envoy controller checkpoint, and evidence are being prepared for commit.
+- Declarative Envoy Gateway manifests, repeatable smoke verification, updated runbook, and runtime evidence are ready for review.
 
 ## Not Done Yet
 
 The following required scopes are not implemented yet:
 
 - Terraform GCP infrastructure.
-- Envoy Gateway routing and gateway rate limiting.
+- Application routes from `/` to React and `/api/` to FastAPI.
+- Envoy Gateway rate limiting and the `429` load test.
 - PostgreSQL/pgvector and CloudNativePG.
 - Alembic migrations and database schema.
 - Prefect ingestion flows for VnExpress RSS and NVD API.
@@ -108,30 +108,29 @@ The following required scopes are not implemented yet:
 - k6 load and rate-limit tests.
 - Chainguard image hardening for all custom images.
 - Semgrep, Trivy, SBOM, Cosign signing/verification.
-- Complete runtime evidence for gateway routing and all later platform phases.
+- Runtime evidence for the remaining platform phases.
 
 ## Recommended Next Phase
 
-Next recommended work: **Envoy Gateway foundation on local single-node k3s**, not database yet.
+Close the remaining Ansible install/idempotency evidence, commit this foundation checkpoint, then begin the local PostgreSQL/pgvector foundation with one CloudNativePG instance.
 
 Suggested scope:
 
-- Add declarative Gateway API manifests for a minimal HTTP smoke route.
-- Configure the local Envoy listener on port `8080`; keep Apache unchanged on port `80`.
-- Verify `GatewayClass`, `Gateway`, and `HTTPRoute` conditions are Accepted/resolved.
-- Prove Traefik is not serving KubeRAG routes.
-- Capture `NET-001` route condition evidence and a basic HTTP smoke result.
+- Capture `INF-003` and `INF-004` without reinstalling or destroying the healthy cluster.
+- Install and verify the CloudNativePG operator using the approved Helm workflow.
+- Add a single-instance PostgreSQL/pgvector cluster with persistent storage for local use.
+- Add schema migration groundwork only after persistence and extension checks pass.
 - Do not create GCP resources unless explicitly approved.
 
 Relevant acceptance groups:
 
-- Remaining `INF-*`/`K8S-*` evidence for idempotency and runtime inspection.
-- `NET-*` for Envoy Gateway, routing, and later rate limiting.
+- Remaining `INF-*` evidence for installation and idempotency.
+- `DB-001`, `DB-003`, `DB-004`, and `DB-010` for the local database foundation.
 
 ## Coordination Notes
 
-- Contributor A can continue backend/app work after infra foundation is clear.
-- Contributor B can own Terraform/Ansible/Kubernetes foundation.
-- Do not start PostgreSQL/pgvector until the cluster foundation plan is approved or a local-only DB schema phase is explicitly chosen.
+- Contributor A can continue backend/app work against provider-independent interfaces.
+- Contributor B can own Terraform/Ansible/Kubernetes and database platform work.
+- Keep the local database scope single-instance; replication/failover remains deferred to the final 1-server + 2-worker topology.
 - Keep every phase small enough to review independently.
 - Update this file whenever a phase changes status or important verification is run.
