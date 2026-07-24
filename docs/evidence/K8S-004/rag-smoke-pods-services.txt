@@ -1,0 +1,7 @@
+$ KUBECONFIG=/home/hai-nguyen/.kube/kuberag-k3s.yaml kubectl -n rag get pods,svc -o wide
+
+NAME                                     READY   STATUS    RESTARTS   AGE   IP          NODE          NOMINATED NODE   READINESS GATES
+pod/kuberag-pss-smoke-59bc599cd9-9q2fs   1/1     Running   0          54m   10.42.0.5   hainguyenpc   <none>           <none>
+
+NAME                        TYPE        CLUSTER-IP    EXTERNAL-IP   PORT(S)   AGE   SELECTOR
+service/kuberag-pss-smoke   ClusterIP   10.43.11.23   <none>        80/TCP    54m   app.kubernetes.io/name=kuberag-pss-smoke

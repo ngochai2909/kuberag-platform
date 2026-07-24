@@ -1,0 +1,5 @@
+$ KUBECONFIG=/home/hai-nguyen/.kube/kuberag-k3s.yaml kubectl apply -f deploy/kustomize/examples/unsafe-root-pod.yaml
+
+exit_code=1
+
+Error from server (Forbidden): error when creating "deploy/kustomize/examples/unsafe-root-pod.yaml": pods "kuberag-unsafe-root" is forbidden: violates PodSecurity "restricted:latest": privileged (container "unsafe" must not set securityContext.privileged=true), allowPrivilegeEscalation != false (container "unsafe" must set securityContext.allowPrivilegeEscalation=false), unrestricted capabilities (container "unsafe" must set securityContext.capabilities.drop=["ALL"]), runAsNonRoot != true (pod or container "unsafe" must set securityContext.runAsNonRoot=true), runAsUser=0 (container "unsafe" must not set runAsUser=0), seccompProfile (pod or container "unsafe" must set securityContext.seccompProfile.type to "RuntimeDefault" or "Localhost")

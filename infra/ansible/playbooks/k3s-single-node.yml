@@ -1,0 +1,110 @@
+---
+- name: Install local single-node k3s for KubeRAG
+  hosts: k3s_server
+  become: true
+  gather_facts: true
+
+  vars:
+    k3s_install_script_path: /tmp/kuberag-install-k3s.sh
+    k3s_install_url: https://get.k3s.io
+    k3s_binary_url: "https://github.com/k3s-io/k3s/releases/download/{{ k3s_version | replace('+', '%2B') }}/k3s"
+    local_user: "{{ lookup('env', 'USER') }}"
+
+  tasks:
+    - name: Assert this playbook is running against localhost
+      ansible.builtin.assert:
+        that:
+          - ansible_connection == "local"
+        fail_msg: "This temporary foundation playbook only supports local single-node k3s."
+
+    - name: Install OS prerequisites
+      ansible.builtin.apt:
+        name:
+          - ca-certificates
+          - curl
+        state: present
+        update_cache: true
+      when: ansible_os_family == "Debian"
+
+    - name: Download k3s installer
+      ansible.builtin.get_url:
+        url: "{{ k3s_install_url }}"
+        dest: "{{ k3s_install_script_path }}"
+        mode: "0755"
+
+    - name: Download pinned k3s binary
+      ansible.builtin.get_url:
+        url: "{{ k3s_binary_url }}"
+        dest: /usr/local/bin/k3s
+        mode: "0755"
+        checksum: "sha256:{{ k3s_sha256 }}"
+      register: k3s_binary
+
+    - name: Check whether k3s service is installed
+      ansible.builtin.stat:
+        path: /etc/systemd/system/k3s.service
+      register: k3s_service_unit
+
+    - name: Configure k3s server service
+      ansible.builtin.command:
+        cmd: >-
+          /bin/sh {{ k3s_install_script_path }} server
+          {% for component in k3s_disable_components %} --disable={{ component }}{% endfor %}
+      environment:
+        INSTALL_K3S_VERSION: "{{ k3s_version }}"
+        INSTALL_K3S_SKIP_DOWNLOAD: "true"
+      changed_when: true
+      when: k3s_binary.changed or not k3s_service_unit.stat.exists
+
+    - name: Ensure k3s service is enabled and running
+      ansible.builtin.systemd:
+        name: k3s
+        enabled: true
+        state: started
+
+    - name: Wait for Kubernetes API through k3s kubectl
+      ansible.builtin.command: /usr/local/bin/k3s kubectl get nodes
+      register: k3s_nodes
+      retries: 20
+      delay: 6
+      until: k3s_nodes.rc == 0
+      changed_when: false
+
+    - name: Ensure single-node labels are present
+      ansible.builtin.command:
+        argv:
+          - /usr/local/bin/k3s
+          - kubectl
+          - label
+          - node
+          - --all
+          - "{{ k3s_node_labels[0] }}"
+          - "{{ k3s_node_labels[1] }}"
+          - --overwrite
+      register: k3s_label_result
+      changed_when: "'not labeled' not in k3s_label_result.stdout"
+
+    - name: Ensure local kubeconfig directory exists
+      ansible.builtin.file:
+        path: "{{ k3s_kubeconfig_path | dirname }}"
+        state: directory
+        owner: "{{ local_user }}"
+        mode: "0700"
+
+    - name: Copy kubeconfig for the local user
+      ansible.builtin.copy:
+        src: /etc/rancher/k3s/k3s.yaml
+        dest: "{{ k3s_kubeconfig_path }}"
+        remote_src: true
+        owner: "{{ local_user }}"
+        mode: "0600"
+
+    - name: Point kubeconfig at configured API host
+      ansible.builtin.replace:
+        path: "{{ k3s_kubeconfig_path }}"
+        regexp: "https://127\\.0\\.0\\.1:6443"
+        replace: "https://{{ k3s_api_host }}:6443"
+
+    - name: Show installed node status
+      ansible.builtin.command: /usr/local/bin/k3s kubectl get nodes -o wide
+      changed_when: false

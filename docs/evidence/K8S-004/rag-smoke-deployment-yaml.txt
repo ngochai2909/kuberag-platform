@@ -1,0 +1,12 @@
+$ KUBECONFIG=/home/hai-nguyen/.kube/kuberag-k3s.yaml kubectl -n rag get deployment kuberag-pss-smoke -o jsonpath=<selected-fields>
+
+name=kuberag-pss-smoke
+availableReplicas=1
+runAsNonRoot=true
+runAsUser=65532
+seccompProfile.type=RuntimeDefault
+allowPrivilegeEscalation=false
+capabilities.drop=ALL
+image=registry.k8s.io/e2e-test-images/agnhost:2.53
+
+Source manifest: deploy/kustomize/base/pss-smoke/safe-deployment.yaml

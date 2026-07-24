@@ -31,6 +31,15 @@ logs/
 *.db
 *.sqlite3
 
+# Terraform local state and caches
+.terraform/
+*.tfstate
+*.tfstate.*
+terraform.tfvars
+*.auto.tfvars
+crash.log
+crash.*.log
+
 # IDEs and operating systems
 .idea/
 .vscode/
@@ -39,6 +48,9 @@ logs/
 *~
 .DS_Store
 Thumbs.db
+
+# Local Kubernetes tooling
+.kube/
 
 # Local tooling
 .codex-log/
