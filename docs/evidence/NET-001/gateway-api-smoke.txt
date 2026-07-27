@@ -1,0 +1,41 @@
+NET-001: Pass for the local foundation smoke route.
+Captured on 2026-07-24 against the temporary single-node k3s cluster.
+
+$ helm list -n gateway-system
+NAME          NAMESPACE       REVISION  STATUS    CHART                 APP VERSION
+envoy-gateway gateway-system  1         deployed  gateway-helm-v1.8.3  v1.8.3
+
+$ kubectl get gatewayclass kuberag
+NAME      CONTROLLER                                      ACCEPTED
+kuberag   gateway.envoyproxy.io/gatewayclass-controller   True
+
+$ kubectl get gatewayclass kuberag -o jsonpath=<conditions>
+Accepted=True reason=Accepted
+
+$ kubectl -n rag get gateway kuberag
+NAME      CLASS     ADDRESS          PROGRAMMED
+kuberag   kuberag   192.168.10.192   True
+
+$ kubectl -n rag get gateway kuberag -o jsonpath=<conditions>
+Accepted=True reason=Accepted
+Programmed=True reason=Programmed
+listener:Programmed=True reason=Programmed
+listener:Accepted=True reason=Accepted
+listener:ResolvedRefs=True reason=ResolvedRefs
+
+$ kubectl -n rag get httproute kuberag-smoke -o jsonpath=<parent-conditions>
+Accepted=True reason=Accepted
+ResolvedRefs=True reason=ResolvedRefs
+
+$ kubectl -n gateway-system get pods,svc -l gateway.envoyproxy.io/owning-gateway-name=kuberag -o wide
+pod/envoy-rag-kuberag-168c3936-5c66859d87-xrw2p   2/2   Running   0   10.42.0.9   hainguyenpc
+service/envoy-rag-kuberag-168c3936   LoadBalancer   10.43.164.253   192.168.10.192   8080:30584/TCP
+
+$ curl --fail http://192.168.10.192:8080/hostname
+kuberag-pss-smoke-59bc599cd9-9q2fs
+
+Declarative sources:
+- deploy/kustomize/base/gateway/gateway-class.yaml
+- deploy/kustomize/base/gateway/gateway.yaml
+- deploy/kustomize/overlays/local/http-route-smoke.yaml
+- deploy/kustomize/overlays/local/kustomization.yaml

@@ -49,10 +49,18 @@ k3s-foundation-status:
 	KUBECONFIG=$(KUBECONFIG) kubectl get nodes -o wide
 	KUBECONFIG=$(KUBECONFIG) kubectl get namespaces rag data prefect loadtest observability gateway-system -o yaml
 	KUBECONFIG=$(KUBECONFIG) kubectl -n rag get pods,svc -o wide
+	KUBECONFIG=$(KUBECONFIG) kubectl get gatewayclass kuberag
+	KUBECONFIG=$(KUBECONFIG) kubectl -n rag get gateway,httproute
+	KUBECONFIG=$(KUBECONFIG) kubectl -n gateway-system get pods,svc -l gateway.envoyproxy.io/owning-gateway-name=kuberag -o wide
 
 k3s-foundation-smoke:
 	KUBECONFIG=$(KUBECONFIG) kubectl -n rag wait --for=condition=Available deployment/kuberag-pss-smoke --timeout=120s
-	KUBECONFIG=$(KUBECONFIG) kubectl -n rag get deployment/kuberag-pss-smoke -o wide
+	KUBECONFIG=$(KUBECONFIG) kubectl -n rag wait --for=condition=Programmed gateway/kuberag --timeout=120s
+	@test "$$(KUBECONFIG=$(KUBECONFIG) kubectl -n rag get httproute/kuberag-smoke -o jsonpath='{.status.parents[0].conditions[?(@.type=="Accepted")].status}')" = "True"
+	@test "$$(KUBECONFIG=$(KUBECONFIG) kubectl -n rag get httproute/kuberag-smoke -o jsonpath='{.status.parents[0].conditions[?(@.type=="ResolvedRefs")].status}')" = "True"
+	@gateway_address=$$(KUBECONFIG=$(KUBECONFIG) kubectl -n rag get gateway/kuberag -o jsonpath='{.status.addresses[0].value}'); \
+		test -n "$$gateway_address"; \
+		curl --fail --silent --show-error "http://$$gateway_address:8080/hostname"
 
 k3s-unsafe-check:
 	@if KUBECONFIG=$(KUBECONFIG) kubectl apply -f deploy/kustomize/examples/unsafe-root-pod.yaml; then \
