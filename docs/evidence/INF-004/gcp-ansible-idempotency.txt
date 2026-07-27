@@ -1,0 +1,9 @@
+Captured: 2026-07-27
+Command: make gcp-k3s-install
+
+Second run after the final kubeconfig tunnel-port correction:
+  kuberag-server : ok=24 changed=0 unreachable=0 failed=0 skipped=3 rescued=0 ignored=0
+
+The empty-disk format and mount actions were skipped because the persistent disk
+was already ext4 and mounted. The k3s service remained enabled and running, and
+the local tunnel kubeconfig required no further change.

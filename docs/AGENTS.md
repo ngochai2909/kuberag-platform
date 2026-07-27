@@ -77,7 +77,12 @@ working under `docs/` must preserve the teaching workflow defined in the root
 - Explain the goal, reason, state change, security/cost impact, command,
   expected output, and stopping point for each unfamiliar infrastructure step.
 - Guide one mutating checkpoint at a time and wait for actual output before
-  continuing. An explanation request is not permission to edit or execute.
+  continuing. An explanation request is not permission to edit or execute, but
+  an unambiguous affirmative response to a clearly proposed non-destructive
+  action is sufficient; never require an exact authorization phrase.
+- Ask for clarification when consent could apply to more than one action.
+  Billable, privileged, firewall-broadening, data-destructive, and destroy
+  operations still need immediate confirmation naming the action.
 - Keep commands copy-paste safe, explain placeholders and indentation, and
   distinguish read-only checks from local, cluster, cloud-billable, privileged,
   and destructive operations.

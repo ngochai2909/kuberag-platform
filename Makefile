@@ -1,7 +1,11 @@
 KUBECONFIG ?= $(HOME)/.kube/kuberag-k3s.yaml
 KUSTOMIZE_LOCAL ?= deploy/kustomize/overlays/local
+GCP_ANSIBLE_INVENTORY ?= infra/ansible/inventory/gcp.ini
+GCP_KUBECONFIG ?= $(HOME)/.kube/kuberag-gcp.yaml
+GCP_KUSTOMIZE ?= deploy/kustomize/overlays/gcp
+ENVOY_GATEWAY_VERSION ?= v1.8.3
 
-.PHONY: setup run test test-cov lint format format-check typecheck check lock clean infra-check k3s-install k3s-foundation-apply k3s-foundation-delete k3s-foundation-status k3s-foundation-smoke k3s-unsafe-check
+.PHONY: setup run test test-cov lint format format-check typecheck check lock clean infra-check k3s-install gcp-k3s-syntax gcp-k3s-install gcp-k3s-tunnel gcp-k3s-status gcp-envoy-install gcp-foundation-apply gcp-foundation-delete gcp-foundation-status gcp-foundation-smoke gcp-unsafe-check k3s-foundation-apply k3s-foundation-delete k3s-foundation-status k3s-foundation-smoke k3s-unsafe-check
 
 setup:
 	uv sync --group dev
@@ -38,6 +42,59 @@ infra-check:
 
 k3s-install:
 	ansible-playbook -i infra/ansible/inventory/local.ini infra/ansible/playbooks/k3s-single-node.yml --ask-become-pass
+
+gcp-k3s-syntax:
+	ansible-playbook -i $(GCP_ANSIBLE_INVENTORY) infra/ansible/playbooks/k3s-gcp-single-node.yml --syntax-check
+
+gcp-k3s-install:
+	ansible-playbook -i $(GCP_ANSIBLE_INVENTORY) infra/ansible/playbooks/k3s-gcp-single-node.yml
+
+gcp-k3s-tunnel:
+	ssh -N -L 16443:127.0.0.1:6443 kuberag-gcp
+
+gcp-k3s-status:
+	KUBECONFIG=$(GCP_KUBECONFIG) kubectl get nodes -o wide
+
+gcp-envoy-install:
+	KUBECONFIG=$(GCP_KUBECONFIG) helm upgrade --install envoy-gateway \
+		oci://docker.io/envoyproxy/gateway-helm \
+		--version $(ENVOY_GATEWAY_VERSION) \
+		--namespace gateway-system \
+		--create-namespace
+	KUBECONFIG=$(GCP_KUBECONFIG) kubectl wait --timeout=5m --namespace gateway-system \
+		deployment/envoy-gateway --for=condition=Available
+
+gcp-foundation-apply:
+	KUBECONFIG=$(GCP_KUBECONFIG) kubectl apply -k $(GCP_KUSTOMIZE)
+
+gcp-foundation-delete:
+	KUBECONFIG=$(GCP_KUBECONFIG) kubectl delete -k $(GCP_KUSTOMIZE)
+
+gcp-foundation-status:
+	KUBECONFIG=$(GCP_KUBECONFIG) kubectl get nodes -o wide
+	KUBECONFIG=$(GCP_KUBECONFIG) kubectl get namespaces rag data prefect loadtest observability gateway-system --show-labels
+	KUBECONFIG=$(GCP_KUBECONFIG) kubectl -n gateway-system get deployment/envoy-gateway
+	KUBECONFIG=$(GCP_KUBECONFIG) kubectl get gatewayclass kuberag
+	KUBECONFIG=$(GCP_KUBECONFIG) kubectl -n rag get deployment,pods,services,gateway,httproute -o wide
+	KUBECONFIG=$(GCP_KUBECONFIG) kubectl -n gateway-system get pods,services -l gateway.envoyproxy.io/owning-gateway-name=kuberag -o wide
+
+gcp-foundation-smoke:
+	KUBECONFIG=$(GCP_KUBECONFIG) kubectl -n rag wait --for=condition=Available deployment/kuberag-pss-smoke --timeout=120s
+	KUBECONFIG=$(GCP_KUBECONFIG) kubectl -n rag wait --for=condition=Programmed gateway/kuberag --timeout=120s
+	@test "$$(KUBECONFIG=$(GCP_KUBECONFIG) kubectl -n rag get httproute/kuberag-smoke -o jsonpath='{.status.parents[0].conditions[?(@.type=="Accepted")].status}')" = "True"
+	@test "$$(KUBECONFIG=$(GCP_KUBECONFIG) kubectl -n rag get httproute/kuberag-smoke -o jsonpath='{.status.parents[0].conditions[?(@.type=="ResolvedRefs")].status}')" = "True"
+	@gateway_address=$$(terraform -chdir=infra/terraform output -raw external_ip); \
+		test -n "$$gateway_address"; \
+		curl --fail --silent --show-error "http://$$gateway_address:8080/hostname"
+
+gcp-unsafe-check:
+	@if KUBECONFIG=$(GCP_KUBECONFIG) kubectl apply -f deploy/kustomize/examples/unsafe-root-pod.yaml; then \
+		echo "unsafe manifest was accepted; PSS restricted is not enforced"; \
+		KUBECONFIG=$(GCP_KUBECONFIG) kubectl -n rag delete pod kuberag-unsafe-root --ignore-not-found; \
+		exit 1; \
+	else \
+		echo "unsafe manifest rejected as expected"; \
+	fi
 
 k3s-foundation-apply:
 	KUBECONFIG=$(KUBECONFIG) kubectl apply -k $(KUSTOMIZE_LOCAL)

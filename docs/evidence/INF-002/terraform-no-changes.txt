@@ -1,0 +1,8 @@
+Captured: 2026-07-27
+Command: terraform -chdir=infra/terraform plan -detailed-exitcode
+Exit code: 0
+
+No changes. Your infrastructure matches the configuration.
+
+Terraform compared the real GCP infrastructure against the configuration and
+found no differences after the foundation and IAP applies.

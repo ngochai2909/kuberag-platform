@@ -1,0 +1,32 @@
+Captured: 2026-07-27
+
+Terraform apply summaries:
+  Initial foundation: 8 added, 0 changed, 0 destroyed
+  IAP administration: 2 added, 1 changed in-place, 0 destroyed
+
+VM:
+  name: kuberag-server
+  status: RUNNING
+  zone: asia-southeast1-b
+  machine_type: e2-custom-8-16384
+  internal_ip: 10.42.0.2
+  external_ip: <STATIC_EXTERNAL_IP>
+
+Disks:
+  boot: 30 GiB
+  kuberag-data: 150 GiB
+
+Firewall scope:
+  kuberag-allow-admin: <ADMIN_PUBLIC_IP>/32 -> tcp:22,tcp:6443
+  kuberag-allow-gateway: <ADMIN_PUBLIC_IP>/32 -> tcp:8080
+  kuberag-allow-iap-ssh: 35.235.240.0/20 -> tcp:22
+  kuberag-allow-internal: 10.42.0.0/24 -> icmp,udp,tcp
+
+SSH/IAP verification:
+  ssh kuberag-gcp
+  remote user: kuberag
+  remote host: kuberag-server
+
+Ansible preflight:
+  kuberag-server | SUCCESS => ping: pong
+  dedicated disk: sdb, 150 GiB, no filesystem, not mounted
