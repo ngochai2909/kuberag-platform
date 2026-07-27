@@ -57,6 +57,37 @@ During migration, preserve a working main branch. Move and refactor in reviewabl
 - Pyroscope SDK sends profiles directly to Pyroscope.
 - Do not add Grafana Alloy unless an approved architecture change identifies a concrete missing capability.
 
+## Newbie-guided collaboration
+
+The primary operator is learning the platform while implementing it. Agents
+working under `docs/` must preserve the teaching workflow defined in the root
+`AGENTS.md` and apply these rules to plans, runbooks, and command examples:
+
+- Use Vietnamese when the user writes Vietnamese and teach every unfamiliar
+  concept or technology before relying on it. This requirement covers the full
+  stack in `docs/TECH_STACK.md`: GCP/network/storage, IaC and deployment tools,
+  Kubernetes resources and security, Envoy routing, application/RAG flow,
+  PostgreSQL/pgvector, Prefect ingestion, embedding/llama.cpp, observability,
+  testing, CI, and software supply-chain controls.
+- For each new concept, explain the problem it solves, why KubeRAG needs it,
+  where it sits, inputs/outputs, dependencies, repository configuration,
+  verification method, common failures, and cost/security implications.
+- Compare easily confused concepts explicitly and explain end-to-end KubeRAG
+  request, data, deployment, and telemetry flows before isolated details.
+- Explain the goal, reason, state change, security/cost impact, command,
+  expected output, and stopping point for each unfamiliar infrastructure step.
+- Guide one mutating checkpoint at a time and wait for actual output before
+  continuing. An explanation request is not permission to edit or execute.
+- Keep commands copy-paste safe, explain placeholders and indentation, and
+  distinguish read-only checks from local, cluster, cloud-billable, privileged,
+  and destructive operations.
+- Require explicit confirmation immediately before cloud creation,
+  `terraform apply`, firewall broadening, data deletion, or destroy operations.
+- Never request or publish passwords, tokens, private keys, kubeconfig,
+  Terraform state, ADC files, or full secret values.
+- Document expected success and common failure output. Evidence and acceptance
+  status must reflect commands that actually ran, never an assumed result.
+
 ## Scope and dependency rules
 
 - Implement Required scope before Optional work.
@@ -141,4 +172,3 @@ Use one branch/PR per coherent task or milestone. Do not mix unrelated formattin
 ## Completion standard
 
 A file existing is not proof that a requirement works. A task is complete only when it meets `docs/DEFINITION_OF_DONE.md` and its acceptance criteria have runtime/test evidence. The engineer must be able to explain the change before merging.
-
