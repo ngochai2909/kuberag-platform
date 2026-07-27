@@ -85,6 +85,26 @@ The local Gateway listens on `<node-ip>:8080` so Apache can continue using host 
 
 See `docs/runbooks/local-k3s-foundation.md` for evidence capture and rollback notes.
 
+## GCP Single-Node Preflight
+
+The next checkpoint moves the same single-node foundation to GCP Compute
+Engine. Billing, the Compute Engine API, local Application Default Credentials,
+the Singapore zone, the target E2 machine type, and a dedicated SSH key must be
+verified before Terraform is allowed to create resources.
+
+```bash
+gcloud config get-value project
+gcloud services list --enabled \
+  --filter="config.name:compute.googleapis.com" \
+  --format="value(config.name)"
+gcloud auth application-default print-access-token >/dev/null \
+  && echo "ADC: OK"
+```
+
+No VM is created during preflight. Review `terraform plan` before any
+`terraform apply`. See `docs/runbooks/gcp-cost-control.md` for the budget and
+manual stop/start/destroy procedure.
+
 ## Monorepo Layout
 
 ```text

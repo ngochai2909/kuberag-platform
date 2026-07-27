@@ -8,7 +8,7 @@ This file is the shared progress tracker for the two-person KubeRAG project. Upd
 - Branch baseline: `16495f1 docs: document temporary single-node target`.
 - Remote status before this checkpoint: `origin/main` remains at `8064804`; this branch requires review/merge through repository rules.
 - Last full application verification: `make check` passed in this checkpoint (`35 passed`, `98.41%` coverage).
-- Runtime environment: local single-node k3s `v1.35.5+k3s1` is running on `hainguyenpc`; GCP resources have not been created.
+- Runtime environment: local single-node k3s `v1.35.5+k3s1` is running on `hainguyenpc`; GCP preflight is complete and no GCP resources have been created.
 - Local tooling: Helm `v4.2.2`; Envoy Gateway controller/chart `v1.8.3` in `gateway-system`.
 
 ## Completed Work
@@ -87,9 +87,29 @@ Pending in this foundation phase:
 
 - Capture a clean Ansible install recap for `INF-003` and a second idempotent run for `INF-004`.
 
+### Phase 4 - GCP Single-Node Foundation
+
+Status: Preflight complete; Terraform implementation and plan are pending.
+
+Completed:
+
+- Selected project `kube-rag-platform` with billing enabled.
+- Enabled the Compute Engine API and verified local Application Default Credentials.
+- Verified `asia-southeast1-b` is available and `e2-standard-2` provides 2 vCPU and 8 GiB RAM.
+- Created a dedicated local Ed25519 SSH key for the GCP VM; private key material remains outside Git.
+- Created a VND 3,000,000 monthly billing-account budget alert and documented cost-control operations.
+- Captured `docs/evidence/INF-005/budget-alert.png` and `budget-alert.md`.
+
+Pending:
+
+- Implement Terraform for the custom VPC, subnet, least-privilege firewall, static address, and one VM.
+- Run `terraform init`, format, validate, and review `terraform plan` before apply.
+- Apply only after explicit approval, then capture the clean Ansible install and idempotent second run.
+- Deploy the Envoy smoke route through the GCP external address.
+
 ## In Progress / Local Changes
 
-- Declarative Envoy Gateway manifests, repeatable smoke verification, updated runbook, and runtime evidence are ready for review.
+- GCP single-node Terraform design is the next implementation checkpoint; cloud resources have not been created.
 
 ## Not Done Yet
 
@@ -112,20 +132,19 @@ The following required scopes are not implemented yet:
 
 ## Recommended Next Phase
 
-Close the remaining Ansible install/idempotency evidence, commit this foundation checkpoint, then begin the local PostgreSQL/pgvector foundation with one CloudNativePG instance.
+Implement and review the GCP single-node Terraform plan. Use the new VM as the clean environment for `INF-003` and the second Ansible run for `INF-004` before deploying data workloads.
 
 Suggested scope:
 
-- Capture `INF-003` and `INF-004` without reinstalling or destroying the healthy cluster.
-- Install and verify the CloudNativePG operator using the approved Helm workflow.
-- Add a single-instance PostgreSQL/pgvector cluster with persistent storage for local use.
-- Add schema migration groundwork only after persistence and extension checks pass.
-- Do not create GCP resources unless explicitly approved.
+- Add Terraform configuration for one GCP server while keeping a path to two workers.
+- Restrict SSH and Kubernetes API access to the administrator CIDR.
+- Review the exact resource plan and expected cost before apply.
+- Capture clean-install and idempotency evidence on the new VM.
+- Keep PostgreSQL/pgvector pending until the GCP foundation and storage design pass.
 
 Relevant acceptance groups:
 
-- Remaining `INF-*` evidence for installation and idempotency.
-- `DB-001`, `DB-003`, `DB-004`, and `DB-010` for the local database foundation.
+- `INF-001` through `INF-006` for GCP infrastructure, idempotency, cost control, and secret hygiene.
 
 ## Coordination Notes
 
