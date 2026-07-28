@@ -6,6 +6,11 @@ The current infrastructure target is a **temporary single-node k3s environment**
 
 Current repository state: **phase 2 RAG API skeleton**. The FastAPI backend lives in `apps/rag-api`, exposes the KubeRAG query contract, and no longer depends on LangGraph, LangChain, OpenAI SDKs, or an external LLM API. PostgreSQL/pgvector retrieval and llama.cpp generation providers are intentionally not implemented yet.
 
+For an accurate deployed-versus-prepared summary, start with
+[`docs/PROJECT_STATUS.md`](docs/PROJECT_STATUS.md). It records the verified
+single-node local/GCP foundation, including Envoy smoke routing, and the next
+safe checkpoint.
+
 ## Requirements
 
 - Python 3.12 or 3.13

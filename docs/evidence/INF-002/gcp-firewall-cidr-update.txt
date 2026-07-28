@@ -1,0 +1,11 @@
+INF-002 follow-up after admin/gateway CIDR update on 2026-07-28.
+
+$ terraform apply tfplan-firewall
+Apply complete! Resources: 0 added, 3 changed, 0 destroyed.
+
+Changed resources:
+- google_compute_firewall.admin (admin_source_cidr -> 101.99.23.84/32)
+- google_compute_firewall.gateway (source_ranges include 101.99.23.84/32 and 202.60.105.126/32)
+- google_compute_instance.kuberag metadata ssh-keys cleanup of temporary google-ssh keys
+
+Administrator CIDRs are stored only in the ignored local terraform.tfvars and are redacted here.

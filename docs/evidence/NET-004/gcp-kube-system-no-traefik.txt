@@ -1,0 +1,25 @@
+NET-004: Pass for the GCP single-node foundation.
+Captured on 2026-07-28 against the temporary GCP k3s cluster.
+
+$ kubectl -n kube-system get pods,svc,deploy,ds,ingress -o wide
+NAME                                                  READY   STATUS    RESTARTS   AGE
+pod/coredns-8db54c48d-796j9                           1/1     Running   0          144m
+pod/local-path-provisioner-5d9d9885bc-njhgl           1/1     Running   0          144m
+pod/metrics-server-786d997795-r9svf                   1/1     Running   0          144m
+pod/svclb-envoy-rag-kuberag-168c3936-4f039c79-9x4h5   1/1     Running   0          39m
+
+NAME                     TYPE        CLUSTER-IP    EXTERNAL-IP   PORT(S)                  AGE
+service/kube-dns         ClusterIP   10.53.0.10    <none>        53/UDP,53/TCP,9153/TCP   19h
+service/metrics-server   ClusterIP   10.53.11.46   <none>        443/TCP                  19h
+
+NAME                                     READY   UP-TO-DATE   AVAILABLE   AGE
+deployment.apps/coredns                  1/1     1            1           19h
+deployment.apps/local-path-provisioner   1/1     1            1           19h
+deployment.apps/metrics-server           1/1     1            1           19h
+
+NAME                                                       DESIRED   CURRENT   READY   UP-TO-DATE   AVAILABLE   NODE SELECTOR   AGE
+daemonset.apps/svclb-envoy-rag-kuberag-168c3936-4f039c79   1         1         1       1            1           <none>          39m
+
+$ kubectl get ingress -A
+
+Traefik is disabled in k3s config and is absent from kube-system.

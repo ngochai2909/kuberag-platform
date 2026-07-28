@@ -1,15 +1,19 @@
 # KubeRAG Progress
 
-This file is the shared progress tracker for the two-person KubeRAG project. Update it after each approved phase, PR, or major verification run so both contributors can quickly see what is done, what is pending, and where to continue.
+This file is the detailed shared progress tracker for the two-person KubeRAG
+project. For a shorter deployed-versus-prepared overview, read
+[`PROJECT_STATUS.md`](PROJECT_STATUS.md) first. Update both files after each
+approved phase, PR, or major verification run.
 
 ## Current Snapshot
 
+- Last updated: 2026-07-28.
 - Current working branch: `feat/gcp-single-node-foundation`.
-- Branch baseline: `1430b9a Merge pull request #12 from ngochai2909/docs/readme-single-node-target`.
-- Remote baseline before this checkpoint: `origin/main` is `1430b9a`; this branch requires review/merge through repository rules.
-- Last full application verification: `make check` passed in this checkpoint (`35 passed`, `98.41%` coverage).
-- Runtime environment: single-node k3s `v1.35.5+k3s1` is running locally on `hainguyenpc` and on the temporary GCP VM `kuberag-server`; GCP administration and Kubernetes API access use IAP tunnels.
-- Local tooling: Helm `v4.2.2`; Envoy Gateway controller/chart `v1.8.3` in `gateway-system`.
+- Latest foundation commit: `94c0cd6 Add GCP single-node foundation`.
+- Last full application verification: `make check` passed (`35 passed`, `98.41%` coverage).
+- Runtime environment: one `v1.35.5+k3s1` node runs locally on `hainguyenpc` and one runs on the temporary GCP VM `kuberag-server`. They are separate clusters, not two nodes in one cluster.
+- GCP access: SSH and local `kubectl` use IAP tunnels. Envoy Gateway `v1.8.3` and the smoke route are verified on GCP through public port `8080`.
+- Tooling: Helm `v4.2.2`; Envoy Gateway chart `v1.8.3` verified on local and GCP clusters.
 
 ## Completed Work
 
@@ -85,7 +89,7 @@ Verification/evidence:
 
 ### Phase 4 - GCP Single-Node Foundation
 
-Status: Terraform, IAP, persistent storage, and the GCP single-node k3s foundation are applied and verified. Envoy deployment on GCP is pending.
+Status: Done for the temporary GCP single-node foundation, including Envoy Gateway smoke routing and PSS checks.
 
 Completed:
 
@@ -131,19 +135,21 @@ Completed:
 - Re-ran the GCP Ansible playbook with `changed=0`, `unreachable=0`, and
   `failed=0`.
 - Added and rendered the GCP Kustomize overlay for the restricted smoke
-  backend, GatewayClass, Gateway, and HTTPRoute. It listens on port `8080` to
-  match the existing restricted GCP firewall rule; runtime deployment remains
-  pending.
-
-Pending:
-
-- Deploy the Envoy smoke route through the GCP external address.
+  backend, GatewayClass, Gateway, and HTTPRoute on port `8080`.
+- Installed Envoy Gateway chart `v1.8.3` on GCP and applied the foundation
+  overlay.
+- Verified Gateway `Programmed=True`, HTTPRoute `Accepted`/`ResolvedRefs`,
+  smoke Pod `Running`, and `curl http://<external-ip>:8080/hostname`.
+- Verified an unsafe privileged/root Pod is rejected by PSS on GCP.
+- Updated operator egress CIDRs in the ignored local `terraform.tfvars` after
+  a company-network public IP change, then re-verified the smoke route.
+- Captured GCP runtime evidence under `docs/evidence/K8S-*`, `NET-001`,
+  `NET-004`, and `INF-002`.
 
 ## In Progress / Local Changes
 
-- GCP infrastructure and single-node k3s are applied with Terraform and
-  Ansible idempotency verified. The next checkpoint is the Kubernetes
-  foundation and Envoy smoke route on GCP.
+- No foundation blockers remain for the temporary GCP single-node checkpoint.
+  The next implementation phase is CloudNativePG / PostgreSQL / pgvector.
 
 ## Not Done Yet
 
@@ -165,19 +171,21 @@ The following required scopes are not implemented yet:
 
 ## Recommended Next Phase
 
-Deploy and verify the existing restricted Kubernetes foundation and Envoy smoke
-route on the GCP cluster before deploying data workloads.
+Start the week-2 data layer on the verified GCP single-node cluster.
 
 Suggested scope:
 
-- Apply the namespace and Pod Security Standards foundation to GCP.
-- Install Envoy Gateway and apply the GCP Gateway API overlay.
-- Verify the smoke route through the GCP external address on port `8080`.
-- Keep PostgreSQL/pgvector pending until the GCP foundation and storage design pass.
+- Install CloudNativePG and create one temporary PostgreSQL instance with PVC.
+- Enable the `vector` extension and add Alembic migrations for documents,
+  chunks, and ingestion runs.
+- Verify basic vector insert/query and PostgreSQL restart/persistence evidence.
+- Keep Prefect ingestion and application routes pending until the database
+  checkpoint passes.
 
 Relevant acceptance groups:
 
-- `INF-001` through `INF-006` for GCP infrastructure, idempotency, cost control, and secret hygiene.
+- `DB-001`, `DB-003` through `DB-007`, and `DB-010` for the temporary
+  single-instance PostgreSQL/pgvector path.
 
 ## Coordination Notes
 

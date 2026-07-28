@@ -1,0 +1,6 @@
+K8S-001: Pass for the GCP single-node foundation.
+Captured on 2026-07-28 against the temporary GCP k3s cluster.
+
+$ kubectl get nodes -o wide
+NAME             STATUS   ROLES           AGE    VERSION        INTERNAL-IP   EXTERNAL-IP   OS-IMAGE             KERNEL-VERSION    CONTAINER-RUNTIME
+kuberag-server   Ready    control-plane   150m   v1.35.5+k3s1   10.42.0.2     <none>        Ubuntu 24.04.4 LTS   6.17.0-1021-gcp   containerd://2.2.3-k3s1

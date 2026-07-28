@@ -1,0 +1,34 @@
+NET-001: Pass for the GCP foundation smoke route.
+Captured on 2026-07-28 against the temporary GCP single-node k3s cluster.
+
+$ helm list -n gateway-system
+NAME         	NAMESPACE     	REVISION	UPDATED                                	STATUS  	CHART              	APP VERSION
+envoy-gateway	gateway-system	1       	2026-07-28 10:37:27.829172687 +0700 +07	deployed	gateway-helm-v1.8.3	v1.8.3     
+
+$ kubectl get gatewayclass kuberag
+NAME      CONTROLLER                                      ACCEPTED   AGE
+kuberag   gateway.envoyproxy.io/gatewayclass-controller   True       39m
+
+$ kubectl -n rag get gateway kuberag
+NAME      CLASS     ADDRESS     PROGRAMMED   AGE
+kuberag   kuberag   10.42.0.2   True         39m
+
+$ kubectl -n rag get httproute kuberag-smoke -o jsonpath=parent-conditions
+Accepted=True
+ResolvedRefs=True
+
+$ kubectl -n gateway-system get pods,svc -l gateway.envoyproxy.io/owning-gateway-name=kuberag -o wide
+NAME                                              READY   STATUS    RESTARTS   AGE   IP          NODE             NOMINATED NODE   READINESS GATES
+pod/envoy-rag-kuberag-168c3936-5c66859d87-nh2xk   2/2     Running   0          39m   10.52.1.9   kuberag-server   <none>           <none>
+
+NAME                                 TYPE           CLUSTER-IP      EXTERNAL-IP   PORT(S)          AGE   SELECTOR
+service/envoy-rag-kuberag-168c3936   LoadBalancer   10.53.186.143   10.42.0.2     8080:31686/TCP   39m   app.kubernetes.io/component=proxy,app.kubernetes.io/managed-by=envoy-gateway,app.kubernetes.io/name=envoy,gateway.envoyproxy.io/owning-gateway-name=kuberag,gateway.envoyproxy.io/owning-gateway-namespace=rag
+
+$ curl --fail http://136.85.70.219:8080/hostname
+kuberag-pss-smoke-59bc599cd9-z92l4
+
+Declarative sources:
+- deploy/kustomize/base/gateway/gateway-class.yaml
+- deploy/kustomize/base/gateway/gateway.yaml
+- deploy/kustomize/overlays/gcp/http-route-smoke.yaml
+- deploy/kustomize/overlays/gcp/kustomization.yaml
