@@ -1,0 +1,17 @@
+# CloudNativePG operator values for the temporary single-node milestone.
+# The release is installed in `data` and only watches that namespace.
+replicaCount: 1
+
+config:
+  clusterWide: false
+
+monitoring:
+  podMonitorEnabled: false
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 128Mi
+  limits:
+    cpu: 500m
+    memory: 512Mi

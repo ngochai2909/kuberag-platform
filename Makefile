@@ -4,8 +4,14 @@ GCP_ANSIBLE_INVENTORY ?= infra/ansible/inventory/gcp.ini
 GCP_KUBECONFIG ?= $(HOME)/.kube/kuberag-gcp.yaml
 GCP_KUSTOMIZE ?= deploy/kustomize/overlays/gcp
 ENVOY_GATEWAY_VERSION ?= v1.8.3
+CNPG_CHART_VERSION ?= 0.29.0
+CNPG_CHART ?= oci://ghcr.io/cloudnative-pg/charts/cloudnative-pg
+CNPG_VALUES ?= deploy/helm/cloudnative-pg/values.yaml
+POSTGRES_BASE_KUSTOMIZE ?= deploy/kustomize/base/postgresql
+POSTGRES_LOCAL_KUSTOMIZE ?= deploy/kustomize/overlays/local/postgresql
+POSTGRES_GCP_KUSTOMIZE ?= deploy/kustomize/overlays/gcp/postgresql
 
-.PHONY: setup run test test-cov lint format format-check typecheck check lock clean infra-check k3s-install gcp-k3s-syntax gcp-k3s-install gcp-k3s-tunnel gcp-k3s-status gcp-envoy-install gcp-foundation-apply gcp-foundation-delete gcp-foundation-status gcp-foundation-smoke gcp-unsafe-check k3s-foundation-apply k3s-foundation-delete k3s-foundation-status k3s-foundation-smoke k3s-unsafe-check
+.PHONY: setup run test test-cov lint format format-check typecheck check lock clean infra-check k3s-install gcp-k3s-syntax gcp-k3s-install gcp-k3s-tunnel gcp-k3s-status gcp-envoy-install gcp-foundation-apply gcp-foundation-delete gcp-foundation-status gcp-foundation-smoke gcp-unsafe-check k3s-foundation-apply k3s-foundation-delete k3s-foundation-status k3s-foundation-smoke k3s-unsafe-check cnpg-render postgresql-render gcp-cnpg-install gcp-postgresql-apply gcp-postgresql-status
 
 setup:
 	uv sync --group dev
@@ -63,6 +69,37 @@ gcp-envoy-install:
 		--create-namespace
 	KUBECONFIG=$(GCP_KUBECONFIG) kubectl wait --timeout=5m --namespace gateway-system \
 		deployment/envoy-gateway --for=condition=Available
+
+cnpg-render:
+	helm template cloudnative-pg $(CNPG_CHART) \
+		--version $(CNPG_CHART_VERSION) \
+		--namespace data \
+		--values $(CNPG_VALUES)
+
+postgresql-render:
+	kubectl kustomize $(POSTGRES_BASE_KUSTOMIZE)
+	kubectl kustomize $(POSTGRES_LOCAL_KUSTOMIZE)
+	kubectl kustomize $(POSTGRES_GCP_KUSTOMIZE)
+
+gcp-cnpg-install:
+	KUBECONFIG=$(GCP_KUBECONFIG) helm upgrade --install cloudnative-pg \
+		$(CNPG_CHART) \
+		--version $(CNPG_CHART_VERSION) \
+		--namespace data \
+		--create-namespace \
+		--values $(CNPG_VALUES)
+	KUBECONFIG=$(GCP_KUBECONFIG) kubectl wait --timeout=5m --namespace data \
+		deployment/cloudnative-pg --for=condition=Available
+
+gcp-postgresql-apply:
+	KUBECONFIG=$(GCP_KUBECONFIG) kubectl apply -k $(POSTGRES_GCP_KUSTOMIZE)
+
+gcp-postgresql-status:
+	KUBECONFIG=$(GCP_KUBECONFIG) kubectl --namespace data get deployment/cloudnative-pg
+	KUBECONFIG=$(GCP_KUBECONFIG) kubectl --namespace data get cluster/kuberag-pg
+	KUBECONFIG=$(GCP_KUBECONFIG) kubectl --namespace data get database/kuberag
+	KUBECONFIG=$(GCP_KUBECONFIG) kubectl --namespace data get pods,services,pvc -o wide
+	KUBECONFIG=$(GCP_KUBECONFIG) kubectl --namespace data get secret/kuberag-pg-app
 
 gcp-foundation-apply:
 	KUBECONFIG=$(GCP_KUBECONFIG) kubectl apply -k $(GCP_KUSTOMIZE)

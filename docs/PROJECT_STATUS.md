@@ -94,6 +94,7 @@ See `docs/ROADMAP.md` week 2 and `docs/runbooks/gcp-k3s-foundation.md`.
 
 - `docs/PROGRESS.md`: detailed phase log and ownership notes.
 - `docs/ARCHITECTURE.md`: target architecture and component boundaries.
+- `docs/data-model.md`: logical data model and the VnExpress ingestion decision.
 - `docs/ROADMAP.md`: planned six-week sequence.
 - `docs/ACCEPTANCE_CRITERIA.md`: required evidence and verification rules.
 - `docs/runbooks/gcp-k3s-foundation.md`: operate the current GCP checkpoint.
