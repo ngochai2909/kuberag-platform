@@ -29,13 +29,13 @@ Dựng được single-node k3s tạm thời; repository có cấu trúc, policy
 
 ### Kế hoạch theo ngày
 
-| Ngày | Công việc | Kết quả |
-|---|---|---|
-| 1 | Chốt docs, đổi tên/organize monorepo, cập nhật `AGENTS.md`, tạo issues/milestones | Scope và workflow được khóa |
-| 2 | Terraform/local automation cho một node, disk/output tối thiểu; budget alert nếu dùng GCP | plan/config rõ, apply tạo đúng resource |
-| 3 | Ansible prerequisites, k3s server single-node, kubeconfig, node labels | 1 node `Ready` |
-| 4 | Namespace, PSS `restricted`, safe/unsafe manifests; Helm/Kustomize skeleton | Pod an toàn chạy, Pod vi phạm bị từ chối |
-| 5 | Envoy Gateway, hello routes, source-base CI baseline, smoke test và evidence | `/` hoặc `/api` đi qua Envoy; CI xanh |
+| Ngày | Công việc                                                                                 | Kết quả                                  |
+| ---- | ----------------------------------------------------------------------------------------- | ---------------------------------------- |
+| 1    | Chốt docs, đổi tên/organize monorepo, cập nhật `AGENTS.md`, tạo issues/milestones         | Scope và workflow được khóa              |
+| 2    | Terraform/local automation cho một node, disk/output tối thiểu; budget alert nếu dùng GCP | plan/config rõ, apply tạo đúng resource  |
+| 3    | Ansible prerequisites, k3s server single-node, kubeconfig, node labels                    | 1 node `Ready`                           |
+| 4    | Namespace, PSS `restricted`, safe/unsafe manifests; Helm/Kustomize skeleton               | Pod an toàn chạy, Pod vi phạm bị từ chối |
+| 5    | Envoy Gateway, hello routes, source-base CI baseline, smoke test và evidence              | `/` hoặc `/api` đi qua Envoy; CI xanh    |
 
 ### Quality gate
 
@@ -59,13 +59,13 @@ PostgreSQL single-instance tạm thời hoạt động, pipeline lấy hai ngu�
 
 ### Kế hoạch theo ngày
 
-| Ngày | Công việc | Kết quả |
-|---|---|---|
-| 1 | Cài CloudNativePG operator, tạo single-instance cluster tạm thời, PVC | PostgreSQL healthy |
-| 2 | Schema/Alembic, pgvector extension, constraints, sample vector query | Migration và vector search cơ bản pass |
-| 3 | Adapter VnExpress RSS và NVD API, fixture, retry/timeout/backoff | Unit tests không phụ thuộc Internet |
-| 4 | Chunking, embedding batch, dedup/upsert, ingestion run records | Chạy lại không tạo duplicate |
-| 5 | Prefect schedule/worker, integration test và PostgreSQL restart/persistence test | Flow end-to-end và persistence evidence |
+| Ngày | Công việc                                                                        | Kết quả                                 |
+| ---- | -------------------------------------------------------------------------------- | --------------------------------------- |
+| 1    | Cài CloudNativePG operator, tạo single-instance cluster tạm thời, PVC            | PostgreSQL healthy                      |
+| 2    | Schema/Alembic, pgvector extension, constraints, sample vector query             | Migration và vector search cơ bản pass  |
+| 3    | Adapter VnExpress RSS và NVD API, fixture, retry/timeout/backoff                 | Unit tests không phụ thuộc Internet     |
+| 4    | Chunking, embedding batch, dedup/upsert, ingestion run records                   | Chạy lại không tạo duplicate            |
+| 5    | Prefect schedule/worker, integration test và PostgreSQL restart/persistence test | Flow end-to-end và persistence evidence |
 
 ### Quality gate
 
@@ -89,13 +89,13 @@ Hoàn thành luồng người dùng từ browser tới retrieval và self-hosted
 
 ### Kế hoạch theo ngày
 
-| Ngày | Công việc | Kết quả |
-|---|---|---|
-| 1 | Refactor source-base: bỏ OpenAI/LangGraph agent, giữ core tốt, tạo RAG interfaces | Unit tests và app skeleton xanh |
-| 2 | PostgreSQL retriever, query embedding, prompt builder, response sources | Retrieval integration pass |
-| 3 | Deploy llama.cpp + GGUF, client timeout/error mapping, generation integration | Không gọi external LLM API |
-| 4 | React/Vite chat UI, source cards, latency/IDs, Envoy routes | Browser demo end-to-end |
-| 5 | Chainguard images, Kustomize security/probes, BackendTrafficPolicy và `429` test | Custom workloads pass restricted |
+| Ngày | Công việc                                                                         | Kết quả                          |
+| ---- | --------------------------------------------------------------------------------- | -------------------------------- |
+| 1    | Refactor source-base: bỏ OpenAI/LangGraph agent, giữ core tốt, tạo RAG interfaces | Unit tests và app skeleton xanh  |
+| 2    | PostgreSQL retriever, query embedding, prompt builder, response sources           | Retrieval integration pass       |
+| 3    | Deploy llama.cpp + GGUF, client timeout/error mapping, generation integration     | Không gọi external LLM API       |
+| 4    | React/Vite chat UI, source cards, latency/IDs, Envoy routes                       | Browser demo end-to-end          |
+| 5    | Chainguard images, Kustomize security/probes, BackendTrafficPolicy và `429` test  | Custom workloads pass restricted |
 
 ### Quality gate
 
@@ -119,13 +119,13 @@ Theo dõi được một request RAG xuyên metrics, logs, traces và profiles t
 
 ### Kế hoạch theo ngày
 
-| Ngày | Công việc | Kết quả |
-|---|---|---|
-| 1 | Prometheus/Grafana, kube-state metrics, Envoy/app scrape, retention/resource limits | Infrastructure và app metrics có dữ liệu |
-| 2 | OTel SDK + Collector, structured OTLP logs → Loki | Tìm log theo request ID/trace ID |
-| 3 | OTel traces → Tempo, custom spans, trace propagation | Trace có retrieval/generation spans |
-| 4 | Pyroscope SDK → Pyroscope, CPU workload và flame graph | Profile hiển thị hotspot |
-| 5 | Provision data sources/dashboard, correlation test, performance review | Dashboard từ Git, không click tay |
+| Ngày | Công việc                                                                           | Kết quả                                  |
+| ---- | ----------------------------------------------------------------------------------- | ---------------------------------------- |
+| 1    | Prometheus/Grafana, kube-state metrics, Envoy/app scrape, retention/resource limits | Infrastructure và app metrics có dữ liệu |
+| 2    | OTel SDK + Collector, structured OTLP logs → Loki                                   | Tìm log theo request ID/trace ID         |
+| 3    | OTel traces → Tempo, custom spans, trace propagation                                | Trace có retrieval/generation spans      |
+| 4    | Pyroscope SDK → Pyroscope, CPU workload và flame graph                              | Profile hiển thị hotspot                 |
+| 5    | Provision data sources/dashboard, correlation test, performance review              | Dashboard từ Git, không click tay        |
 
 ### Quality gate
 
@@ -139,7 +139,7 @@ Theo dõi được một request RAG xuyên metrics, logs, traces và profiles t
 
 - OTLP logs không tương thích exporter: test một sample log trước khi instrument toàn app.
 - Telemetry overhead: giảm sample/rate và retention khi cần.
-- Dashboard query sai label: chuẩn hóa metric names/labels trước khi tạo nhiều panel.
+- Dashboard query sai label: chuẩn hóa metric names/labels trước khi tạo nhiều panel.]
 
 ## 7. Tuần 5 — Load test, alert và supply-chain security
 
@@ -149,13 +149,13 @@ Feature complete, có tải quan sát được, alert thật và CI bảo mật 
 
 ### Kế hoạch theo ngày
 
-| Ngày | Công việc | Kết quả |
-|---|---|---|
-| 1 | Grafana alert rules/contact point Telegram, synthetic failure | Test notification và alert thật |
-| 2 | k6 load test, thresholds, dashboard evidence | RPS/latency/errors/CPU/RAM hiển thị |
-| 3 | k6 rate-limit scenario, `429` spike và alert | Gateway policy được chứng minh |
-| 4 | Semgrep/Trivy, Dockerfile/manifests hardening, policy exception process | Source/config scans pass |
-| 5 | CI build/push, SBOM, Cosign sign/verify, digest deployment; feature freeze | Release candidate |
+| Ngày | Công việc                                                                  | Kết quả                             |
+| ---- | -------------------------------------------------------------------------- | ----------------------------------- |
+| 1    | Grafana alert rules/contact point Telegram, synthetic failure              | Test notification và alert thật     |
+| 2    | k6 load test, thresholds, dashboard evidence                               | RPS/latency/errors/CPU/RAM hiển thị |
+| 3    | k6 rate-limit scenario, `429` spike và alert                               | Gateway policy được chứng minh      |
+| 4    | Semgrep/Trivy, Dockerfile/manifests hardening, policy exception process    | Source/config scans pass            |
+| 5    | CI build/push, SBOM, Cosign sign/verify, digest deployment; feature freeze | Release candidate                   |
 
 ### Quality gate
 
@@ -179,13 +179,13 @@ Người khác dựng lại, kiểm thử và demo hệ thống chỉ dựa vào
 
 ### Kế hoạch theo ngày
 
-| Ngày | Công việc | Kết quả |
-|---|---|---|
-| 1 | Clean-install lần 1, sửa dependency order/readiness scripts | Install log và blocker list |
-| 2 | Failure tests: Pod, DB, source, LLM; resource tuning | Runbook/evidence cập nhật |
-| 3 | Clean-install lần 2, acceptance test đầy đủ, immutable digests | Release candidate pass |
-| 4 | README/runbooks/demo script/screenshots/reports, optional tối đa một mục nếu còn thời gian | Tài liệu hoàn chỉnh |
-| 5 | Final rehearsal 12–15 phút, freeze, tag release và backup evidence | Final release |
+| Ngày | Công việc                                                                                  | Kết quả                     |
+| ---- | ------------------------------------------------------------------------------------------ | --------------------------- |
+| 1    | Clean-install lần 1, sửa dependency order/readiness scripts                                | Install log và blocker list |
+| 2    | Failure tests: Pod, DB, source, LLM; resource tuning                                       | Runbook/evidence cập nhật   |
+| 3    | Clean-install lần 2, acceptance test đầy đủ, immutable digests                             | Release candidate pass      |
+| 4    | README/runbooks/demo script/screenshots/reports, optional tối đa một mục nếu còn thời gian | Tài liệu hoàn chỉnh         |
+| 5    | Final rehearsal 12–15 phút, freeze, tag release và backup evidence                         | Final release               |
 
 ### Quality gate
 
@@ -234,4 +234,3 @@ Không cắt yêu cầu mentor. Cắt theo thứ tự:
 5. Mọi optional.
 
 Trong mốc single-node tạm thời chỉ được hoãn PostgreSQL replica và worker join. Không cắt self-hosted LLM, bốn signal observability, alert, k6, gateway rate limit, PSS, scans, SBOM hoặc Cosign. Trước final 3-node acceptance, khôi phục PostgreSQL replica và node placement.
-

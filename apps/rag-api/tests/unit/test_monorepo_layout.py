@@ -11,6 +11,8 @@ def test_required_monorepo_directories_exist() -> None:
         "apps/rag-api/tests/unit",
         "apps/rag-api/tests/integration",
         "apps/ingestion",
+        "apps/ingestion/migrations/versions",
+        "apps/ingestion/tests/integration",
         "apps/frontend",
         "infra/terraform",
         "infra/ansible",

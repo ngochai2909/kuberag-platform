@@ -1,0 +1,7 @@
+DB-007: Insert and cosine-similarity query through pgvector.
+Captured on 2026-07-28. The test used synthetic rows inside a transaction and
+rolled it back after asserting the nearest chunk.
+
+$ make gcp-db-vector-test
+.                                                                        [100%]
+1 passed in 0.84s

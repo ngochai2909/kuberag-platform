@@ -4,7 +4,12 @@ KubeRAG is a cloud-native RAG platform monorepo. The target platform uses FastAP
 
 The current infrastructure target is a **temporary single-node k3s environment** for local development and constrained demo work. The final target remains the original cluster shape: **1 k3s server/control-plane node and 2 k3s worker nodes** on GCP Compute Engine.
 
-Current repository state: **phase 2 RAG API skeleton**. The FastAPI backend lives in `apps/rag-api`, exposes the KubeRAG query contract, and no longer depends on LangGraph, LangChain, OpenAI SDKs, or an external LLM API. PostgreSQL/pgvector retrieval and llama.cpp generation providers are intentionally not implemented yet.
+Current application state: **phase 2 RAG API skeleton**. The FastAPI backend
+lives in `apps/rag-api`, exposes the KubeRAG query contract, and no longer
+depends on LangGraph, LangChain, OpenAI SDKs, or an external LLM API. The GCP
+data foundation now has CloudNativePG, PostgreSQL/pgvector, and the initial
+Alembic schema, but the API retrieval and llama.cpp providers are intentionally
+not wired yet.
 
 For an accurate deployed-versus-prepared summary, start with
 [`docs/PROJECT_STATUS.md`](docs/PROJECT_STATUS.md). It records the verified
@@ -26,6 +31,8 @@ Validated local platform versions:
 - k3s `v1.35.5+k3s1`
 - Helm `v4.2.2`
 - Envoy Gateway Helm chart `v1.8.3`
+- CloudNativePG chart `0.29.0` / operator `1.30.0`
+- PostgreSQL `18.4` / pgvector `0.8.5`
 
 ## Quick Start
 

@@ -11,9 +11,10 @@ service.
 
 The temporary single-node infrastructure foundation is verified on both the
 local machine and the GCP VM, including Envoy Gateway smoke routing on GCP.
-The FastAPI RAG API is still a provider-independent skeleton; real
-PostgreSQL/pgvector retrieval, ingestion, llama.cpp generation, and the React
-frontend have not started.
+The GCP cluster now runs one CloudNativePG-managed PostgreSQL 18.4 instance,
+pgvector 0.8.5, and the initial Alembic schema. The FastAPI RAG API is still a
+provider-independent skeleton; ingestion, real retrieval, llama.cpp generation,
+and the React frontend have not started.
 
 The final intended topology remains one k3s server and two worker nodes. The
 current one-node setup is a deliberately temporary, lower-cost checkpoint.
@@ -29,7 +30,8 @@ current one-node setup is a deliberately temporary, lower-cost checkpoint.
 | Envoy Gateway controller | Installed and verified | Installed and verified | Chart `v1.8.3` in `gateway-system`. |
 | Smoke route | Verified end-to-end | Verified end-to-end via public `:8080` | `curl` returns the smoke Pod hostname. |
 | PSS restricted | Verified | Verified | Unsafe privileged/root Pods are rejected. |
-| Application workloads | Not deployed | Not deployed | No PostgreSQL, Prefect, frontend, real RAG API provider, or llama.cpp workload is running. |
+| PostgreSQL/pgvector | Not deployed | Verified single instance | PVC 20 GiB is Bound; `vector` is enabled; Alembic schema and sample similarity query pass. |
+| Application workloads | Not deployed | Not deployed | No Prefect, frontend, real RAG API provider, or llama.cpp workload is running. |
 
 ## Verified GCP Foundation
 
@@ -68,21 +70,24 @@ firewall CIDRs when the operator egress changes.
 | `K8S-001` to `K8S-005` | Pass local + GCP | Node, PSS, safe smoke workload, and unsafe rejection verified on both clusters. |
 | `NET-001` | Pass local + GCP | Envoy GatewayClass/Gateway/HTTPRoute accepted; smoke hostname returned. |
 | `NET-004` | Pass local + GCP | Traefik absent from kube-system on both clusters. |
+| `DB-001`, `DB-003`–`DB-007` | Pass GCP | CNPG, PVC, pgvector, migration/re-run, and vector query evidence captured. |
+| `DB-010` | Pass GCP | Marker checksum/count survived controlled Pod recreate; PVC remained Bound. |
 
 ## Immediate Next Checkpoint
 
-Start the data layer on the verified GCP single-node cluster:
+Database gate for the temporary single-node path is complete. Start ingestion
+adapters:
 
-1. Install CloudNativePG and create one temporary PostgreSQL instance with PVC.
-2. Enable `vector`, add Alembic migrations, and verify basic vector query.
-3. Keep Prefect ingestion and application routes pending until persistence and
-   restart checks pass.
+1. Implement offline VnExpress and NVD fixtures/contracts.
+2. Keep Prefect scheduling pending until adapter and idempotency checkpoints pass.
+3. Do not wire live external fetches until fixtures prove the contracts.
 
-See `docs/ROADMAP.md` week 2 and `docs/runbooks/gcp-k3s-foundation.md`.
+See `docs/ROADMAP.md` week 2 and
+`docs/runbooks/postgresql-single-node.md`.
 
 ## Major Work Still Ahead
 
-- PostgreSQL/pgvector through CloudNativePG, schema migrations, and persistence tests.
+- Later 3-node PostgreSQL replication/failover evidence.
 - Prefect ingestion for VnExpress RSS and NVD API, including fixtures and idempotency.
 - Embeddings, llama.cpp generation, and the real deterministic RAG path.
 - React/Vite frontend and Envoy routing for `/` and `/api/`.

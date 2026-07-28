@@ -1,0 +1,42 @@
+DB-010: After controlled PostgreSQL Pod restart.
+Captured on 2026-07-28T09:07:09+00:00.
+Method: SSH to kuberag-server and sudo k3s kubectl.
+marker_external_id=db-010-20260728T090636Z
+expected_checksum=459a4fc032c64ba84845d91ce556728c5f9dc326b8afc3f40da6c9299e388942
+old_pod_uid=23ae2eb0-6974-4f32-99f2-6c4149522dad
+
+$ kubectl -n data get cluster/kuberag-pg
+NAME         AGE   INSTANCES   READY   STATUS                     PRIMARY
+kuberag-pg   63m   1           1       Cluster in healthy state   kuberag-pg-1
+
+$ kubectl -n data get pods,pvc -o wide
+NAME                                 READY   STATUS    RESTARTS   AGE   IP           NODE             NOMINATED NODE   READINESS GATES
+pod/cloudnative-pg-c94cdb459-78kcx   1/1     Running   0          66m   10.52.1.10   kuberag-server   <none>           <none>
+pod/kuberag-pg-1                     1/1     Running   0          26s   10.52.1.14   kuberag-server   <none>           <none>
+
+NAME                                 STATUS   VOLUME                                     CAPACITY   ACCESS MODES   STORAGECLASS   VOLUMEATTRIBUTESCLASS   AGE   VOLUMEMODE
+persistentvolumeclaim/kuberag-pg-1   Bound    pvc-4ca5d6c8-b601-418a-8397-dd2486e8d83f   20Gi       RWO            local-path     <unset>                 63m   Filesystem
+
+new_pod_uid=a8ee3f79-bd08-497c-8ed2-a7e10c3cb542
+new_pod_start=2026-07-28T09:06:43Z
+pod_uid_changed=true
+
+$ verify marker document survived Pod recreate (PVC reused)
+     metric      |                              value                               
+-----------------+------------------------------------------------------------------
+ documents_total | 1
+ marker_rows     | 1
+ marker_checksum | 459a4fc032c64ba84845d91ce556728c5f9dc326b8afc3f40da6c9299e388942
+ checksum_match  | true
+ alembic_version | 20260728_0001
+(5 rows)
+
+                  id                  | source  |       external_id       |           title           | checksum_prefix  |          created_at           |          updated_at           
+--------------------------------------+---------+-------------------------+---------------------------+------------------+-------------------------------+-------------------------------
+ 9c0a1621-e8ce-4faf-946d-41ff21eaaf09 | fixture | db-010-20260728T090636Z | DB-010 persistence marker | 459a4fc032c64ba8 | 2026-07-28 09:06:40.033839+00 | 2026-07-28 09:06:40.033839+00
+(1 row)
+
+
+$ PVC still Bound (not deleted)
+NAME           STATUS   VOLUME                                     CAPACITY   ACCESS MODES   STORAGECLASS   VOLUMEATTRIBUTESCLASS   AGE   VOLUMEMODE
+kuberag-pg-1   Bound    pvc-4ca5d6c8-b601-418a-8397-dd2486e8d83f   20Gi       RWO            local-path     <unset>                 63m   Filesystem

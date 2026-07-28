@@ -1,0 +1,8 @@
+DB-005: Initial Alembic migration on GCP PostgreSQL.
+Captured on 2026-07-28. Connection used a temporary SSH/IAP tunnel; credentials
+remained process-local and are not present in this evidence.
+
+$ make gcp-db-migrate
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+INFO  [alembic.runtime.migration] Running upgrade  -> 20260728_0001, Create the initial KubeRAG document and ingestion schema.

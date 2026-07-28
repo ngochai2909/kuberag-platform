@@ -187,7 +187,6 @@ flowchart LR
 ```mermaid
 erDiagram
     DOCUMENTS ||--o{ CHUNKS : contains
-    INGESTION_RUNS ||--o{ DOCUMENTS : creates_or_updates
     DOCUMENTS {
         uuid id PK
         text source
@@ -195,8 +194,11 @@ erDiagram
         text title
         text url
         timestamptz published_at
+        text content
         text checksum
         jsonb metadata
+        timestamptz created_at
+        timestamptz updated_at
     }
     CHUNKS {
         uuid id PK
@@ -205,13 +207,23 @@ erDiagram
         text content
         vector embedding
         jsonb metadata
+        timestamptz created_at
+        timestamptz updated_at
     }
     INGESTION_RUNS {
         uuid id PK
+        uuid prefect_flow_run_id
         text flow_name
+        text source_scope
         text status
-        int processed_count
+        timestamptz watermark_from
+        timestamptz watermark_to
+        int fetched_count
+        int inserted_count
+        int updated_count
+        int skipped_count
         int failed_count
+        text error_summary
         timestamptz started_at
         timestamptz finished_at
     }

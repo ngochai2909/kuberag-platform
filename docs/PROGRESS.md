@@ -146,10 +146,37 @@ Completed:
 - Captured GCP runtime evidence under `docs/evidence/K8S-*`, `NET-001`,
   `NET-004`, and `INF-002`.
 
+### Phase 5 - PostgreSQL/pgvector Data Foundation
+
+Status: CloudNativePG, PostgreSQL, pgvector, and the initial Alembic schema are
+verified on the temporary GCP single-node cluster. Persistence restart testing
+remains pending.
+
+Completed:
+
+- Installed CloudNativePG chart `0.29.0` / operator `1.30.0` in namespace
+  `data` with single-namespace RBAC and PSS-restricted security contexts.
+- Created `Cluster/kuberag-pg` with one PostgreSQL `18.4` instance and a 20 GiB
+  `local-path` PVC on the dedicated GCP data disk.
+- Created `Database/kuberag`; CNPG generated the application Secret and
+  reconciled pgvector `0.8.5`.
+- Added Alembic `20260728_0001` for `documents`, `chunks`, and
+  `ingestion_runs`, including identity/chunk constraints and unbounded
+  `vector` storage without a premature ANN index.
+- Ran `alembic upgrade head` from the empty application database and reran it
+  successfully as a no-op.
+- Passed the synthetic vector insert/cosine-query integration test; the test
+  transaction was rolled back.
+- Captured evidence for `DB-001`, `DB-003` through `DB-007`.
+- Passed `DB-010`: inserted synthetic marker
+  `db-010-20260728T090636Z`, deleted only Pod `kuberag-pg-1`, waited for CNPG
+  recreate, and verified the same checksum/count plus Bound PVC
+  (`docs/evidence/DB-010/`).
+
 ## In Progress / Local Changes
 
-- No foundation blockers remain for the temporary GCP single-node checkpoint.
-  The next implementation phase is CloudNativePG / PostgreSQL / pgvector.
+- Temporary single-node database gate is complete.
+- Prefect ingestion and real API retrieval remain unimplemented.
 
 ## Not Done Yet
 
@@ -157,8 +184,6 @@ The following required scopes are not implemented yet:
 
 - Application routes from `/` to React and `/api/` to FastAPI.
 - Envoy Gateway rate limiting and the `429` load test.
-- PostgreSQL/pgvector and CloudNativePG.
-- Alembic migrations and database schema.
 - Prefect ingestion flows for VnExpress RSS and NVD API.
 - Embedding model integration.
 - llama.cpp self-hosted generation client/deployment.
@@ -171,21 +196,19 @@ The following required scopes are not implemented yet:
 
 ## Recommended Next Phase
 
-Start the week-2 data layer on the verified GCP single-node cluster.
+Start week-2 source adapters after the completed database gate.
 
 Suggested scope:
 
-- Install CloudNativePG and create one temporary PostgreSQL instance with PVC.
-- Enable the `vector` extension and add Alembic migrations for documents,
-  chunks, and ingestion runs.
-- Verify basic vector insert/query and PostgreSQL restart/persistence evidence.
-- Keep Prefect ingestion and application routes pending until the database
-  checkpoint passes.
+- Implement offline VnExpress and NVD fixtures/contracts.
+- Keep Prefect scheduling and application routes pending until the source
+  adapter and idempotency checkpoints pass.
 
 Relevant acceptance groups:
 
-- `DB-001`, `DB-003` through `DB-007`, and `DB-010` for the temporary
-  single-instance PostgreSQL/pgvector path.
+- `DB-001`, `DB-003` through `DB-007`, and `DB-010` are Pass for the temporary
+  single-instance PostgreSQL/pgvector path; next evidence belongs to ingestion
+  adapters.
 
 ## Coordination Notes
 

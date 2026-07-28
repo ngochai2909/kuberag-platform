@@ -10,8 +10,11 @@ CNPG_VALUES ?= deploy/helm/cloudnative-pg/values.yaml
 POSTGRES_BASE_KUSTOMIZE ?= deploy/kustomize/base/postgresql
 POSTGRES_LOCAL_KUSTOMIZE ?= deploy/kustomize/overlays/local/postgresql
 POSTGRES_GCP_KUSTOMIZE ?= deploy/kustomize/overlays/gcp/postgresql
+ALEMBIC_CONFIG ?= apps/ingestion/alembic.ini
+DB_RUN_SCRIPT ?= scripts/gcp-db-run.sh
+DB_INTEGRATION_TEST ?= apps/ingestion/tests/integration/test_vector_query.py
 
-.PHONY: setup run test test-cov lint format format-check typecheck check lock clean infra-check k3s-install gcp-k3s-syntax gcp-k3s-install gcp-k3s-tunnel gcp-k3s-status gcp-envoy-install gcp-foundation-apply gcp-foundation-delete gcp-foundation-status gcp-foundation-smoke gcp-unsafe-check k3s-foundation-apply k3s-foundation-delete k3s-foundation-status k3s-foundation-smoke k3s-unsafe-check cnpg-render postgresql-render gcp-cnpg-install gcp-postgresql-apply gcp-postgresql-status
+.PHONY: setup run test test-cov lint format format-check typecheck check lock clean infra-check k3s-install gcp-k3s-syntax gcp-k3s-install gcp-k3s-tunnel gcp-k3s-status gcp-envoy-install gcp-foundation-apply gcp-foundation-delete gcp-foundation-status gcp-foundation-smoke gcp-unsafe-check k3s-foundation-apply k3s-foundation-delete k3s-foundation-status k3s-foundation-smoke k3s-unsafe-check cnpg-render postgresql-render migration-sql gcp-cnpg-install gcp-postgresql-apply gcp-postgresql-status gcp-db-migrate gcp-db-current gcp-db-vector-test
 
 setup:
 	uv sync --group dev
@@ -26,16 +29,16 @@ test-cov:
 	uv run pytest --cov-report=html
 
 lint:
-	uv run ruff check apps/rag-api/src apps/rag-api/tests
+	uv run ruff check apps/rag-api/src apps/rag-api/tests apps/ingestion
 
 format:
-	uv run ruff format apps/rag-api/src apps/rag-api/tests
+	uv run ruff format apps/rag-api/src apps/rag-api/tests apps/ingestion
 
 format-check:
-	uv run ruff format --check apps/rag-api/src apps/rag-api/tests
+	uv run ruff format --check apps/rag-api/src apps/rag-api/tests apps/ingestion
 
 typecheck:
-	uv run mypy apps/rag-api/src apps/rag-api/tests
+	uv run mypy apps/rag-api/src apps/rag-api/tests apps/ingestion
 
 check: lint format-check typecheck test
 
@@ -81,6 +84,10 @@ postgresql-render:
 	kubectl kustomize $(POSTGRES_LOCAL_KUSTOMIZE)
 	kubectl kustomize $(POSTGRES_GCP_KUSTOMIZE)
 
+migration-sql:
+	DATABASE_URL=postgresql://kuberag:placeholder@localhost:5432/kuberag \
+		uv run alembic -c $(ALEMBIC_CONFIG) upgrade head --sql
+
 gcp-cnpg-install:
 	KUBECONFIG=$(GCP_KUBECONFIG) helm upgrade --install cloudnative-pg \
 		$(CNPG_CHART) \
@@ -100,6 +107,15 @@ gcp-postgresql-status:
 	KUBECONFIG=$(GCP_KUBECONFIG) kubectl --namespace data get database/kuberag
 	KUBECONFIG=$(GCP_KUBECONFIG) kubectl --namespace data get pods,services,pvc -o wide
 	KUBECONFIG=$(GCP_KUBECONFIG) kubectl --namespace data get secret/kuberag-pg-app
+
+gcp-db-migrate:
+	$(DB_RUN_SCRIPT) uv run alembic -c $(ALEMBIC_CONFIG) upgrade head
+
+gcp-db-current:
+	$(DB_RUN_SCRIPT) uv run alembic -c $(ALEMBIC_CONFIG) current
+
+gcp-db-vector-test:
+	$(DB_RUN_SCRIPT) uv run pytest --no-cov -q -m db_integration $(DB_INTEGRATION_TEST)
 
 gcp-foundation-apply:
 	KUBECONFIG=$(GCP_KUBECONFIG) kubectl apply -k $(GCP_KUSTOMIZE)
