@@ -1,0 +1,21 @@
+DB-004: Pass for the GCP single-node pgvector extension.
+Captured on 2026-07-28 against the temporary GCP k3s cluster.
+Method: SSH to kuberag-server and `sudo k3s kubectl` / `psql` in the PostgreSQL Pod.
+
+$ kubectl -n data get database/kuberag
+NAME      AGE   CLUSTER      PG NAME   APPLIED   MESSAGE
+kuberag   29m   kuberag-pg   kuberag   true
+
+$ kubectl -n data get database/kuberag status
+applied=true
+vectorApplied=true
+extensionName=vector
+
+$ kubectl -n data exec -i kuberag-pg-1 -- psql -U postgres -d kuberag -c "SELECT extname, extversion FROM pg_extension WHERE extname = 'vector';"
+extname | extversion 
+---------+------------
+ vector  | 0.8.5
+(1 row)
+
+$ kubectl -n data exec -i kuberag-pg-1 -- psql -U postgres -d kuberag -c "SELECT version();"
+PostgreSQL 18.4 (Debian 18.4-1.pgdg13+1) on x86_64-pc-linux-gnu, compiled by gcc (Debian 14.2.0-19) 14.2.0, 64-bit

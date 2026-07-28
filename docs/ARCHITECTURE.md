@@ -219,6 +219,11 @@ erDiagram
 
 Tối thiểu phải có unique constraint cho document identity và chunk index. HNSW index chỉ tạo sau khi dimension/metric của embedding model đã chốt.
 
+Quyết định source, mapping RSS, normalized document contract, deduplication và
+ingestion run được mô tả chi tiết tại
+[`data-model.md`](data-model.md). Đây là thiết kế logic trước khi tạo Alembic
+migration hoặc triển khai PostgreSQL.
+
 ## 8. RAG request architecture
 
 ```mermaid
@@ -415,4 +420,3 @@ Quy tắc:
 - Single-binary observability tối ưu tài nguyên nhưng không HA.
 - Một llama.cpp replica là single point of failure và có throughput thấp.
 - Public endpoint và TLS/auth được giữ tối giản cho demo; không phải mô hình Internet production hoàn chỉnh.
-

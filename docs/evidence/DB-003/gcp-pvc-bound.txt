@@ -1,0 +1,17 @@
+DB-003: Pass for the GCP single-node PostgreSQL PVC.
+Captured on 2026-07-28 against the temporary GCP k3s cluster.
+Method: SSH to kuberag-server and `sudo k3s kubectl`.
+
+$ kubectl -n data get pvc -o wide
+NAME           STATUS   VOLUME                                     CAPACITY   ACCESS MODES   STORAGECLASS   VOLUMEATTRIBUTESCLASS   AGE   VOLUMEMODE
+kuberag-pg-1   Bound    pvc-4ca5d6c8-b601-418a-8397-dd2486e8d83f   20Gi       RWO            local-path     <unset>                 29m   Filesystem
+
+$ kubectl get pv -o wide
+NAME                                       CAPACITY   ACCESS MODES   RECLAIM POLICY   STATUS   CLAIM               STORAGECLASS   VOLUMEATTRIBUTESCLASS   REASON   AGE   VOLUMEMODE
+pvc-4ca5d6c8-b601-418a-8397-dd2486e8d83f   20Gi       RWO            Delete           Bound    data/kuberag-pg-1   local-path     <unset>                          28m   Filesystem
+
+$ kubectl -n data get cluster/kuberag-pg pvc status
+healthyPVC=kuberag-pg-1
+pvcCount=1
+
+StorageClass local-path provisions under /var/lib/kuberag/k3s/storage on the 150 GiB data disk.

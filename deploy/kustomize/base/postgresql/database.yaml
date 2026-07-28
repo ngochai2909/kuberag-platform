@@ -1,0 +1,13 @@
+apiVersion: postgresql.cnpg.io/v1
+kind: Database
+metadata:
+  name: kuberag
+  namespace: data
+spec:
+  name: kuberag
+  owner: kuberag
+  databaseReclaimPolicy: retain
+  cluster:
+    name: kuberag-pg
+  extensions:
+    - name: vector

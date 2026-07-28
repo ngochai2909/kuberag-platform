@@ -1,0 +1,32 @@
+DB-001: Pass for the GCP single-node PostgreSQL instance.
+Captured on 2026-07-28 against the temporary GCP k3s cluster.
+Method: SSH to kuberag-server and `sudo k3s kubectl` (local API), because the laptop IAP kubectl tunnel was intermittently timing out.
+
+$ kubectl -n data get deploy/cloudnative-pg
+NAME             READY   UP-TO-DATE   AVAILABLE   AGE
+cloudnative-pg   1/1     1            1           31m
+
+$ kubectl -n data get cluster/kuberag-pg
+NAME         AGE   INSTANCES   READY   STATUS                     PRIMARY
+kuberag-pg   29m   1           1       Cluster in healthy state   kuberag-pg-1
+
+$ kubectl -n data get pods -o wide
+NAME                             READY   STATUS    RESTARTS   AGE   IP           NODE             NOMINATED NODE   READINESS GATES
+cloudnative-pg-c94cdb459-78kcx   1/1     Running   0          31m   10.52.1.10   kuberag-server   <none>           <none>
+kuberag-pg-1                     1/1     Running   0          28m   10.52.1.13   kuberag-server   <none>           <none>
+
+$ kubectl -n data get cluster/kuberag-pg status fields
+phase=Cluster in healthy state
+ready=True
+instances=1
+primary=kuberag-pg-1
+image=ghcr.io/cloudnative-pg/postgresql:18.4-standard-trixie@sha256:c94c6b0db7bc90c4d89cc0950fbb22907aa55df0e948cbc112adb87846660974
+
+$ kubectl -n data get svc -o wide
+NAME                   TYPE        CLUSTER-IP      EXTERNAL-IP   PORT(S)    AGE   SELECTOR
+cnpg-webhook-service   ClusterIP   10.53.113.232   <none>        443/TCP    32m   app.kubernetes.io/instance=cloudnative-pg,app.kubernetes.io/name=cloudnative-pg
+kuberag-pg-r           ClusterIP   10.53.80.239    <none>        5432/TCP   29m   cnpg.io/cluster=kuberag-pg,cnpg.io/podRole=instance
+kuberag-pg-ro          ClusterIP   10.53.113.194   <none>        5432/TCP   29m   cnpg.io/cluster=kuberag-pg,cnpg.io/instanceRole=replica
+kuberag-pg-rw          ClusterIP   10.53.62.76     <none>        5432/TCP   29m   cnpg.io/cluster=kuberag-pg,cnpg.io/instanceRole=primary
+
+Operator install evidence from the same day: Helm release cloudnative-pg chart 0.29.0 / app 1.30.0 in namespace data.
