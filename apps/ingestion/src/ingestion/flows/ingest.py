@@ -1,0 +1,198 @@
+"""Daily ingestion Prefect flow: fetch → normalize → dedup → chunk → embed → upsert.
+
+The flow is dependency-injected through :class:`IngestionRuntime` so unit tests
+can run offline with fake HTTP, fake embeddings, and an in-memory store.
+Prefect server/worker deployment and the real e5 model remain later cluster
+checkpoints.
+"""
+
+from __future__ import annotations
+
+from collections.abc import Iterator
+from contextlib import contextmanager
+from dataclasses import dataclass, field
+from datetime import UTC, datetime
+from typing import Any, Literal
+from uuid import UUID
+
+from prefect import flow, task
+
+from ingestion.adapters.nvd import DEFAULT_API_BASE, NvdAdapter
+from ingestion.adapters.vnexpress import DEFAULT_FEED_URL, VnExpressAdapter
+from ingestion.chunking import ChunkingConfig
+from ingestion.embedding import EmbeddingProvider
+from ingestion.http import HttpClient
+from ingestion.models import SourceDocument
+from ingestion.store import DocumentStore, IngestionCounters, IngestionRunRecord
+from ingestion.upsert import start_ingestion_run
+
+DAILY_INGEST_FLOW_NAME = "kuberag-daily-ingest"
+DAILY_INGEST_CRON = "0 2 * * *"
+DAILY_INGEST_TIMEZONE = "UTC"
+
+SourceName = Literal["vnexpress", "nvd"]
+
+_RUNTIME: IngestionRuntime | None = None
+
+
+@dataclass(slots=True)
+class IngestionRuntime:
+    """Injectable collaborators for one ingestion flow execution."""
+
+    http: HttpClient
+    store: DocumentStore
+    embedder: EmbeddingProvider | None = None
+    chunking: ChunkingConfig = field(default_factory=ChunkingConfig)
+    vnexpress_feed_url: str = DEFAULT_FEED_URL
+    nvd_api_base: str = DEFAULT_API_BASE
+    embedding_batch_size: int = 32
+
+
+@dataclass(frozen=True, slots=True)
+class IngestionFlowResult:
+    """Business summary returned by the daily ingest flow."""
+
+    flow_name: str
+    status: Literal["completed", "failed"]
+    sources: list[str]
+    document_count: int
+    counters: IngestionCounters
+    run_id: UUID
+    started_at: datetime
+    finished_at: datetime | None
+    error_summary: str | None = None
+
+
+@contextmanager
+def ingestion_runtime(runtime: IngestionRuntime) -> Iterator[IngestionRuntime]:
+    """Bind collaborators for the current process while a flow runs."""
+
+    global _RUNTIME
+    previous = _RUNTIME
+    _RUNTIME = runtime
+    try:
+        yield runtime
+    finally:
+        _RUNTIME = previous
+
+
+def get_ingestion_runtime() -> IngestionRuntime:
+    global _RUNTIME
+    if _RUNTIME is None:
+        # Cluster workers bind collaborators from env; unit tests inject explicitly.
+        from ingestion.runtime_env import build_runtime_from_env
+
+        _RUNTIME = build_runtime_from_env()
+    return _RUNTIME
+
+
+def deployment_schedule() -> dict[str, str]:
+    """Declarative daily schedule for later Prefect deployment registration.
+
+    ING-005 cluster evidence still requires inspecting the deployed schedule in
+    Prefect UI/API after server/worker exist. This helper keeps the cron choice
+    versioned in Git until then.
+    """
+
+    return {
+        "flow_name": DAILY_INGEST_FLOW_NAME,
+        "cron": DAILY_INGEST_CRON,
+        "timezone": DAILY_INGEST_TIMEZONE,
+    }
+
+
+@task(name="fetch-vnexpress", retries=2, retry_delay_seconds=1)
+def fetch_vnexpress_documents() -> list[SourceDocument]:
+    runtime = get_ingestion_runtime()
+    adapter = VnExpressAdapter(runtime.http, feed_url=runtime.vnexpress_feed_url)
+    return adapter.fetch_documents()
+
+
+@task(name="fetch-nvd", retries=2, retry_delay_seconds=1)
+def fetch_nvd_documents() -> list[SourceDocument]:
+    runtime = get_ingestion_runtime()
+    adapter = NvdAdapter(runtime.http, api_base=runtime.nvd_api_base)
+    return adapter.fetch_documents()
+
+
+@task(name="upsert-documents", retries=1, retry_delay_seconds=1)
+def upsert_documents(
+    documents: list[SourceDocument],
+    *,
+    source_scope: str,
+) -> IngestionRunRecord:
+    runtime = get_ingestion_runtime()
+    session = start_ingestion_run(
+        runtime.store,
+        flow_name=DAILY_INGEST_FLOW_NAME,
+        source_scope=source_scope,
+        chunking=runtime.chunking,
+        embedder=runtime.embedder,
+        embedding_batch_size=runtime.embedding_batch_size,
+    )
+    for document in documents:
+        try:
+            session.upsert_document(document)
+        except Exception as exc:
+            session.record_failure(exc)
+    return session.complete(watermark_to=datetime.now(UTC))
+
+
+@flow(name=DAILY_INGEST_FLOW_NAME, log_prints=False)
+def daily_ingest_flow(
+    sources: list[SourceName] | None = None,
+) -> IngestionFlowResult:
+    """Run the deterministic ingestion pipeline for configured sources."""
+
+    selected: list[SourceName] = list(sources) if sources else ["vnexpress", "nvd"]
+    documents: list[SourceDocument] = []
+
+    if "vnexpress" in selected:
+        documents.extend(fetch_vnexpress_documents())
+    if "nvd" in selected:
+        documents.extend(fetch_nvd_documents())
+
+    source_scope = ",".join(selected)
+    run = upsert_documents(documents, source_scope=source_scope)
+    status: Literal["completed", "failed"] = "failed" if run.status != "completed" else "completed"
+    return IngestionFlowResult(
+        flow_name=DAILY_INGEST_FLOW_NAME,
+        status=status,
+        sources=list(selected),
+        document_count=len(documents),
+        counters=run.counters,
+        run_id=run.id,
+        started_at=run.started_at,
+        finished_at=run.finished_at,
+        error_summary=run.error_summary,
+    )
+
+
+def flow_pipeline_steps() -> list[str]:
+    """Stable step names for contract/documentation tests."""
+
+    return [
+        "fetch",
+        "normalize",
+        "deduplicate",
+        "chunk",
+        "embed",
+        "upsert",
+    ]
+
+
+# Prefect may wrap returns; keep a plain helper for typing-focused callers.
+def summarize_flow_result(result: IngestionFlowResult) -> dict[str, Any]:
+    return {
+        "flow_name": result.flow_name,
+        "status": result.status,
+        "sources": result.sources,
+        "document_count": result.document_count,
+        "fetched_count": result.counters.fetched_count,
+        "inserted_count": result.counters.inserted_count,
+        "updated_count": result.counters.updated_count,
+        "skipped_count": result.counters.skipped_count,
+        "failed_count": result.counters.failed_count,
+        "run_id": str(result.run_id),
+        "error_summary": result.error_summary,
+    }

@@ -402,7 +402,7 @@ Mục tiêu ban đầu, cần đo và hiệu chỉnh:
 | PostgreSQL 1 instance | 0.8–1.5 GiB | Giới hạn shared buffers phù hợp; 2 instance ở mốc 3-node |
 | Observability | 3–5 GiB | Single-binary, retention ngắn, volume nhỏ |
 | Prefect + apps | 1–2 GiB | Một replica mỗi service |
-| Embedding + llama.cpp | 1.5–3 GiB | Ưu tiên Qwen 0.5B Q4, batch nhỏ, không chạy song song quá mức |
+| Embedding + llama.cpp | 3–6 GiB | Baseline `Qwen2.5-1.5B-Instruct` GGUF `Q4_K_M`; embedding batch nhỏ, một generation request tại một thời điểm |
 
 Quy tắc:
 
@@ -410,6 +410,9 @@ Quy tắc:
 - Loki/Tempo/Pyroscope retention ngắn, volume nhỏ.
 - k6 ưu tiên chạy từ laptop/runner ngoài cluster để không cạnh tranh workload.
 - Trên máy 16 GiB, giải phóng RAM trước khi chạy full stack; nếu dùng GCP có thể resize tạm VM lên 16 GiB rồi hạ xuống.
+- Khi quay lại 1 server + 2 worker, `llama.cpp` phải được schedule vào worker
+  ứng dụng. Worker đó cần đủ RAM cho model, KV cache và FastAPI/ingestion; RAM
+  của worker khác không thể được dùng chung cho một Pod model.
 
 ## 12. Failure modes và hành vi kỳ vọng
 

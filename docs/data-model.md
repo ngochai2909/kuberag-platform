@@ -18,9 +18,8 @@ VnExpress RSS / NVD API
 -> RAG retrieval and source links
 ```
 
-The initial implementation starts with VnExpress. NVD-specific metadata is
-deferred until its API sample is inspected, but it must conform to the same
-`SourceDocument` contract.
+The initial implementation starts with VnExpress. NVD uses the same
+`SourceDocument` contract with the mapping below.
 
 ## VnExpress Source Decision
 
@@ -78,6 +77,72 @@ For VnExpress, map the RSS/article data as follows:
 
 The checksum is calculated from the normalized title and full text, not the raw
 RSS XML. This detects an edited article even when its URL remains unchanged.
+
+## NVD Source Decision
+
+API base:
+
+```text
+https://services.nvd.nist.gov/rest/json/cves/2.0
+```
+
+NVD CVE API 2.0 JSON is already structured, so the adapter normalizes each
+`vulnerabilities[].cve` object without a second HTML fetch.
+
+| Source field | SourceDocument field | Rule |
+|---|---|---|
+| `cve.id` | `external_id` | Stable CVE identifier such as `CVE-2024-12345`. |
+| `cve.id` + English description lead | `title` | Compact display title bounded to 1000 characters. |
+| derived detail URL | `url` | `https://nvd.nist.gov/vuln/detail/{cve.id}` for frontend source links. |
+| `cve.published` | `published_at` | Parsed as timezone-aware UTC. |
+| English `descriptions[].value` | `text` | Prefer `lang` starting with `en`; otherwise first non-empty value. |
+| `vulnStatus`, `sourceIdentifier`, `lastModified` | `metadata.*` | Bounded provenance fields only. |
+| primary CVSS metric when present | `metadata.cvss_*` | Store version, score, and severity; omit when absent. |
+
+Checksum uses the same title+text rule as VnExpress. Raw NVD JSON is not stored
+in PostgreSQL in the first milestone.
+
+## Chunking Decision
+
+Chunking happens after adapters produce `SourceDocument` and before embedding.
+It does not load an embedding or generation model.
+
+Strategy: `sentence-overlap-v1`
+
+1. Prefer sentence boundaries (`.`, `!`, `?`, `…`).
+2. Pack whole sentences until the character budget is reached.
+3. Overlap adjacent chunks by approximately `overlap_chars` so retrieval keeps
+   local context across boundaries.
+4. Hard-split on words, then characters, only when one sentence exceeds the
+   budget.
+5. Prefix each chunk with the document title so retrieved snippets remain
+   attributable during query time.
+
+Default config for the first milestone:
+
+```text
+max_chars = 800
+overlap_chars = 150
+include_title = true
+```
+
+Sizing is character-based for now. Planned embedding model is
+`intfloat/multilingual-e5-small` at **384 dimensions**. The Alembic column
+remains unbounded `vector` until a follow-up migration pins `vector(384)` after
+the real provider is deployed on the cluster.
+
+## Embedding Provider Decision
+
+Ingestion and later RAG query embedding call an `EmbeddingProvider` interface:
+
+```text
+embed_documents(texts, batch_size) -> list[vector]
+embed_query(text) -> vector
+```
+
+- Offline/unit tests use `FakeEmbeddingProvider` (hashing, 384-dim, no download).
+- Production will use `multilingual-e5-small` inside the ingestion workload on
+  k3s; laptop pytest must not download that model.
 
 ## Logical Database Model
 
@@ -200,10 +265,9 @@ one displayed source entry.
 
 ## Decisions Still Pending
 
-- Inspect an NVD API sample and define its `external_id` and metadata mapping.
-- Pin the embedding model and its vector dimension.
-- Choose chunking strategy, chunk size, overlap, and tokenizer behavior.
-- Choose pgvector index type and create it only after a representative corpus
-  and query behavior are measured.
+- Optionally refine chunk budgets with the pinned E5 tokenizer once the real
+  provider runs on the cluster.
+- Alembic follow-up to pin `vector(384)` and choose HNSW/IVFFlat after measuring
+  a representative corpus.
 - Decide whether source-specific per-record error history requires a future
   `ingestion_errors` table. It is not needed for the first milestone.

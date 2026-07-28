@@ -10,11 +10,20 @@ CNPG_VALUES ?= deploy/helm/cloudnative-pg/values.yaml
 POSTGRES_BASE_KUSTOMIZE ?= deploy/kustomize/base/postgresql
 POSTGRES_LOCAL_KUSTOMIZE ?= deploy/kustomize/overlays/local/postgresql
 POSTGRES_GCP_KUSTOMIZE ?= deploy/kustomize/overlays/gcp/postgresql
+PREFECT_GCP_KUSTOMIZE ?= deploy/kustomize/overlays/gcp/prefect
+PREFECT_WORKER_GCP_KUSTOMIZE ?= deploy/kustomize/overlays/gcp/prefect-worker
+PREFECT_BOOTSTRAP_JOB ?= deploy/kustomize/base/prefect/bootstrap-job.yaml
+E5_DOWNLOAD_JOB ?= deploy/kustomize/base/prefect/e5-download-job.yaml
+E5_SMOKE_JOB ?= deploy/kustomize/base/prefect/e5-smoke-job.yaml
 ALEMBIC_CONFIG ?= apps/ingestion/alembic.ini
 DB_RUN_SCRIPT ?= scripts/gcp-db-run.sh
 DB_INTEGRATION_TEST ?= apps/ingestion/tests/integration/test_vector_query.py
+INGESTION_IMAGE ?= kuberag-ingestion:local
+UV_VERSION ?= 0.11.15
+PREFECT_DB_SECRET_SCRIPT ?= scripts/gcp-prefect-db-secret.sh
+INGESTION_IMAGE_IMPORT_SCRIPT ?= scripts/gcp-ingestion-image-import.sh
 
-.PHONY: setup run test test-cov lint format format-check typecheck check lock clean infra-check k3s-install gcp-k3s-syntax gcp-k3s-install gcp-k3s-tunnel gcp-k3s-status gcp-envoy-install gcp-foundation-apply gcp-foundation-delete gcp-foundation-status gcp-foundation-smoke gcp-unsafe-check k3s-foundation-apply k3s-foundation-delete k3s-foundation-status k3s-foundation-smoke k3s-unsafe-check cnpg-render postgresql-render migration-sql gcp-cnpg-install gcp-postgresql-apply gcp-postgresql-status gcp-db-migrate gcp-db-current gcp-db-vector-test
+.PHONY: setup run test test-cov lint format format-check typecheck check lock clean infra-check k3s-install gcp-k3s-syntax gcp-k3s-install gcp-k3s-tunnel gcp-k3s-status gcp-envoy-install gcp-foundation-apply gcp-foundation-delete gcp-foundation-status gcp-foundation-smoke gcp-unsafe-check k3s-foundation-apply k3s-foundation-delete k3s-foundation-status k3s-foundation-smoke k3s-unsafe-check cnpg-render postgresql-render migration-sql gcp-cnpg-install gcp-postgresql-apply gcp-postgresql-status gcp-db-migrate gcp-db-current gcp-db-vector-test docker-ingestion-build docker-ingestion-smoke gcp-ingestion-image-import gcp-prefect-db-secret gcp-prefect-apply gcp-prefect-bootstrap gcp-prefect-worker-apply gcp-prefect-status gcp-e5-download gcp-e5-smoke
 
 setup:
 	uv sync --group dev
@@ -29,16 +38,16 @@ test-cov:
 	uv run pytest --cov-report=html
 
 lint:
-	uv run ruff check apps/rag-api/src apps/rag-api/tests apps/ingestion
+	uv run ruff check apps/rag-api/src apps/rag-api/tests apps/ingestion/src apps/ingestion/tests
 
 format:
-	uv run ruff format apps/rag-api/src apps/rag-api/tests apps/ingestion
+	uv run ruff format apps/rag-api/src apps/rag-api/tests apps/ingestion/src apps/ingestion/tests
 
 format-check:
-	uv run ruff format --check apps/rag-api/src apps/rag-api/tests apps/ingestion
+	uv run ruff format --check apps/rag-api/src apps/rag-api/tests apps/ingestion/src apps/ingestion/tests
 
 typecheck:
-	uv run mypy apps/rag-api/src apps/rag-api/tests apps/ingestion
+	uv run mypy apps/rag-api/src apps/rag-api/tests apps/ingestion/src apps/ingestion/tests
 
 check: lint format-check typecheck test
 
@@ -180,6 +189,54 @@ k3s-unsafe-check:
 	else \
 		echo "unsafe manifest rejected as expected"; \
 	fi
+
+docker-ingestion-build:
+	docker build \
+		--build-arg UV_VERSION=$(UV_VERSION) \
+		-f apps/ingestion/Dockerfile \
+		-t $(INGESTION_IMAGE) \
+		.
+
+docker-ingestion-smoke: docker-ingestion-build
+	docker run --rm $(INGESTION_IMAGE)
+
+gcp-ingestion-image-import: docker-ingestion-build
+	INGESTION_IMAGE=$(INGESTION_IMAGE) $(INGESTION_IMAGE_IMPORT_SCRIPT)
+
+gcp-prefect-db-secret:
+	KUBECONFIG=$(GCP_KUBECONFIG) $(PREFECT_DB_SECRET_SCRIPT)
+
+gcp-prefect-apply:
+	KUBECONFIG=$(GCP_KUBECONFIG) kubectl apply -k $(PREFECT_GCP_KUSTOMIZE)
+	KUBECONFIG=$(GCP_KUBECONFIG) kubectl -n prefect wait --for=condition=Available deployment/prefect-server --timeout=300s
+
+gcp-prefect-bootstrap:
+	KUBECONFIG=$(GCP_KUBECONFIG) kubectl -n prefect delete job/prefect-bootstrap --ignore-not-found
+	KUBECONFIG=$(GCP_KUBECONFIG) kubectl apply -f $(PREFECT_BOOTSTRAP_JOB)
+	KUBECONFIG=$(GCP_KUBECONFIG) kubectl -n prefect wait --for=condition=Complete job/prefect-bootstrap --timeout=300s
+	KUBECONFIG=$(GCP_KUBECONFIG) kubectl -n prefect logs job/prefect-bootstrap
+
+gcp-prefect-worker-apply:
+	KUBECONFIG=$(GCP_KUBECONFIG) kubectl apply -k $(PREFECT_WORKER_GCP_KUSTOMIZE)
+	KUBECONFIG=$(GCP_KUBECONFIG) kubectl -n prefect wait --for=condition=Available deployment/prefect-worker --timeout=300s
+
+gcp-prefect-status:
+	KUBECONFIG=$(GCP_KUBECONFIG) kubectl -n prefect get deploy,pods,svc,pvc,job,secret -o wide
+	KUBECONFIG=$(GCP_KUBECONFIG) kubectl -n prefect get deploy/prefect-server -o jsonpath='{.status.availableReplicas}{" server-available\n"}'
+	KUBECONFIG=$(GCP_KUBECONFIG) kubectl -n prefect get deploy/prefect-worker -o jsonpath='{.status.availableReplicas}{" worker-available\n"}'
+
+gcp-e5-download:
+	KUBECONFIG=$(GCP_KUBECONFIG) kubectl apply -k $(PREFECT_GCP_KUSTOMIZE)
+	KUBECONFIG=$(GCP_KUBECONFIG) kubectl -n prefect delete job/kuberag-e5-download --ignore-not-found
+	KUBECONFIG=$(GCP_KUBECONFIG) kubectl apply -f $(E5_DOWNLOAD_JOB)
+	KUBECONFIG=$(GCP_KUBECONFIG) kubectl -n prefect wait --for=condition=Complete job/kuberag-e5-download --timeout=900s
+	KUBECONFIG=$(GCP_KUBECONFIG) kubectl -n prefect logs job/kuberag-e5-download
+
+gcp-e5-smoke:
+	KUBECONFIG=$(GCP_KUBECONFIG) kubectl -n prefect delete job/kuberag-e5-smoke --ignore-not-found
+	KUBECONFIG=$(GCP_KUBECONFIG) kubectl apply -f $(E5_SMOKE_JOB)
+	KUBECONFIG=$(GCP_KUBECONFIG) kubectl -n prefect wait --for=condition=Complete job/kuberag-e5-smoke --timeout=300s
+	KUBECONFIG=$(GCP_KUBECONFIG) kubectl -n prefect logs job/kuberag-e5-smoke
 
 clean:
 	find . -type d -name __pycache__ -exec rm -rf {} +

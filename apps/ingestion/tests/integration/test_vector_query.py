@@ -12,7 +12,7 @@ pytestmark = pytest.mark.db_integration
 def test_insert_and_query_nearest_vector() -> None:
     database_url = os.environ.get("DATABASE_URL")
     if not database_url:
-        pytest.fail("DATABASE_URL is required for the database integration test")
+        pytest.skip("DATABASE_URL is required for the database integration test")
 
     external_id = f"db-007-{uuid4()}"
     checksum = "a" * 64

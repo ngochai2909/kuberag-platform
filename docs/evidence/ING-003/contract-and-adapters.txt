@@ -1,0 +1,16 @@
+...............                                                          [100%]
+================================ tests coverage ================================
+_______________ coverage: platform linux, python 3.12.3-final-0 ________________
+
+Name                                                 Stmts   Miss Branch BrPart  Cover   Missing
+------------------------------------------------------------------------------------------------
+apps/ingestion/src/ingestion/__init__.py                 2      0      0      0   100%
+apps/ingestion/src/ingestion/adapters/__init__.py        3      0      0      0   100%
+apps/ingestion/src/ingestion/adapters/nvd.py           109     18     48     18    77%   46, 60-61, 66, 69, 76-77, 81-82, 95->100, 114, 117->129, 119, 122, 127->117, 134, 145, 148, 152, 158, 169
+apps/ingestion/src/ingestion/adapters/vnexpress.py     130      8     38      6    92%   108-109, 116, 149-150, 168, 182, 185
+apps/ingestion/src/ingestion/http.py                    60      2      8      1    96%   78, 107
+apps/ingestion/src/ingestion/models.py                  30      2      2      1    91%   35-36
+------------------------------------------------------------------------------------------------
+TOTAL                                                  334     30     96     26    87%
+Required test coverage of 85.0% reached. Total coverage: 86.98%
+15 passed in 0.33s

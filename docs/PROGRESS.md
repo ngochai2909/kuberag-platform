@@ -172,11 +172,36 @@ Completed:
   `db-010-20260728T090636Z`, deleted only Pod `kuberag-pg-1`, waited for CNPG
   recreate, and verified the same checksum/count plus Bound PVC
   (`docs/evidence/DB-010/`).
+- Added the `ingestion` package with shared `SourceDocument`, injectable
+  `RetryingHttpClient`, and offline VnExpress/NVD adapters plus fixtures.
+- Captured offline evidence for `ING-001` through `ING-004`.
+- Added sentence-aware chunking (`sentence-overlap-v1`) with configurable
+  `max_chars`/`overlap_chars`, title prefixing, and boundary unit tests
+  (`ING-009`).
+- Added checksum-based document/chunk upsert, in-memory + Postgres stores, and
+  `ingestion_runs` session counters (`ING-007`, `ING-008` offline).
+- Added `EmbeddingProvider` + `FakeEmbeddingProvider` (384-dim) and wired
+  batched embed into upsert (`ING-010` offline; real e5 deferred to cluster).
+- Added Prefect 3 dependency and `daily_ingest_flow` skeleton with daily cron
+  declaration plus offline end-to-end tests (`ING-005` config / `ING-006`
+  offline).
+- Added `apps/ingestion/Dockerfile` on Chainguard bases. Free `:latest` is
+  CPython 3.14, so the builder installs managed 3.13 under `/python` and the
+  runtime copies it with the venv. `make docker-ingestion-smoke` prints
+  `kuberag-daily-ingest` and cron `0 2 * * *` UTC. Live crawl JSON in
+  `tmp/vnexpress-smoke.json` is local reference only (no GCP upsert).
+- Deployed Prefect server/worker to GCP namespace `prefect` using
+  `kuberag-ingestion:local` (imported into k3s containerd). Added `tzdata` for
+  Prefect/ZoneInfo. Bootstrap Job registered work pool `kuberag-ingestion` and
+  deployment `kuberag-daily-ingest/daily` with cron `0 2 * * *` UTC
+  (`docs/evidence/ING-005/gcp-prefect-schedule.txt`). Worker embedding mode is
+  still `fake`.
 
 ## In Progress / Local Changes
 
-- Temporary single-node database gate is complete.
-- Prefect ingestion and real API retrieval remain unimplemented.
+- Offline ingestion libraries, Prefect flow skeleton, local ingestion image, and
+  GCP Prefect server/worker schedule registration are in place.
+- Real e5 on VM and a live cluster flow-run evidence remain unimplemented.
 
 ## Not Done Yet
 
@@ -184,8 +209,9 @@ The following required scopes are not implemented yet:
 
 - Application routes from `/` to React and `/api/` to FastAPI.
 - Envoy Gateway rate limiting and the `429` load test.
-- Prefect ingestion flows for VnExpress RSS and NVD API.
-- Embedding model integration.
+- Real multilingual-e5-small download/runtime on the GCP ingestion workload.
+- Live Prefect flow run evidence against the GCP PostgreSQL database.
+- Idempotent document/chunk upsert against the GCP database (SQL evidence).
 - llama.cpp self-hosted generation client/deployment.
 - React/Vite frontend.
 - Full OpenTelemetry, Prometheus, Loki, Tempo, Pyroscope, Grafana dashboards, and alerts.
@@ -196,19 +222,19 @@ The following required scopes are not implemented yet:
 
 ## Recommended Next Phase
 
-Start week-2 source adapters after the completed database gate.
+Prefect schedule is registered on GCP. Next packaging/model steps:
 
 Suggested scope:
 
-- Implement offline VnExpress and NVD fixtures/contracts.
-- Keep Prefect scheduling and application routes pending until the source
-  adapter and idempotency checkpoints pass.
+- Optionally trigger one manual `kuberag-daily-ingest/daily` run with
+  `KUBERAG_EMBEDDING_MODE=fake` and capture SQL upsert evidence.
+- Then download multilingual-e5-small on the VM/workload for `ING-010` cluster.
 
 Relevant acceptance groups:
 
-- `DB-001`, `DB-003` through `DB-007`, and `DB-010` are Pass for the temporary
-  single-instance PostgreSQL/pgvector path; next evidence belongs to ingestion
-  adapters.
+- `ING-001`–`ING-005` are Pass on the declared path (`ING-005` now has GCP
+  schedule evidence); `ING-006`–`ING-010` remain offline Pass with cluster
+  live-run / real-e5 evidence still pending.
 
 ## Coordination Notes
 

@@ -31,7 +31,7 @@
 | Migration | Alembic | Required | Version schema | Chuẩn Python và chạy lặp lại được |
 | Embedding | `multilingual-e5-small` hoặc tương đương | Required | Vector hóa tiếng Việt/Anh | Nhỏ, multilingual, chạy CPU |
 | LLM runtime | llama.cpp server | Required | Self-hosted inference | CPU-friendly, hỗ trợ GGUF quantized |
-| LLM | Qwen 0.5B–1.5B GGUF Q4 hoặc tương đương | Required | Sinh câu trả lời demo | Ưu tiên RAM/latency, không chấm chất lượng |
+| LLM | `Qwen2.5-1.5B-Instruct` GGUF `Q4_K_M` | Required | Sinh câu trả lời demo | Baseline CPU-only đã chốt; phù hợp ngân sách tài nguyên của demo |
 | Telemetry standard | OpenTelemetry | Required | Instrument logs/traces | Chuẩn mở, vendor-neutral |
 | OTLP gateway | OpenTelemetry Collector | Required | Nhận/chuyển logs và traces | Một telemetry gateway chính |
 | Metrics | Prometheus | Required | Scrape/lưu metrics | Chuẩn Kubernetes, PromQL/Grafana tốt |
@@ -86,18 +86,34 @@ Tự viết StatefulSet không tự giải quyết promotion, service role, reco
 - OpenAI-compatible HTTP server giúp client đơn giản.
 - Chất lượng model không phải mục tiêu đánh giá.
 
-### 3.6. OTel Collector không dùng Alloy
+### 3.6. Model baseline và giới hạn nâng cấp
+
+- Model generation mặc định là `Qwen2.5-1.5B-Instruct` ở định dạng GGUF,
+  quantization `Q4_K_M`, chạy bằng một replica `llama.cpp` trên CPU.
+- `Qwen3-1.7B` GGUF Q4 là ứng viên benchmark, không phải model triển khai
+  mặc định. Chỉ đổi sau khi đo cùng bộ câu hỏi RAG, gồm latency, RAM tối đa,
+  tốc độ sinh, OOM/restart và chất lượng nguồn trả về.
+- Ở topology cuối, model nằm trên một worker duy nhất. Kubernetes không cộng
+  CPU/RAM của nhiều worker để chạy một process `llama.cpp`; vì vậy model phải
+  vừa tài nguyên của chính node chứa Pod đó.
+- Không dùng model 3B hoặc lớn hơn làm baseline trên worker 2 vCPU / 8 GiB.
+  Nếu cần nâng chất lượng, nâng riêng worker chứa LLM lên tối thiểu 4 vCPU /
+  16 GiB, sau đó benchmark lại trước khi đổi model.
+- Embedding vẫn dùng `multilingual-e5-small` hoặc tương đương cho đến khi
+  implementation pin model, tokenizer, vector dimension và migration index.
+
+### 3.7. OTel Collector không dùng Alloy
 
 - OTel Collector là gateway chính cho OTLP logs/traces.
 - Prometheus tự scrape metrics.
 - Pyroscope SDK gửi profile trực tiếp.
 - Alloy sẽ trùng vai trò và tăng CPU/RAM nếu chỉ thêm để “đủ stack”.
 
-### 3.7. Envoy Gateway thay vì Traefik cho ứng dụng
+### 3.8. Envoy Gateway thay vì Traefik cho ứng dụng
 
 Traefik vẫn có thể tồn tại trong k3s, nhưng toàn bộ route KubeRAG dùng Envoy Gateway. Rate limit nằm ở Gateway policy, đúng yêu cầu không thực hiện trong service.
 
-### 3.8. LangGraph Agent không thuộc required scope
+### 3.9. LangGraph Agent không thuộc required scope
 
 Source base hiện tại là Agent template, nhưng KubeRAG cần luồng deterministic:
 
@@ -148,4 +164,3 @@ Toàn bộ dòng đánh dấu Required trong bảng stack phải có deployment,
 - Autoscaling/GitOps.
 
 Không được thêm optional trước feature freeze nếu required scope còn acceptance item chưa pass.
-

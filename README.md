@@ -137,7 +137,7 @@ evidence is captured only after the controller and manifests are deployed.
 ```text
 apps/
   rag-api/          FastAPI RAG API skeleton
-  ingestion/        Placeholder for Prefect ingestion flows
+  ingestion/        Source adapters, Alembic migrations, later Prefect flows
   frontend/         Placeholder for React/Vite UI
 infra/
   terraform/        GCP network, firewall, VM, disk, IP, and outputs

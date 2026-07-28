@@ -12,9 +12,11 @@ service.
 The temporary single-node infrastructure foundation is verified on both the
 local machine and the GCP VM, including Envoy Gateway smoke routing on GCP.
 The GCP cluster now runs one CloudNativePG-managed PostgreSQL 18.4 instance,
-pgvector 0.8.5, and the initial Alembic schema. The FastAPI RAG API is still a
-provider-independent skeleton; ingestion, real retrieval, llama.cpp generation,
-and the React frontend have not started.
+pgvector 0.8.5, and the initial Alembic schema. Offline VnExpress/NVD source
+adapters and shared `SourceDocument` contract tests pass without Internet.
+The FastAPI RAG API is still a provider-independent skeleton; Prefect
+orchestration, real retrieval, llama.cpp generation, and the React frontend
+have not started.
 
 The final intended topology remains one k3s server and two worker nodes. The
 current one-node setup is a deliberately temporary, lower-cost checkpoint.
@@ -31,7 +33,9 @@ current one-node setup is a deliberately temporary, lower-cost checkpoint.
 | Smoke route | Verified end-to-end | Verified end-to-end via public `:8080` | `curl` returns the smoke Pod hostname. |
 | PSS restricted | Verified | Verified | Unsafe privileged/root Pods are rejected. |
 | PostgreSQL/pgvector | Not deployed | Verified single instance | PVC 20 GiB is Bound; `vector` is enabled; Alembic schema and sample similarity query pass. |
-| Application workloads | Not deployed | Not deployed | No Prefect, frontend, real RAG API provider, or llama.cpp workload is running. |
+| Source adapters | Offline fixtures/unit tests | Not scheduled yet | VnExpress RSS + NVD CVE parsers return the shared `SourceDocument` contract. |
+| Prefect flow | Offline skeleton tested | Not deployed | `daily_ingest_flow` + cron declared; server/worker not on k3s yet. |
+| Application workloads | Not deployed | Not deployed | No frontend, real RAG API provider, or llama.cpp workload is running. |
 
 ## Verified GCP Foundation
 
@@ -72,23 +76,32 @@ firewall CIDRs when the operator egress changes.
 | `NET-004` | Pass local + GCP | Traefik absent from kube-system on both clusters. |
 | `DB-001`, `DB-003`–`DB-007` | Pass GCP | CNPG, PVC, pgvector, migration/re-run, and vector query evidence captured. |
 | `DB-010` | Pass GCP | Marker checksum/count survived controlled Pod recreate; PVC remained Bound. |
+| `ING-001`–`ING-004` | Pass offline | VnExpress/NVD fixtures, shared contract, timeout/retry/backoff unit evidence. |
+| `ING-005` | Pass GCP | Daily cron `0 2 * * *` UTC registered on Prefect deployment `kuberag-daily-ingest/daily`. |
+| `ING-006` | Pass offline / pending cluster run | Offline flow Pass; live Prefect worker run on GCP still pending. |
+| `ING-007`, `ING-008` | Pass offline | Idempotent upsert and ingestion_runs counters proven with in-memory store. |
+| `ING-009` | Pass offline | Sentence-aware chunk size/overlap boundary tests captured. |
+| `ING-010` | Pass offline / pending cluster | Fake 384-dim batch embed wired; real e5 CPU/RAM evidence waits for VM deploy. |
 
 ## Immediate Next Checkpoint
 
-Database gate for the temporary single-node path is complete. Start ingestion
-adapters:
+Prefect server + process worker are Available on the GCP k3s VM in namespace
+`prefect`. Deployment `kuberag-daily-ingest/daily` has active cron
+`0 2 * * *` UTC (`ING-005`). Embedding mode is still `fake` (no e5 download yet).
+Live VnExpress crawl JSON stays local reference only.
 
-1. Implement offline VnExpress and NVD fixtures/contracts.
-2. Keep Prefect scheduling pending until adapter and idempotency checkpoints pass.
-3. Do not wire live external fetches until fixtures prove the contracts.
+Next:
 
-See `docs/ROADMAP.md` week 2 and
-`docs/runbooks/postgresql-single-node.md`.
+1. Optional: trigger one manual flow run with fake embeddings into PostgreSQL.
+2. Download/wire multilingual-e5-small inside the ingestion workload on the VM
+   (`ING-010` cluster evidence).
+
+See `docs/ROADMAP.md` week 2 and `docs/data-model.md`.
 
 ## Major Work Still Ahead
 
-- Later 3-node PostgreSQL replication/failover evidence.
-- Prefect ingestion for VnExpress RSS and NVD API, including fixtures and idempotency.
+- Prefect daily schedule is registered; live flow-run SQL evidence and real e5
+  embedding still remain.
 - Embeddings, llama.cpp generation, and the real deterministic RAG path.
 - React/Vite frontend and Envoy routing for `/` and `/api/`.
 - OpenTelemetry, Prometheus, Loki, Tempo, Pyroscope, Grafana, alerts, and dashboards.

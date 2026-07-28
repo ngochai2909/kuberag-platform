@@ -58,5 +58,6 @@ Thumbs.db
 .codex-log/
 .playwright-mcp/
 .cursor/plans/
+tmp/
 docker-compose.override.yml
 /install.sh

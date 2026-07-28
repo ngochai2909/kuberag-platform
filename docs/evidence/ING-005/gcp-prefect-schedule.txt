@@ -1,0 +1,47 @@
+ING-005: Pass for GCP Prefect daily schedule registration.
+Captured on 2026-07-28T10:55:00Z against the temporary GCP k3s cluster.
+
+$ make gcp-prefect-status
+KUBECONFIG=/home/hai-nguyen/.kube/kuberag-gcp.yaml kubectl -n prefect get deploy,pods,svc,pvc,job,secret -o wide
+NAME                             READY   UP-TO-DATE   AVAILABLE   AGE    CONTAINERS   IMAGES                    SELECTOR
+deployment.apps/prefect-server   1/1     1            1           7m9s   server       kuberag-ingestion:local   app.kubernetes.io/name=prefect-server
+deployment.apps/prefect-worker   1/1     1            1           54s    worker       kuberag-ingestion:local   app.kubernetes.io/name=prefect-worker
+
+NAME                                  READY   STATUS      RESTARTS   AGE    IP           NODE             NOMINATED NODE   READINESS GATES
+pod/prefect-bootstrap-gfvg7           0/1     Completed   0          66s    10.52.1.18   kuberag-server   <none>           <none>
+pod/prefect-server-5cddf9bc77-7pq5s   1/1     Running     0          102s   10.52.1.17   kuberag-server   <none>           <none>
+pod/prefect-worker-56b677784b-6dc2m   1/1     Running     0          54s    10.52.1.19   kuberag-server   <none>           <none>
+
+NAME                     TYPE        CLUSTER-IP     EXTERNAL-IP   PORT(S)    AGE     SELECTOR
+service/prefect-server   ClusterIP   10.53.98.232   <none>        4200/TCP   7m10s   app.kubernetes.io/name=prefect-server
+
+NAME                                        STATUS   VOLUME                                     CAPACITY   ACCESS MODES   STORAGECLASS   VOLUMEATTRIBUTESCLASS   AGE    VOLUMEMODE
+persistentvolumeclaim/prefect-server-data   Bound    pvc-957720b2-8438-455c-80c1-be102b50f670   2Gi        RWO            local-path     <unset>                 7m9s   Filesystem
+
+NAME                          STATUS     COMPLETIONS   DURATION   AGE   CONTAINERS   IMAGES                    SELECTOR
+job.batch/prefect-bootstrap   Complete   1/1           10s        67s   bootstrap    kuberag-ingestion:local   batch.kubernetes.io/controller-uid=8e1c06b0-be7a-4a42-8818-36141be44a78
+
+NAME                    TYPE     DATA   AGE
+secret/kuberag-db-app   Opaque   1      68s
+KUBECONFIG=/home/hai-nguyen/.kube/kuberag-gcp.yaml kubectl -n prefect get deploy/prefect-server -o jsonpath='{.status.availableReplicas}{" server-available\n"}'
+1 server-available
+KUBECONFIG=/home/hai-nguyen/.kube/kuberag-gcp.yaml kubectl -n prefect get deploy/prefect-worker -o jsonpath='{.status.availableReplicas}{" worker-available\n"}'
+1 worker-available
+
+$ kubectl -n prefect logs job/prefect-bootstrap
+created work pool 'kuberag-ingestion'
+
+Successfully created/updated all deployments!
+
+                   Deployments                    
+┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━┳━━━━━━━━━┓
+┃ Name                       ┃ Status  ┃ Details ┃
+┡━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━╇━━━━━━━━━┩
+│ kuberag-daily-ingest/daily │ applied │         │
+└────────────────────────────┴─────────┴─────────┘
+registered deployment id=13790797-ba68-4e2a-9ac0-98d20b8e78cb
+flow=kuberag-daily-ingest deployment=daily
+schedule={'flow_name': 'kuberag-daily-ingest', 'cron': '0 2 * * *', 'timezone': 'UTC'}
+
+$ Prefect API deployment schedule inspect
+{'name': 'daily', 'schedules': [{'cron': '0 2 * * *', 'timezone': 'UTC', 'active': True}]}
