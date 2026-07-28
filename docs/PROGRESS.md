@@ -1,15 +1,19 @@
 # KubeRAG Progress
 
-This file is the shared progress tracker for the two-person KubeRAG project. Update it after each approved phase, PR, or major verification run so both contributors can quickly see what is done, what is pending, and where to continue.
+This file is the detailed shared progress tracker for the two-person KubeRAG
+project. For a shorter deployed-versus-prepared overview, read
+[`PROJECT_STATUS.md`](PROJECT_STATUS.md) first. Update both files after each
+approved phase, PR, or major verification run.
 
 ## Current Snapshot
 
-- Current working branch: `docs/readme-single-node-target`.
-- Branch baseline: `16495f1 docs: document temporary single-node target`.
-- Remote status before this checkpoint: `origin/main` remains at `8064804`; this branch requires review/merge through repository rules.
-- Last full application verification: `make check` passed in this checkpoint (`35 passed`, `98.41%` coverage).
-- Runtime environment: local single-node k3s `v1.35.5+k3s1` is running on `hainguyenpc`; GCP preflight is complete and no GCP resources have been created.
-- Local tooling: Helm `v4.2.2`; Envoy Gateway controller/chart `v1.8.3` in `gateway-system`.
+- Last updated: 2026-07-28.
+- Current working branch: `feat/gcp-single-node-foundation`.
+- Latest foundation commit: `94c0cd6 Add GCP single-node foundation`.
+- Last full application verification: `make check` passed (`35 passed`, `98.41%` coverage).
+- Runtime environment: one `v1.35.5+k3s1` node runs locally on `hainguyenpc` and one runs on the temporary GCP VM `kuberag-server`. They are separate clusters, not two nodes in one cluster.
+- GCP access: SSH and local `kubectl` use IAP tunnels. Envoy Gateway `v1.8.3` and the smoke route are verified on GCP through public port `8080`.
+- Tooling: Helm `v4.2.2`; Envoy Gateway chart `v1.8.3` verified on local and GCP clusters.
 
 ## Completed Work
 
@@ -56,7 +60,7 @@ Verification:
 
 ### Phase 3 - Local k3s Foundation
 
-Status: In progress only for remaining Ansible install/idempotency evidence; Kubernetes and Envoy smoke routing are verified locally.
+Status: Done for the temporary local single-node foundation; Kubernetes and Envoy smoke routing are verified locally.
 
 Completed locally:
 
@@ -83,13 +87,9 @@ Verification/evidence:
 - `docs/evidence/NET-001/gateway-api-smoke.txt`
 - `docs/evidence/NET-004/kube-system-no-traefik.txt`
 
-Pending in this foundation phase:
-
-- Capture a clean Ansible install recap for `INF-003` and a second idempotent run for `INF-004`.
-
 ### Phase 4 - GCP Single-Node Foundation
 
-Status: Preflight complete; Terraform implementation and plan are pending.
+Status: Done for the temporary GCP single-node foundation, including Envoy Gateway smoke routing and PSS checks.
 
 Completed:
 
@@ -99,23 +99,62 @@ Completed:
 - Created a dedicated local Ed25519 SSH key for the GCP VM; private key material remains outside Git.
 - Created a VND 3,000,000 monthly billing-account budget alert and documented cost-control operations.
 - Captured `docs/evidence/INF-005/budget-alert.png` and `budget-alert.md`.
-
-Pending:
-
-- Implement Terraform for the custom VPC, subnet, least-privilege firewall, static address, and one VM.
-- Run `terraform init`, format, validate, and review `terraform plan` before apply.
-- Apply only after explicit approval, then capture the clean Ansible install and idempotent second run.
-- Deploy the Envoy smoke route through the GCP external address.
+- Added the Terraform root module for the custom VPC, subnet, restricted
+  firewall rules, static external IP, one 8 vCPU/16 GiB VM, and separate boot
+  and data disks.
+- Initialized the local backend and locked `hashicorp/google v7.41.0`.
+- Passed `terraform fmt -check` and `terraform validate` on 2026-07-27.
+- Created ignored local inputs and reviewed the saved Terraform plan on
+  2026-07-27: `8 to add, 0 to change, 0 to destroy`.
+- Increased the separate data disk from 100 GiB to 150 GiB before apply to
+  leave headroom for k3s data, PostgreSQL/pgvector, the pinned GGUF model, and
+  short-retention observability data. The reviewed plan still has eight creates
+  and no update or destroy action.
+- Captured the redacted plan summary in
+  `docs/evidence/INF-001/terraform-plan-summary.md`; the infrastructure apply
+  is complete and the Kubernetes node inventory remains pending.
+- Applied the initial foundation with `8 added, 0 changed, 0 destroyed`.
+- Enabled IAP and added the restricted IAP SSH firewall with `2 added, 1 changed
+  in-place, 0 destroyed`; no VM, disk, IP, or network was replaced.
+- Verified `ssh kuberag-gcp` reaches `kuberag@kuberag-server` through IAP.
+- Verified the VM is `RUNNING`, has 8 vCPU/16 GiB RAM, a 30 GiB boot disk, and
+  an unformatted 150 GiB data disk.
+- Ran the post-apply Terraform idempotency check: `No changes`, exit code `0`.
+- Added a remote GCP Ansible inventory and syntax-checked playbook for guarded
+  ext4 formatting/mounting and k3s installation on the persistent disk.
+- Assigned non-overlapping k3s Pod/Service CIDRs `10.52.0.0/16` and
+  `10.53.0.0/16` because the VPC subnet uses `10.42.0.0/24`.
+- Verified Ansible reaches the VM through IAP and returns `ping: pong`.
+- Formatted the previously empty 150 GiB data disk as ext4 and mounted it at
+  `/var/lib/kuberag` using its stable GCE disk alias.
+- Installed pinned k3s `v1.35.5+k3s1` with Traefik disabled and persistent data
+  under `/var/lib/kuberag/k3s`.
+- Verified the GCP control-plane node is `Ready` and the CoreDNS,
+  local-path-provisioner, and metrics-server Pods are `Running`.
+- Verified local `kubectl` access through the IAP tunnel on port `16443`.
+- Re-ran the GCP Ansible playbook with `changed=0`, `unreachable=0`, and
+  `failed=0`.
+- Added and rendered the GCP Kustomize overlay for the restricted smoke
+  backend, GatewayClass, Gateway, and HTTPRoute on port `8080`.
+- Installed Envoy Gateway chart `v1.8.3` on GCP and applied the foundation
+  overlay.
+- Verified Gateway `Programmed=True`, HTTPRoute `Accepted`/`ResolvedRefs`,
+  smoke Pod `Running`, and `curl http://<external-ip>:8080/hostname`.
+- Verified an unsafe privileged/root Pod is rejected by PSS on GCP.
+- Updated operator egress CIDRs in the ignored local `terraform.tfvars` after
+  a company-network public IP change, then re-verified the smoke route.
+- Captured GCP runtime evidence under `docs/evidence/K8S-*`, `NET-001`,
+  `NET-004`, and `INF-002`.
 
 ## In Progress / Local Changes
 
-- GCP single-node Terraform design is the next implementation checkpoint; cloud resources have not been created.
+- No foundation blockers remain for the temporary GCP single-node checkpoint.
+  The next implementation phase is CloudNativePG / PostgreSQL / pgvector.
 
 ## Not Done Yet
 
 The following required scopes are not implemented yet:
 
-- Terraform GCP infrastructure.
 - Application routes from `/` to React and `/api/` to FastAPI.
 - Envoy Gateway rate limiting and the `429` load test.
 - PostgreSQL/pgvector and CloudNativePG.
@@ -132,19 +171,21 @@ The following required scopes are not implemented yet:
 
 ## Recommended Next Phase
 
-Implement and review the GCP single-node Terraform plan. Use the new VM as the clean environment for `INF-003` and the second Ansible run for `INF-004` before deploying data workloads.
+Start the week-2 data layer on the verified GCP single-node cluster.
 
 Suggested scope:
 
-- Add Terraform configuration for one GCP server while keeping a path to two workers.
-- Restrict SSH and Kubernetes API access to the administrator CIDR.
-- Review the exact resource plan and expected cost before apply.
-- Capture clean-install and idempotency evidence on the new VM.
-- Keep PostgreSQL/pgvector pending until the GCP foundation and storage design pass.
+- Install CloudNativePG and create one temporary PostgreSQL instance with PVC.
+- Enable the `vector` extension and add Alembic migrations for documents,
+  chunks, and ingestion runs.
+- Verify basic vector insert/query and PostgreSQL restart/persistence evidence.
+- Keep Prefect ingestion and application routes pending until the database
+  checkpoint passes.
 
 Relevant acceptance groups:
 
-- `INF-001` through `INF-006` for GCP infrastructure, idempotency, cost control, and secret hygiene.
+- `DB-001`, `DB-003` through `DB-007`, and `DB-010` for the temporary
+  single-instance PostgreSQL/pgvector path.
 
 ## Coordination Notes
 

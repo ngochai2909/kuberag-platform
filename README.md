@@ -6,6 +6,11 @@ The current infrastructure target is a **temporary single-node k3s environment**
 
 Current repository state: **phase 2 RAG API skeleton**. The FastAPI backend lives in `apps/rag-api`, exposes the KubeRAG query contract, and no longer depends on LangGraph, LangChain, OpenAI SDKs, or an external LLM API. PostgreSQL/pgvector retrieval and llama.cpp generation providers are intentionally not implemented yet.
 
+For an accurate deployed-versus-prepared summary, start with
+[`docs/PROJECT_STATUS.md`](docs/PROJECT_STATUS.md). It records the verified
+single-node local/GCP foundation, including Envoy smoke routing, and the next
+safe checkpoint.
+
 ## Requirements
 
 - Python 3.12 or 3.13
@@ -85,25 +90,40 @@ The local Gateway listens on `<node-ip>:8080` so Apache can continue using host 
 
 See `docs/runbooks/local-k3s-foundation.md` for evidence capture and rollback notes.
 
-## GCP Single-Node Preflight
+## GCP Single-Node Foundation
 
-The next checkpoint moves the same single-node foundation to GCP Compute
-Engine. Billing, the Compute Engine API, local Application Default Credentials,
-the Singapore zone, the target E2 machine type, and a dedicated SSH key must be
-verified before Terraform is allowed to create resources.
+Terraform has created the temporary GCP single-node foundation in
+`asia-southeast1-b`: one `e2-custom-8-16384` VM, a 30 GiB boot disk, a 150 GiB
+data disk, a custom VPC, restricted firewall rules, and a static external IP.
+SSH administration uses an IAP tunnel and the local `kuberag-gcp` SSH alias.
 
 ```bash
-gcloud config get-value project
-gcloud services list --enabled \
-  --filter="config.name:compute.googleapis.com" \
-  --format="value(config.name)"
-gcloud auth application-default print-access-token >/dev/null \
-  && echo "ADC: OK"
+ssh kuberag-gcp
+make gcp-k3s-syntax
+make gcp-k3s-install
+make gcp-k3s-tunnel  # keep running in a separate terminal
+make gcp-k3s-status  # run from another terminal
 ```
 
-No VM is created during preflight. Review `terraform plan` before any
-`terraform apply`. See `docs/runbooks/gcp-cost-control.md` for the budget and
-manual stop/start/destroy procedure.
+The GCP VM now runs the pinned single-node k3s server. Its dedicated 150 GiB
+disk is mounted at `/var/lib/kuberag`, and local `kubectl` access uses an IAP
+tunnel instead of exposing another public administration port. See
+`docs/runbooks/gcp-k3s-foundation.md` for the operating sequence and
+`docs/runbooks/gcp-cost-control.md` for stop/start/destroy operations.
+
+After the tunnel is open, the next GCP foundation commands are:
+
+```bash
+make gcp-envoy-install
+make gcp-foundation-apply
+make gcp-foundation-status
+make gcp-foundation-smoke
+make gcp-unsafe-check
+```
+
+The GCP overlay renders successfully in local validation, but these commands
+have not yet been run against the GCP cluster. Runtime Envoy and HTTP routing
+evidence is captured only after the controller and manifests are deployed.
 
 ## Monorepo Layout
 
@@ -113,8 +133,8 @@ apps/
   ingestion/        Placeholder for Prefect ingestion flows
   frontend/         Placeholder for React/Vite UI
 infra/
-  terraform/        Placeholder for GCP infrastructure as code
-  ansible/          Placeholder for k3s host configuration
+  terraform/        GCP network, firewall, VM, disk, IP, and outputs
+  ansible/          Local and GCP single-node k3s host configuration
 deploy/
   helm/             Placeholder for project-owned Helm assets
   kustomize/        Placeholder for Kubernetes workload bases and overlays

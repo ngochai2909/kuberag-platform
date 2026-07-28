@@ -100,8 +100,15 @@ completion.
   the user to provide command output or a screenshot, interpret it, and only
   then continue. Do not dump a long sequence of mutating commands at once.
 - When the user asks only for an explanation or step-by-step guidance, do not
-  edit files or execute mutating commands. Execute changes only after an
-  explicit request such as "hãy làm", "hãy chạy", "hãy cài", or "hãy code".
+  edit files or execute mutating commands before proposing the next action.
+  Once the action and its impact have been stated clearly, any unambiguous
+  affirmative response such as "ok", "đồng ý", "tiếp tục", or "làm đi" counts
+  as consent for that proposed non-destructive local action. Never require the
+  user to repeat an exact authorization phrase.
+- If an affirmative response could refer to multiple proposed actions, ask a
+  short clarification instead of guessing. Billable cloud creation,
+  privileged changes, firewall broadening, data deletion, and destroy
+  operations still require immediate confirmation naming the specific action.
 - Before each non-trivial command, explain the goal, why the step is required,
   what state it can change, and any security or cost impact.
 - Use this response shape when it helps: `Mục tiêu` -> `Tại sao` -> `Lệnh` ->

@@ -1,0 +1,246 @@
+---
+- name: Install GCP single-node k3s for KubeRAG
+  hosts: k3s_server
+  become: true
+  gather_facts: true
+
+  vars:
+    data_disk_device: /dev/disk/by-id/google-kuberag-data
+    data_mount_path: /var/lib/kuberag
+    k3s_data_dir: "{{ data_mount_path }}/k3s"
+    k3s_install_script_path: /tmp/kuberag-install-k3s.sh
+    k3s_install_url: https://get.k3s.io
+    k3s_binary_url: "https://github.com/k3s-io/k3s/releases/download/{{ k3s_version | replace('+', '%2B') }}/k3s"
+    gcp_kubeconfig_path: "{{ lookup('env', 'HOME') }}/.kube/kuberag-gcp.yaml"
+    gcp_kubeconfig_port: 16443
+
+  handlers:
+    - name: Restart k3s
+      ansible.builtin.systemd:
+        name: k3s
+        state: restarted
+        daemon_reload: true
+
+  tasks:
+    - name: Assert this playbook targets a remote Debian host
+      ansible.builtin.assert:
+        that:
+          - ansible_connection != "local"
+          - ansible_os_family == "Debian"
+        fail_msg: "Use this playbook only for the remote GCP Ubuntu node."
+
+    - name: Install OS prerequisites
+      ansible.builtin.apt:
+        name:
+          - ca-certificates
+          - curl
+          - e2fsprogs
+        state: present
+        update_cache: true
+
+    - name: Inspect the dedicated data disk
+      ansible.builtin.stat:
+        path: "{{ data_disk_device }}"
+        follow: true
+      register: data_disk
+
+    - name: Assert the dedicated data disk exists
+      ansible.builtin.assert:
+        that:
+          - data_disk.stat.exists
+          - data_disk.stat.isblk
+        fail_msg: "Expected GCP data disk {{ data_disk_device }} was not found."
+
+    - name: Detect the data disk filesystem
+      ansible.builtin.command:
+        argv:
+          - blkid
+          - -o
+          - value
+          - -s
+          - TYPE
+          - "{{ data_disk_device }}"
+      register: data_disk_filesystem
+      changed_when: false
+      failed_when: data_disk_filesystem.rc not in [0, 2]
+
+    - name: Refuse to overwrite an unexpected filesystem
+      ansible.builtin.assert:
+        that:
+          - data_disk_filesystem.rc == 2 or data_disk_filesystem.stdout == "ext4"
+        fail_msg: >-
+          Refusing to format {{ data_disk_device }} because it contains
+          {{ data_disk_filesystem.stdout | default('an unknown filesystem') }}.
+
+    - name: Format the empty data disk as ext4
+      ansible.builtin.command:
+        argv:
+          - mkfs.ext4
+          - -F
+          - -L
+          - kuberag-data
+          - "{{ data_disk_device }}"
+      when: data_disk_filesystem.rc == 2
+      changed_when: true
+
+    - name: Read the data disk UUID
+      ansible.builtin.command:
+        argv:
+          - blkid
+          - -o
+          - value
+          - -s
+          - UUID
+          - "{{ data_disk_device }}"
+      register: data_disk_uuid
+      changed_when: false
+
+    - name: Ensure the data mount point exists
+      ansible.builtin.file:
+        path: "{{ data_mount_path }}"
+        state: directory
+        owner: root
+        group: root
+        mode: "0755"
+
+    - name: Persist the data disk mount
+      ansible.builtin.lineinfile:
+        path: /etc/fstab
+        regexp: "^[^#]+\\s+{{ data_mount_path | regex_escape }}\\s+"
+        line: "UUID={{ data_disk_uuid.stdout }} {{ data_mount_path }} ext4 defaults,nofail 0 2"
+        state: present
+        backup: true
+
+    - name: Check whether the data disk is mounted
+      ansible.builtin.command:
+        argv:
+          - findmnt
+          - --mountpoint
+          - "{{ data_mount_path }}"
+      register: data_mount
+      changed_when: false
+      failed_when: data_mount.rc not in [0, 1]
+
+    - name: Mount the data disk
+      ansible.builtin.command:
+        argv:
+          - mount
+          - "{{ data_mount_path }}"
+      when: data_mount.rc == 1
+      changed_when: true
+
+    - name: Ensure the k3s data directory exists
+      ansible.builtin.file:
+        path: "{{ k3s_data_dir }}"
+        state: directory
+        owner: root
+        group: root
+        mode: "0750"
+
+    - name: Ensure the k3s configuration directory exists
+      ansible.builtin.file:
+        path: /etc/rancher/k3s
+        state: directory
+        owner: root
+        group: root
+        mode: "0750"
+
+    - name: Configure k3s for the GCP network and data disk
+      ansible.builtin.copy:
+        dest: /etc/rancher/k3s/config.yaml
+        owner: root
+        group: root
+        mode: "0600"
+        content: |
+          write-kubeconfig-mode: "0600"
+          data-dir: "{{ k3s_data_dir }}"
+          cluster-cidr: "{{ k3s_cluster_cidr }}"
+          service-cidr: "{{ k3s_service_cidr }}"
+          disable:
+          {% for component in k3s_disable_components %}
+            - "{{ component }}"
+          {% endfor %}
+          node-label:
+          {% for label in k3s_node_labels %}
+            - "{{ label }}"
+          {% endfor %}
+      notify: Restart k3s
+
+    - name: Download the k3s installer
+      ansible.builtin.get_url:
+        url: "{{ k3s_install_url }}"
+        dest: "{{ k3s_install_script_path }}"
+        mode: "0755"
+
+    - name: Download the pinned k3s binary
+      ansible.builtin.get_url:
+        url: "{{ k3s_binary_url }}"
+        dest: /usr/local/bin/k3s
+        mode: "0755"
+        checksum: "sha256:{{ k3s_sha256 }}"
+      register: k3s_binary
+
+    - name: Check whether the k3s service is installed
+      ansible.builtin.stat:
+        path: /etc/systemd/system/k3s.service
+      register: k3s_service_unit
+
+    - name: Install the k3s server service
+      ansible.builtin.command:
+        cmd: "/bin/sh {{ k3s_install_script_path }} server"
+      environment:
+        INSTALL_K3S_VERSION: "{{ k3s_version }}"
+        INSTALL_K3S_SKIP_DOWNLOAD: "true"
+      when: k3s_binary.changed or not k3s_service_unit.stat.exists
+      changed_when: true
+
+    - name: Ensure the k3s service is enabled and running
+      ansible.builtin.systemd:
+        name: k3s
+        enabled: true
+        state: started
+        daemon_reload: true
+
+    - name: Apply pending k3s configuration changes
+      ansible.builtin.meta: flush_handlers
+
+    - name: Wait for the Kubernetes API
+      ansible.builtin.command: /usr/local/bin/k3s kubectl get nodes
+      register: k3s_nodes
+      retries: 30
+      delay: 6
+      until: k3s_nodes.rc == 0
+      changed_when: false
+
+    - name: Ensure the local kubeconfig directory exists
+      ansible.builtin.file:
+        path: "{{ gcp_kubeconfig_path | dirname }}"
+        state: directory
+        mode: "0700"
+      delegate_to: localhost
+      become: false
+
+    - name: Read the GCP kubeconfig
+      ansible.builtin.slurp:
+        src: /etc/rancher/k3s/k3s.yaml
+      register: remote_gcp_kubeconfig
+
+    - name: Write the local GCP kubeconfig for the SSH tunnel
+      ansible.builtin.copy:
+        dest: "{{ gcp_kubeconfig_path }}"
+        content: >-
+          {{ remote_gcp_kubeconfig.content | b64decode |
+          replace('https://127.0.0.1:6443',
+          'https://127.0.0.1:' ~ (gcp_kubeconfig_port | string)) }}
+        mode: "0600"
+      delegate_to: localhost
+      become: false
+
+    - name: Show installed node status
+      ansible.builtin.command: /usr/local/bin/k3s kubectl get nodes -o wide
+      register: gcp_node_status
+      changed_when: false
+
+    - name: Display installed node status
+      ansible.builtin.debug:
+        var: gcp_node_status.stdout_lines

@@ -1,0 +1,11 @@
+K8S-003: Pass for the GCP single-node foundation.
+Captured on 2026-07-28 against the temporary GCP k3s cluster.
+
+$ kubectl get namespaces rag data prefect loadtest observability gateway-system --show-labels
+NAME             STATUS   AGE   LABELS
+rag              Active   39m   kubernetes.io/metadata.name=rag,pod-security.kubernetes.io/audit=restricted,pod-security.kubernetes.io/enforce=restricted,pod-security.kubernetes.io/warn=restricted
+data             Active   39m   kubernetes.io/metadata.name=data,pod-security.kubernetes.io/audit=restricted,pod-security.kubernetes.io/enforce=restricted,pod-security.kubernetes.io/warn=restricted
+prefect          Active   39m   kubernetes.io/metadata.name=prefect,pod-security.kubernetes.io/audit=restricted,pod-security.kubernetes.io/enforce=restricted,pod-security.kubernetes.io/warn=restricted
+loadtest         Active   39m   kubernetes.io/metadata.name=loadtest,pod-security.kubernetes.io/audit=restricted,pod-security.kubernetes.io/enforce=restricted,pod-security.kubernetes.io/warn=restricted
+observability    Active   39m   kubernetes.io/metadata.name=observability
+gateway-system   Active   86m   kubernetes.io/metadata.name=gateway-system,name=gateway-system

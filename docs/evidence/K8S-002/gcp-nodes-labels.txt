@@ -1,0 +1,6 @@
+K8S-002: Pass for the GCP single-node foundation.
+Captured on 2026-07-28 against the temporary GCP k3s cluster.
+
+$ kubectl get nodes --show-labels
+NAME             STATUS   ROLES           AGE    VERSION        LABELS
+kuberag-server   Ready    control-plane   150m   v1.35.5+k3s1   beta.kubernetes.io/arch=amd64,beta.kubernetes.io/instance-type=k3s,beta.kubernetes.io/os=linux,kuberag.io/role=all-in-one,kuberag.io/topology=single-node,kubernetes.io/arch=amd64,kubernetes.io/hostname=kuberag-server,kubernetes.io/os=linux,node-role.kubernetes.io/control-plane=true,node.kubernetes.io/instance-type=k3s

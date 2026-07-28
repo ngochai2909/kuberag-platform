@@ -1,0 +1,14 @@
+Captured: 2026-07-27
+Command: kubectl kustomize deploy/kustomize/overlays/gcp
+Result: exit code 0
+
+The rendered GCP overlay contains:
+  - namespaces: rag, data, prefect, loadtest, observability, gateway-system
+  - Pod Security Standards restricted labels on custom workload namespaces
+  - Deployment and Service: kuberag-pss-smoke in rag
+  - GatewayClass: kuberag
+  - Gateway: kuberag in rag, HTTP listener port 8080
+  - HTTPRoute: kuberag-smoke, / -> kuberag-pss-smoke:80
+
+This is static render evidence only. Envoy Gateway has not been installed on
+the GCP cluster and no cloud HTTP request has been made yet.

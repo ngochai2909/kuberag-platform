@@ -45,6 +45,15 @@ gcloud compute instances start kuberag-server \
 After the VM is `RUNNING`, verify SSH, the k3s service, node readiness, and the
 Envoy smoke endpoint before continuing work.
 
+Connect through IAP using the local SSH configuration:
+
+```bash
+ssh kuberag-gcp
+```
+
+The alias uses `gcloud compute start-iap-tunnel`; it does not depend on direct
+TCP `22` reachability to the VM's external address.
+
 ## Destroy
 
 Use Terraform from the same working directory and state that created the

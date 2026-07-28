@@ -1,0 +1,25 @@
+Captured: 2026-07-27
+Command: make gcp-k3s-install
+Inventory: infra/ansible/inventory/gcp.ini
+Playbook: infra/ansible/playbooks/k3s-gcp-single-node.yml
+
+First clean GCP install recap:
+  kuberag-server : ok=29 changed=14 unreachable=0 failed=0 skipped=0 rescued=0 ignored=0
+
+Verified resulting state:
+  data disk: /dev/sdb, ext4, 146.6G usable, mounted at /var/lib/kuberag
+  node: kuberag-server.asia-southeast1-b.c.kube-rag-platform.internal
+  status: Ready
+  role: control-plane
+  k3s: v1.35.5+k3s1
+  internal IP: 10.42.0.2
+  container runtime: containerd://2.2.3-k3s1
+
+System Pods after install:
+  kube-system/coredns: Running, 1/1
+  kube-system/local-path-provisioner: Running, 1/1
+  kube-system/metrics-server: Running, 1/1
+
+Local kubectl verification used an SSH/IAP tunnel from 127.0.0.1:16443 to the
+remote Kubernetes API at 127.0.0.1:6443. No kubeconfig or SSH key is stored in
+this repository.

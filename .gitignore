@@ -37,6 +37,8 @@ logs/
 *.tfstate.*
 terraform.tfvars
 *.auto.tfvars
+tfplan
+*.tfplan
 crash.log
 crash.*.log
 
