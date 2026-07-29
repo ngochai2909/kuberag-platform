@@ -1,0 +1,25 @@
+Criterion: RAG-002
+Date: 2026-07-29
+
+Command run against the existing GCP CloudNativePG database through the
+controlled IAP SSH tunnel:
+
+  make gcp-rag-retrieval-test
+
+Observed result:
+
+  scripts/gcp-db-run.sh uv run pytest --no-cov -q -m db_integration \
+    apps/rag-api/tests/integration/test_postgres_retriever.py
+  .                                                                        [100%]
+  1 passed in 2.54s
+
+The test inserts a synthetic document and two 384-dimensional vectors, invokes
+PostgresRetriever through PostgresVectorStore, and confirms that the exact
+nearest chunk is returned with its document title, URL, source, score, and
+chunk metadata. Its finally block deletes the synthetic document; the foreign
+key removes the associated chunks. No VnExpress record, schema, Secret, or
+workload is changed by this test.
+
+The test intentionally searches the full existing corpus, matching production
+behaviour. Therefore it verifies only the fixture's exact nearest result, not
+that every result in a larger top-k set belongs to the fixture.

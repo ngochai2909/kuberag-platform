@@ -10,7 +10,9 @@ approved phase, PR, or major verification run.
 - Last updated: 2026-07-29.
 - Current working branch: `feat/gcp-single-node-foundation`.
 - Latest foundation commit: `94c0cd6 Add GCP single-node foundation`.
-- Last full application verification: `make check` passed (`35 passed`, `98.41%` coverage).
+- Last full application verification: `make check` passed (`85 passed`, `2 skipped`,
+  `86.43%` coverage). The skipped tests require an explicit `DATABASE_URL` and
+  are run against the GCP database through the controlled tunnel command.
 - Runtime environment: one `v1.35.5+k3s1` node runs locally on `hainguyenpc` and one runs on the temporary GCP VM `kuberag-server`. They are separate clusters, not two nodes in one cluster.
 - GCP access: SSH and local `kubectl` use IAP tunnels. Envoy Gateway `v1.8.3` and the smoke route are verified on GCP through public port `8080`.
 - Tooling: Helm `v4.2.2`; Envoy Gateway chart `v1.8.3` verified on local and GCP clusters.
@@ -221,7 +223,15 @@ Completed:
 
 - Week 2 data/ingestion quality gate is complete on the temporary GCP
   single-node path.
-- Week 3 RAG retrieval, llama.cpp generation, and frontend remain.
+- Added `PostgresRetriever`, which combines an `EmbeddingProvider` with a
+  typed `VectorSearchStore`. `PostgresVectorStore` joins `chunks` to
+  `documents`, orders by pgvector cosine distance, and preserves the VnExpress
+  title/URL/source needed by the later API and frontend. Unit tests use fakes;
+  a separately-invoked GCP database integration test inserts and removes only
+  synthetic fixture data. Local unit/type/lint verification and the GCP
+  pgvector integration test passed (`docs/evidence/RAG-002/`). The adapter is
+  not deployed or wired to a generator yet.
+- llama.cpp generation and frontend remain.
 
 ## Not Done Yet
 

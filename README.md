@@ -167,9 +167,11 @@ docs/
 ## Phase Boundaries
 
 The current boundary has verified the single-node foundation,
-PostgreSQL/pgvector persistence, and ingestion through real e5. Week 3 adds
-query retrieval, bounded prompts, llama.cpp, the frontend, and final Envoy
-application routes. Observability and supply-chain work follow in later phases.
+PostgreSQL/pgvector persistence, and ingestion through real e5. Week 3 now has
+a tested PostgreSQL retrieval adapter; its GCP integration evidence and API
+runtime wiring remain pending until the generation provider is added. llama.cpp,
+the frontend, and final Envoy application routes follow. Observability and
+supply-chain work follow in later phases.
 
 The single-node target is temporary. The 3-node GCP topology and PostgreSQL primary/replica placement must be restored before final acceptance.
 

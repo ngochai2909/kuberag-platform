@@ -19,6 +19,7 @@ INGEST_RUN_JOB ?= deploy/kustomize/base/prefect/ingest-run-job.yaml
 ALEMBIC_CONFIG ?= apps/ingestion/alembic.ini
 DB_RUN_SCRIPT ?= scripts/gcp-db-run.sh
 DB_INTEGRATION_TEST ?= apps/ingestion/tests/integration/test_vector_query.py
+RAG_RETRIEVAL_INTEGRATION_TEST ?= apps/rag-api/tests/integration/test_postgres_retriever.py
 INGESTION_IMAGE ?= kuberag-ingestion:local
 UV_VERSION ?= 0.11.15
 PREFECT_DB_SECRET_SCRIPT ?= scripts/gcp-prefect-db-secret.sh
@@ -26,7 +27,7 @@ PREFECT_ROLE_SECRET_SCRIPT ?= scripts/gcp-prefect-role-secret.sh
 PREFECT_SERVER_DB_SECRET_SCRIPT ?= scripts/gcp-prefect-server-db-secret.sh
 INGESTION_IMAGE_IMPORT_SCRIPT ?= scripts/gcp-ingestion-image-import.sh
 
-.PHONY: setup run test test-cov lint format format-check typecheck check lock clean infra-check k3s-install gcp-k3s-syntax gcp-k3s-install gcp-k3s-tunnel gcp-k3s-status gcp-envoy-install gcp-foundation-apply gcp-foundation-delete gcp-foundation-status gcp-foundation-smoke gcp-unsafe-check k3s-foundation-apply k3s-foundation-delete k3s-foundation-status k3s-foundation-smoke k3s-unsafe-check cnpg-render postgresql-render migration-sql gcp-cnpg-install gcp-postgresql-apply gcp-postgresql-status gcp-db-migrate gcp-db-current gcp-db-vector-test docker-ingestion-build docker-ingestion-smoke gcp-ingestion-image-import gcp-prefect-db-secret gcp-prefect-role-secret gcp-prefect-server-db-secret gcp-prefect-apply gcp-prefect-bootstrap gcp-prefect-worker-apply gcp-prefect-worker-restart gcp-prefect-status gcp-e5-download gcp-e5-smoke gcp-ingest-run
+.PHONY: setup run test test-cov lint format format-check typecheck check lock clean infra-check k3s-install gcp-k3s-syntax gcp-k3s-install gcp-k3s-tunnel gcp-k3s-status gcp-envoy-install gcp-foundation-apply gcp-foundation-delete gcp-foundation-status gcp-foundation-smoke gcp-unsafe-check k3s-foundation-apply k3s-foundation-delete k3s-foundation-status k3s-foundation-smoke k3s-unsafe-check cnpg-render postgresql-render migration-sql gcp-cnpg-install gcp-postgresql-apply gcp-postgresql-status gcp-db-migrate gcp-db-current gcp-db-vector-test gcp-rag-retrieval-test docker-ingestion-build docker-ingestion-smoke gcp-ingestion-image-import gcp-prefect-db-secret gcp-prefect-role-secret gcp-prefect-server-db-secret gcp-prefect-apply gcp-prefect-bootstrap gcp-prefect-worker-apply gcp-prefect-worker-restart gcp-prefect-status gcp-e5-download gcp-e5-smoke gcp-ingest-run
 
 setup:
 	uv sync --group dev
@@ -128,6 +129,9 @@ gcp-db-current:
 
 gcp-db-vector-test:
 	$(DB_RUN_SCRIPT) uv run pytest --no-cov -q -m db_integration $(DB_INTEGRATION_TEST)
+
+gcp-rag-retrieval-test:
+	$(DB_RUN_SCRIPT) uv run pytest --no-cov -q -m db_integration $(RAG_RETRIEVAL_INTEGRATION_TEST)
 
 gcp-foundation-apply:
 	KUBECONFIG=$(GCP_KUBECONFIG) kubectl apply -k $(GCP_KUSTOMIZE)

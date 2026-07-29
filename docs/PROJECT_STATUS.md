@@ -14,8 +14,10 @@ local machine and the GCP VM, including Envoy Gateway smoke routing on GCP.
 The GCP cluster now runs one CloudNativePG-managed PostgreSQL 18.4 instance,
 pgvector 0.8.5, the initial Alembic schema, and a separate PostgreSQL metadata
 database for Prefect. The required demo source is VnExpress RSS only. The
-FastAPI RAG API is still a provider-independent skeleton; real retrieval,
-llama.cpp generation, and the React frontend have not started.
+FastAPI now has a provider-independent PostgreSQL retrieval adapter with local
+unit/type/lint verification and a passing controlled GCP pgvector integration
+test. The adapter is not deployed yet. Real llama.cpp generation and the React
+frontend have not started.
 
 The final intended topology remains one k3s server and two worker nodes. The
 current one-node setup is a deliberately temporary, lower-cost checkpoint.
@@ -34,7 +36,7 @@ current one-node setup is a deliberately temporary, lower-cost checkpoint.
 | PostgreSQL/pgvector | Not deployed | Verified single instance | PVC 20 GiB is Bound; `vector` is enabled; Alembic schema and sample similarity query pass. |
 | Source adapters | Offline fixtures/unit tests | Live VnExpress scheduled | Demo source is VnExpress RSS only. |
 | Prefect flow | Offline skeleton tested | Deployed and verified | `daily_ingest_flow` cron `0 2 * * *` UTC; Prefect metadata uses PostgreSQL database `prefect`, separate from RAG data. |
-| Application workloads | Not deployed | Not deployed | No frontend, real RAG API provider, or llama.cpp workload is running. |
+| Application workloads | Not deployed | Not deployed | No frontend, deployed RAG API, or llama.cpp workload is running. |
 
 ## Verified GCP Foundation
 
@@ -84,6 +86,7 @@ firewall CIDRs when the operator egress changes.
 | `ING-009` | Pass offline | Sentence-aware chunk size/overlap boundary tests captured. |
 | `ING-010` | Pass GCP smoke | `multilingual-e5-small` on PVC; batch smoke ~10s / ~1 GiB RSS; worker mode `e5`. |
 | Prefect metadata persistence | Pass GCP | Separate CNPG role/database `prefect`; flow completed after migration with no SQLite lock log match. |
+| `RAG-002` | Pass GCP integration | `PostgresRetriever` query vector retrieves the nearest fixture chunk through pgvector with its source fields; evidence: `docs/evidence/RAG-002/`. |
 
 ## Immediate Next Checkpoint
 
@@ -94,9 +97,9 @@ unchanged input on rerun.
 
 Next checkpoint (week 3):
 
-1. Implement PostgreSQL/pgvector retrieval and query embedding behind the RAG
-   provider interface.
-2. Build the bounded prompt path, then deploy llama.cpp.
+1. Review the bounded prompt path against `RAG-003`, then deploy llama.cpp as
+   the generation provider.
+2. Compose retriever, prompt builder, and generator into the deployed API.
 
 See `docs/ROADMAP.md` week 2 and `docs/data-model.md`.
 
