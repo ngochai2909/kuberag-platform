@@ -20,14 +20,20 @@ ALEMBIC_CONFIG ?= apps/ingestion/alembic.ini
 DB_RUN_SCRIPT ?= scripts/gcp-db-run.sh
 DB_INTEGRATION_TEST ?= apps/ingestion/tests/integration/test_vector_query.py
 RAG_RETRIEVAL_INTEGRATION_TEST ?= apps/rag-api/tests/integration/test_postgres_retriever.py
+LLAMA_GCP_KUSTOMIZE ?= deploy/kustomize/overlays/gcp/llama-cpp
+RAG_API_GCP_KUSTOMIZE ?= deploy/kustomize/overlays/gcp/rag-api
 INGESTION_IMAGE ?= kuberag-ingestion:local
+RAG_API_IMAGE ?= kuberag-rag-api:local
 UV_VERSION ?= 0.11.15
 PREFECT_DB_SECRET_SCRIPT ?= scripts/gcp-prefect-db-secret.sh
 PREFECT_ROLE_SECRET_SCRIPT ?= scripts/gcp-prefect-role-secret.sh
 PREFECT_SERVER_DB_SECRET_SCRIPT ?= scripts/gcp-prefect-server-db-secret.sh
+RAG_DB_SECRET_SCRIPT ?= scripts/gcp-rag-db-secret.sh
+RAG_API_AUTH_SECRET_SCRIPT ?= scripts/gcp-rag-api-auth-secret.sh
 INGESTION_IMAGE_IMPORT_SCRIPT ?= scripts/gcp-ingestion-image-import.sh
+RAG_API_IMAGE_IMPORT_SCRIPT ?= scripts/gcp-rag-api-image-import.sh
 
-.PHONY: setup run test test-cov lint format format-check typecheck check lock clean infra-check k3s-install gcp-k3s-syntax gcp-k3s-install gcp-k3s-tunnel gcp-k3s-status gcp-envoy-install gcp-foundation-apply gcp-foundation-delete gcp-foundation-status gcp-foundation-smoke gcp-unsafe-check k3s-foundation-apply k3s-foundation-delete k3s-foundation-status k3s-foundation-smoke k3s-unsafe-check cnpg-render postgresql-render migration-sql gcp-cnpg-install gcp-postgresql-apply gcp-postgresql-status gcp-db-migrate gcp-db-current gcp-db-vector-test gcp-rag-retrieval-test docker-ingestion-build docker-ingestion-smoke gcp-ingestion-image-import gcp-prefect-db-secret gcp-prefect-role-secret gcp-prefect-server-db-secret gcp-prefect-apply gcp-prefect-bootstrap gcp-prefect-worker-apply gcp-prefect-worker-restart gcp-prefect-status gcp-e5-download gcp-e5-smoke gcp-ingest-run
+.PHONY: setup run test test-cov lint format format-check typecheck check lock clean infra-check k3s-install gcp-k3s-syntax gcp-k3s-install gcp-k3s-tunnel gcp-k3s-status gcp-envoy-install gcp-foundation-apply gcp-foundation-delete gcp-foundation-status gcp-foundation-smoke gcp-unsafe-check k3s-foundation-apply k3s-foundation-delete k3s-foundation-status k3s-foundation-smoke k3s-unsafe-check cnpg-render postgresql-render migration-sql gcp-cnpg-install gcp-postgresql-apply gcp-postgresql-status gcp-db-migrate gcp-db-current gcp-db-vector-test gcp-rag-retrieval-test gcp-llama-render gcp-llama-apply gcp-llama-status docker-ingestion-build docker-ingestion-smoke gcp-ingestion-image-import docker-rag-api-build docker-rag-api-smoke gcp-rag-api-image-import gcp-rag-db-secret gcp-rag-api-auth-secret gcp-rag-api-render gcp-rag-api-apply gcp-rag-api-status gcp-prefect-db-secret gcp-prefect-role-secret gcp-prefect-server-db-secret gcp-prefect-apply gcp-prefect-bootstrap gcp-prefect-worker-apply gcp-prefect-worker-restart gcp-prefect-status gcp-e5-download gcp-e5-smoke gcp-ingest-run
 
 setup:
 	uv sync --group dev
@@ -132,6 +138,45 @@ gcp-db-vector-test:
 
 gcp-rag-retrieval-test:
 	$(DB_RUN_SCRIPT) uv run pytest --no-cov -q -m db_integration $(RAG_RETRIEVAL_INTEGRATION_TEST)
+
+gcp-llama-render:
+	kubectl kustomize $(LLAMA_GCP_KUSTOMIZE)
+
+gcp-llama-apply:
+	KUBECONFIG=$(GCP_KUBECONFIG) kubectl apply -k $(LLAMA_GCP_KUSTOMIZE)
+
+gcp-llama-status:
+	KUBECONFIG=$(GCP_KUBECONFIG) kubectl -n rag get deployment/kuberag-llm service/kuberag-llm pvc/kuberag-llm-models
+	KUBECONFIG=$(GCP_KUBECONFIG) kubectl -n rag get pods -l app.kubernetes.io/name=kuberag-llm -o wide
+
+docker-rag-api-build:
+	docker build \
+		--build-arg UV_VERSION=$(UV_VERSION) \
+		-f apps/rag-api/Dockerfile \
+		-t $(RAG_API_IMAGE) \
+		.
+
+docker-rag-api-smoke: docker-rag-api-build
+	docker run --rm $(RAG_API_IMAGE) /app/.venv/bin/python -c "from app.main import app; print(app.title)"
+
+gcp-rag-api-image-import: docker-rag-api-build
+	RAG_API_IMAGE=$(RAG_API_IMAGE) $(RAG_API_IMAGE_IMPORT_SCRIPT)
+
+gcp-rag-db-secret:
+	KUBECONFIG=$(GCP_KUBECONFIG) $(RAG_DB_SECRET_SCRIPT)
+
+gcp-rag-api-auth-secret:
+	KUBECONFIG=$(GCP_KUBECONFIG) $(RAG_API_AUTH_SECRET_SCRIPT)
+
+gcp-rag-api-render:
+	kubectl kustomize $(RAG_API_GCP_KUSTOMIZE)
+
+gcp-rag-api-apply:
+	KUBECONFIG=$(GCP_KUBECONFIG) kubectl apply -k $(RAG_API_GCP_KUSTOMIZE)
+
+gcp-rag-api-status:
+	KUBECONFIG=$(GCP_KUBECONFIG) kubectl -n rag get deployment/kuberag-rag-api service/kuberag-rag-api pvc/kuberag-rag-embedding-models
+	KUBECONFIG=$(GCP_KUBECONFIG) kubectl -n rag get pods -l app.kubernetes.io/name=kuberag-rag-api -o wide
 
 gcp-foundation-apply:
 	KUBECONFIG=$(GCP_KUBECONFIG) kubectl apply -k $(GCP_KUSTOMIZE)

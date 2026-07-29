@@ -1,0 +1,26 @@
+Command: make gcp-llama-status
+
+deployment.apps/kuberag-llm   1/1     1            1
+service/kuberag-llm           ClusterIP   10.53.30.134   <none>   8080/TCP
+persistentvolumeclaim/kuberag-llm-models   Bound   5Gi   RWO   local-path
+pod/kuberag-llm-6fb5998655-v6rmm   1/1   Running   0
+
+Command: temporary local port-forward to service/kuberag-llm, then GET /health
+
+{"status":"ok"}
+
+Command: temporary local port-forward to service/kuberag-llm, then GET /v1/models
+
+model id: kuberag-qwen2.5-1.5b
+format: gguf
+quantization: Q4_K - Medium
+context: 4096
+
+Command: temporary local port-forward to service/kuberag-llm, then POST /v1/chat/completions
+
+HTTP request completed with object=chat.completion, model=kuberag-qwen2.5-1.5b,
+completion_tokens=6, and predicted_per_second=26.730463372582566.
+
+Notes:
+- The port-forward was bound only to 127.0.0.1 and stopped after each check.
+- The Service remains ClusterIP; the llama.cpp endpoint was not exposed publicly.

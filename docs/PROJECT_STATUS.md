@@ -16,8 +16,11 @@ pgvector 0.8.5, the initial Alembic schema, and a separate PostgreSQL metadata
 database for Prefect. The required demo source is VnExpress RSS only. The
 FastAPI now has a provider-independent PostgreSQL retrieval adapter with local
 unit/type/lint verification and a passing controlled GCP pgvector integration
-test. The adapter is not deployed yet. Real llama.cpp generation and the React
-frontend have not started.
+test. The internal llama.cpp generation runtime is now deployed and verified.
+FastAPI composition is deployed with a separate E5 cache PVC and has completed
+an authenticated real RAG request through pgvector and llama.cpp. The API is
+internal-only; the React frontend and final Envoy application route have not
+started.
 
 The final intended topology remains one k3s server and two worker nodes. The
 current one-node setup is a deliberately temporary, lower-cost checkpoint.
@@ -36,7 +39,9 @@ current one-node setup is a deliberately temporary, lower-cost checkpoint.
 | PostgreSQL/pgvector | Not deployed | Verified single instance | PVC 20 GiB is Bound; `vector` is enabled; Alembic schema and sample similarity query pass. |
 | Source adapters | Offline fixtures/unit tests | Live VnExpress scheduled | Demo source is VnExpress RSS only. |
 | Prefect flow | Offline skeleton tested | Deployed and verified | `daily_ingest_flow` cron `0 2 * * *` UTC; Prefect metadata uses PostgreSQL database `prefect`, separate from RAG data. |
-| Application workloads | Not deployed | Not deployed | No frontend, deployed RAG API, or llama.cpp workload is running. |
+| llama.cpp | Not deployed | Verified running | Internal `ClusterIP` Service loads Qwen2.5-1.5B GGUF from a 5 GiB PVC; it is not public. |
+| RAG API | Skeleton only | Verified running, internal only | Restricted FastAPI Deployment has E5 cache PVC, CNPG Secret, and llama.cpp Service dependency; end-to-end query passed through a local-only tunnel. |
+| Frontend | Not deployed | Not deployed | React/Vite UI and final Envoy routes remain. |
 
 ## Verified GCP Foundation
 
@@ -87,6 +92,9 @@ firewall CIDRs when the operator egress changes.
 | `ING-010` | Pass GCP smoke | `multilingual-e5-small` on PVC; batch smoke ~10s / ~1 GiB RSS; worker mode `e5`. |
 | Prefect metadata persistence | Pass GCP | Separate CNPG role/database `prefect`; flow completed after migration with no SQLite lock log match. |
 | `RAG-002` | Pass GCP integration | `PostgresRetriever` query vector retrieves the nearest fixture chunk through pgvector with its source fields; evidence: `docs/evidence/RAG-002/`. |
+| `RAG-004` | Pass GCP runtime | llama.cpp reports healthy, exposes Qwen model alias, and completed a chat-completion request through a temporary local tunnel; evidence: `docs/evidence/RAG-004/`. |
+| `RAG-005` | Pass GCP runtime | API composition calls only in-cluster E5/pgvector/llama.cpp; no external LLM API or OpenAI SDK is used. |
+| `RAG-006` | Pass GCP runtime | Authenticated API query returned answer, VnExpress sources/URLs, request ID, trace ID, and timings; evidence: `docs/evidence/RAG-006/`. |
 
 ## Immediate Next Checkpoint
 
@@ -97,15 +105,15 @@ unchanged input on rerun.
 
 Next checkpoint (week 3):
 
-1. Review the bounded prompt path against `RAG-003`, then deploy llama.cpp as
-   the generation provider.
-2. Compose retriever, prompt builder, and generator into the deployed API.
+1. Add Envoy `HTTPRoute` for `/api/` and verify the authenticated API is only
+   reachable through the Gateway in the demo path.
+2. Add the React/Vite frontend, source cards, and latency/ID display.
 
 See `docs/ROADMAP.md` week 2 and `docs/data-model.md`.
 
 ## Major Work Still Ahead
 
-- llama.cpp generation and the real deterministic RAG path.
+- Envoy API routing, rate limiting, frontend, and observability.
 - React/Vite frontend and Envoy routing for `/` and `/api/`.
 - OpenTelemetry, Prometheus, Loki, Tempo, Pyroscope, Grafana, alerts, and dashboards.
 - Gateway rate limiting, k6 load tests, Chainguard images, scanning, SBOMs, and signing.

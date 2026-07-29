@@ -12,6 +12,7 @@ from app.api.router import api_router, root_router
 from app.core.config import Settings, get_settings
 from app.core.logging import configure_logging
 from app.core.middleware import add_request_context
+from app.services.composition import build_rag_service
 from app.services.rag import RagService
 
 logger = logging.getLogger(__name__)
@@ -23,6 +24,7 @@ def create_app(
 ) -> FastAPI:
     resolved_settings = settings or get_settings()
     configure_logging(resolved_settings.log_level)
+    resolved_rag_service = rag_service or build_rag_service(resolved_settings)
 
     @asynccontextmanager
     async def lifespan(_: FastAPI) -> AsyncIterator[None]:
@@ -31,7 +33,7 @@ def create_app(
             extra={
                 "environment": resolved_settings.app_env.value,
                 "version": resolved_settings.app_version,
-                "rag_configured": rag_service is not None,
+                "rag_configured": resolved_rag_service is not None,
             },
         )
         yield
@@ -49,7 +51,7 @@ def create_app(
         lifespan=lifespan,
     )
     app.state.settings = resolved_settings
-    app.state.rag_service = rag_service
+    app.state.rag_service = resolved_rag_service
 
     if resolved_settings.cors_origin_list:
         app.add_middleware(

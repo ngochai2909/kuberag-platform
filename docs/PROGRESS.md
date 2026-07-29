@@ -231,7 +231,17 @@ Completed:
   synthetic fixture data. Local unit/type/lint verification and the GCP
   pgvector integration test passed (`docs/evidence/RAG-002/`). The adapter is
   not deployed or wired to a generator yet.
-- llama.cpp generation and frontend remain.
+- Deployed and verified llama.cpp with the pinned Qwen2.5-1.5B-Instruct GGUF
+  `Q4_K_M` model in the `rag` namespace. The internal `ClusterIP` service
+  passed `/health`, `/v1/models`, and an OpenAI-compatible chat completion via
+  a temporary local tunnel (`docs/evidence/RAG-004/`).
+- Added the real FastAPI composition root, a Chainguard-based API image, and
+  restricted GCP Kustomize resources with a separate 2 GiB E5 cache PVC. The
+  1.6 GiB image was imported through IAP and the Deployment is `1/1 Running`.
+  An authenticated real query returned a generated answer, source URLs,
+  request/trace IDs, and timing fields (`docs/evidence/RAG-006/`). The first
+  cold request took 22.9s while the warm path took 8.07s; generation on the
+  CPU-only Qwen Pod is the dominant latency.
 
 ## Not Done Yet
 
@@ -239,7 +249,8 @@ The following required scopes are not implemented yet:
 
 - Application routes from `/` to React and `/api/` to FastAPI.
 - Envoy Gateway rate limiting and the `429` load test.
-- llama.cpp self-hosted generation client/deployment.
+- Add Envoy routing/rate limiting for the deployed API, then implement the
+  React/Vite source-card UI.
 - React/Vite frontend.
 - Full OpenTelemetry, Prometheus, Loki, Tempo, Pyroscope, Grafana dashboards, and alerts.
 - k6 load and rate-limit tests.
@@ -249,16 +260,17 @@ The following required scopes are not implemented yet:
 
 ## Recommended Next Phase
 
-Week 2 is complete. Start week 3 with the deterministic RAG retrieval path:
+Week 2 is complete. Continue week 3 with the deterministic RAG API deployment:
 
-- Implement query embedding + PostgreSQL/pgvector top-k retrieval behind typed
-  interfaces.
-- Add bounded prompt construction and tests before wiring llama.cpp.
+- Import the API image and apply the restricted workload after reviewing the
+  render and creating the in-cluster database/API-key Secrets.
+- Verify one authenticated `POST /api/v1/query` request before adding frontend
+  or public Envoy application routes.
 
 Relevant acceptance groups:
 
 - `ING-001`–`ING-010` are Pass for the current offline/GCP evidence split.
-- Next focus: `RAG-002`, `RAG-003`, then `RAG-004`–`RAG-010`.
+- Next focus: runtime evidence for `RAG-005`–`RAG-009`, then frontend/routes.
 
 ## Coordination Notes
 

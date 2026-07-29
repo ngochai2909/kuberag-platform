@@ -5,11 +5,12 @@ KubeRAG is a cloud-native RAG platform monorepo. The target platform uses FastAP
 The current infrastructure target is a **temporary single-node k3s environment** for local development and constrained demo work. The final target remains the original cluster shape: **1 k3s server/control-plane node and 2 k3s worker nodes** on GCP Compute Engine.
 
 Current application state: **week 2 data and ingestion complete; week 3 RAG
-providers next**. The FastAPI backend in `apps/rag-api` exposes the KubeRAG
-query contract without LangGraph, LangChain, OpenAI SDKs, or an external LLM
-API. The GCP checkpoint has CloudNativePG/pgvector plus a live Prefect
-VnExpress flow using `multilingual-e5-small`. API retrieval and llama.cpp
-providers are not wired yet.
+runtime in progress**. The GCP checkpoint has CloudNativePG/pgvector, a live
+Prefect VnExpress flow using `multilingual-e5-small`, a running internal
+llama.cpp Pod serving `Qwen2.5-1.5B-Instruct` GGUF `Q4_K_M`, and a running
+FastAPI RAG API. A real authenticated request has completed the deterministic
+E5 -> pgvector -> prompt -> llama.cpp flow on GCP. The API remains internal;
+the frontend and final Envoy application route are not deployed yet.
 
 For an accurate deployed-versus-prepared summary, start with
 [`docs/PROJECT_STATUS.md`](docs/PROJECT_STATUS.md). It records the verified
@@ -44,7 +45,10 @@ make run
 
 Open `http://localhost:8000/docs` in development.
 
-During phase 2, `/health/live` is healthy when the process is running. `/health/ready` returns `503` unless a `RagService` implementation is injected by tests or a future provider wiring phase. This is expected because real PostgreSQL/pgvector and llama.cpp providers are not part of this phase.
+During local development, `/health/live` is healthy when the process is
+running. `/health/ready` returns `503` unless `RAG_RUNTIME_ENABLED=true` with a
+database URI and the cluster-only E5/llama.cpp dependencies available. This is
+intentional: laptop tests inject a fake service and never download models.
 
 The public API contract is:
 
@@ -128,6 +132,7 @@ make gcp-foundation-smoke
 make gcp-unsafe-check
 make gcp-prefect-status
 make gcp-ingest-run
+make gcp-llama-status
 ```
 
 Prefect Server stores its deployment/schedule/run metadata in the separate
@@ -140,11 +145,28 @@ recovery steps are documented in `docs/runbooks/prefect-postgresql.md`.
 fetches live VnExpress data, embeds with the model cached on the cluster
 PVC, and upserts into CloudNativePG. It changes persistent database state.
 
+For day-to-day terminal operation, K9s navigation, RAG/llama.cpp checks, logs,
+resource metrics, and a clear read-only versus mutating command split, see
+[`docs/runbooks/README.md`](docs/runbooks/README.md).
+
+`make gcp-llama-status` is read-only and shows the internal llama.cpp
+Deployment, Service, model PVC, and Pod. The Service is `ClusterIP`: only
+in-cluster workloads such as the future FastAPI Pod can call it. It is not an
+internet-facing model API.
+
+The deployed API uses a 2 GiB E5 cache PVC and two in-cluster Secrets: one
+contains the CNPG database URI and one is a random API bearer token. Neither
+value is printed or committed. Its current status is read-only:
+
+```bash
+make gcp-rag-api-status
+```
+
 ## Monorepo Layout
 
 ```text
 apps/
-  rag-api/          FastAPI RAG API skeleton
+  rag-api/          FastAPI contract, retrieval, llama.cpp client, composition
   ingestion/        Adapters, Prefect flows, e5 embedding, Alembic, upsert
   frontend/         Placeholder for React/Vite UI
 infra/
@@ -167,11 +189,10 @@ docs/
 ## Phase Boundaries
 
 The current boundary has verified the single-node foundation,
-PostgreSQL/pgvector persistence, and ingestion through real e5. Week 3 now has
-a tested PostgreSQL retrieval adapter; its GCP integration evidence and API
-runtime wiring remain pending until the generation provider is added. llama.cpp,
-the frontend, and final Envoy application routes follow. Observability and
-supply-chain work follow in later phases.
+PostgreSQL/pgvector persistence, ingestion through real E5, and a deployed
+internal FastAPI-to-llama.cpp RAG request. The frontend and final Envoy
+application routes follow. Observability and supply-chain work follow in later
+phases.
 
 The single-node target is temporary. The 3-node GCP topology and PostgreSQL primary/replica placement must be restored before final acceptance.
 

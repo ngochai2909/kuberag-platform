@@ -1,0 +1,4 @@
+resources:
+  - model-pvc.yaml
+  - service.yaml
+  - deployment.yaml
