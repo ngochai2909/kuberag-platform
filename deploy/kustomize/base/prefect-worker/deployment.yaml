@@ -8,6 +8,9 @@ metadata:
     app.kubernetes.io/part-of: kuberag
 spec:
   replicas: 1
+  # Embedding model PVC is RWO; avoid overlapping mounts during rollout.
+  strategy:
+    type: Recreate
   selector:
     matchLabels:
       app.kubernetes.io/name: prefect-worker

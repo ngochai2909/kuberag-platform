@@ -43,7 +43,7 @@ spec:
               load_ms = (time.perf_counter() - started) * 1000
               batch = [
                   "Tin tức kinh tế Việt Nam hôm nay",
-                  "CVE-2024-1234 remote code execution in demo software",
+                  "Robot hỗ trợ vận hành kho hàng tự động",
                   "Hướng dẫn triển khai Kubernetes trên máy ảo GCP",
               ]
               embed_started = time.perf_counter()

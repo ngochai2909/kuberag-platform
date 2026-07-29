@@ -58,10 +58,9 @@ def main() -> int:
         entrypoint_type=EntrypointType.MODULE_PATH,
         tags=["kuberag", "ingestion"],
         description=(
-            f"{DAILY_INGEST_FLOW_NAME} daily schedule "
-            f"({DAILY_INGEST_CRON} {DAILY_INGEST_TIMEZONE})"
+            f"{DAILY_INGEST_FLOW_NAME} daily schedule ({DAILY_INGEST_CRON} {DAILY_INGEST_TIMEZONE})"
         ),
-        parameters={"sources": ["vnexpress", "nvd"]},
+        parameters={"sources": ["vnexpress"]},
     )
     print(f"registered deployment id={deployment_id}")
     print(f"flow={DAILY_INGEST_FLOW_NAME} deployment={DEPLOYMENT_NAME}")

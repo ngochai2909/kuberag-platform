@@ -1,0 +1,73 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: kuberag-ingest-run
+  namespace: prefect
+  labels:
+    app.kubernetes.io/name: kuberag-ingest-run
+    app.kubernetes.io/part-of: kuberag
+spec:
+  # The trigger creates a real flow run; do not retry and create duplicates.
+  backoffLimit: 0
+  activeDeadlineSeconds: 3600
+  ttlSecondsAfterFinished: 86400
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: kuberag-ingest-run
+        app.kubernetes.io/part-of: kuberag
+    spec:
+      restartPolicy: Never
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532
+        runAsGroup: 65532
+        fsGroup: 65532
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: trigger
+          image: kuberag-ingestion:local
+          imagePullPolicy: Never
+          args:
+            - /app/.venv/bin/python
+            - -c
+            - |
+              from prefect.deployments import run_deployment
+
+              run = run_deployment(
+                  "kuberag-daily-ingest/daily",
+                  timeout=3500,
+                  poll_interval=10,
+                  as_subflow=False,
+              )
+              print(f"flow_run_id={run.id} state={run.state.name}", flush=True)
+              if not run.state.is_completed():
+                  raise SystemExit(f"flow run ended in {run.state.name}")
+          env:
+            - name: PREFECT_HOME
+              value: /tmp/prefect-home
+            - name: PREFECT_API_URL
+              value: http://prefect-server.prefect.svc.cluster.local:4200/api
+            - name: HOME
+              value: /tmp
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: "1"
+              memory: 512Mi
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: tmp
+          emptyDir: {}

@@ -7,7 +7,7 @@ approved phase, PR, or major verification run.
 
 ## Current Snapshot
 
-- Last updated: 2026-07-28.
+- Last updated: 2026-07-29.
 - Current working branch: `feat/gcp-single-node-foundation`.
 - Latest foundation commit: `94c0cd6 Add GCP single-node foundation`.
 - Last full application verification: `make check` passed (`35 passed`, `98.41%` coverage).
@@ -173,8 +173,9 @@ Completed:
   recreate, and verified the same checksum/count plus Bound PVC
   (`docs/evidence/DB-010/`).
 - Added the `ingestion` package with shared `SourceDocument`, injectable
-  `RetryingHttpClient`, and offline VnExpress/NVD adapters plus fixtures.
-- Captured offline evidence for `ING-001` through `ING-004`.
+  `RetryingHttpClient`, and offline VnExpress adapter plus fixtures.
+- Captured offline evidence for `ING-001`, `ING-003`, and `ING-004`
+  (`ING-002` removed after NVD was deleted from the repository).
 - Added sentence-aware chunking (`sentence-overlap-v1`) with configurable
   `max_chars`/`overlap_chars`, title prefixing, and boundary unit tests
   (`ING-009`).
@@ -194,14 +195,33 @@ Completed:
   `kuberag-ingestion:local` (imported into k3s containerd). Added `tzdata` for
   Prefect/ZoneInfo. Bootstrap Job registered work pool `kuberag-ingestion` and
   deployment `kuberag-daily-ingest/daily` with cron `0 2 * * *` UTC
-  (`docs/evidence/ING-005/gcp-prefect-schedule.txt`). Worker embedding mode is
-  still `fake`.
+  (`docs/evidence/ING-005/gcp-prefect-schedule.txt`).
+- Added optional extra `embedding` (sentence-transformers + torch CPU),
+  `E5EmbeddingProvider`, PVC `kuberag-embedding-models`, download/smoke Jobs,
+  and switched the GCP Prefect worker to `KUBERAG_EMBEDDING_MODE=e5`
+  (`docs/evidence/ING-010/gcp-e5-smoke.txt`).
+- Added a restricted `kuberag-ingest-run` trigger Job and `make gcp-ingest-run`.
+  The first live attempt exposed missing PostgreSQL transaction commits; fixed
+  the cluster runtime to use autocommit reads plus explicit store transactions.
+- Completed the live VnExpress flow through real e5 into CloudNativePG.
+  An early dual-source experiment briefly included NVD; NVD was later
+  removed from scope, code, fixtures, and the live corpus. Stable
+  VnExpress reruns skip unchanged records with zero SQL duplicates
+  (`ING-006`–`ING-008` GCP evidence).
+- Compressed the large Torch CPU image stream during k3s import and added a
+  persistent uv build cache/longer HTTP timeout after transient network resets.
+- Replaced Prefect Server's SQLite metadata PVC with a separate CNPG-managed
+  PostgreSQL database/role `prefect`. The legacy SQLite PVC remains on the GCP
+  cluster only for rollback and is no longer part of a clean install. A new
+  Prefect bootstrap, worker restart, and manual flow run completed successfully
+  without a `database is locked` log match
+  (`docs/evidence/ING-005/prefect-postgresql-metadata.txt`).
 
 ## In Progress / Local Changes
 
-- Offline ingestion libraries, Prefect flow skeleton, local ingestion image, and
-  GCP Prefect server/worker schedule registration are in place.
-- Real e5 on VM and a live cluster flow-run evidence remain unimplemented.
+- Week 2 data/ingestion quality gate is complete on the temporary GCP
+  single-node path.
+- Week 3 RAG retrieval, llama.cpp generation, and frontend remain.
 
 ## Not Done Yet
 
@@ -209,9 +229,6 @@ The following required scopes are not implemented yet:
 
 - Application routes from `/` to React and `/api/` to FastAPI.
 - Envoy Gateway rate limiting and the `429` load test.
-- Real multilingual-e5-small download/runtime on the GCP ingestion workload.
-- Live Prefect flow run evidence against the GCP PostgreSQL database.
-- Idempotent document/chunk upsert against the GCP database (SQL evidence).
 - llama.cpp self-hosted generation client/deployment.
 - React/Vite frontend.
 - Full OpenTelemetry, Prometheus, Loki, Tempo, Pyroscope, Grafana dashboards, and alerts.
@@ -222,19 +239,16 @@ The following required scopes are not implemented yet:
 
 ## Recommended Next Phase
 
-Prefect schedule is registered on GCP. Next packaging/model steps:
+Week 2 is complete. Start week 3 with the deterministic RAG retrieval path:
 
-Suggested scope:
-
-- Optionally trigger one manual `kuberag-daily-ingest/daily` run with
-  `KUBERAG_EMBEDDING_MODE=fake` and capture SQL upsert evidence.
-- Then download multilingual-e5-small on the VM/workload for `ING-010` cluster.
+- Implement query embedding + PostgreSQL/pgvector top-k retrieval behind typed
+  interfaces.
+- Add bounded prompt construction and tests before wiring llama.cpp.
 
 Relevant acceptance groups:
 
-- `ING-001`–`ING-005` are Pass on the declared path (`ING-005` now has GCP
-  schedule evidence); `ING-006`–`ING-010` remain offline Pass with cluster
-  live-run / real-e5 evidence still pending.
+- `ING-001`–`ING-010` are Pass for the current offline/GCP evidence split.
+- Next focus: `RAG-002`, `RAG-003`, then `RAG-004`–`RAG-010`.
 
 ## Coordination Notes
 

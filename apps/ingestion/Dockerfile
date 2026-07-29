@@ -24,6 +24,7 @@ USER root
 COPY --from=uv /uv /uvx /usr/bin/
 
 ENV UV_COMPILE_BYTECODE=1 \
+    UV_HTTP_TIMEOUT=120 \
     UV_LINK_MODE=copy \
     UV_PROJECT_ENVIRONMENT=/app/.venv \
     UV_PYTHON_INSTALL_DIR=/python \
@@ -40,7 +41,8 @@ COPY apps/ingestion/src ./apps/ingestion/src
 COPY apps/ingestion/alembic.ini ./apps/ingestion/alembic.ini
 COPY apps/ingestion/migrations ./apps/ingestion/migrations
 
-RUN uv sync --frozen --no-dev --no-editable --extra embedding --python "${PYTHON_VERSION}"
+RUN --mount=type=cache,target=/root/.cache/uv \
+    uv sync --frozen --no-dev --no-editable --extra embedding --python "${PYTHON_VERSION}"
 
 FROM ${PYTHON_RUNTIME_IMAGE} AS runtime
 USER root

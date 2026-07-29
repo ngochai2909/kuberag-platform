@@ -1,12 +1,7 @@
-ING-002 NVD adapter (offline fixture)
+ING-002 NVD adapter — Removed
 
-Verification:
-  uv run pytest apps/ingestion/tests/unit/test_nvd_adapter.py -q
+Status: Removed as of 2026-07-29. NVD CVE is no longer part of KubeRAG.
+The only ingestion source is VnExpress RSS.
 
-Result: Pass on 2026-07-28. Tests parse
-apps/ingestion/tests/unit/fixtures/nvd/cves-sample.json into SourceDocument
-records without calling services.nvd.nist.gov.
-
-Contract sample fields: source=nvd, external_id=CVE-YYYY-NNNNN,
-url=https://nvd.nist.gov/vuln/detail/{id}, English description as text,
-optional metadata.cvss_*.
+Historical offline tests and fixtures for NVD were deleted from the
+repository. Do not reintroduce NVD without an explicit scope and docs update.

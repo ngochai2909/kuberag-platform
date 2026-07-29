@@ -55,7 +55,7 @@ Dựng được single-node k3s tạm thời; repository có cấu trúc, policy
 
 ### Mục tiêu
 
-PostgreSQL single-instance tạm thời hoạt động, pipeline lấy hai nguồn và lưu document/chunk/embedding idempotent. Primary/replica được khôi phục ở mốc 3-node.
+PostgreSQL single-instance tạm thời hoạt động, pipeline lấy VnExpress và lưu document/chunk/embedding idempotent. Primary/replica được khôi phục ở mốc 3-node.
 
 ### Kế hoạch theo ngày
 
@@ -63,7 +63,7 @@ PostgreSQL single-instance tạm thời hoạt động, pipeline lấy hai ngu�
 | ---- | -------------------------------------------------------------------------------- | --------------------------------------- |
 | 1    | Cài CloudNativePG operator, tạo single-instance cluster tạm thời, PVC            | PostgreSQL healthy                      |
 | 2    | Schema/Alembic, pgvector extension, constraints, sample vector query             | Migration và vector search cơ bản pass  |
-| 3    | Adapter VnExpress RSS và NVD API, fixture, retry/timeout/backoff                 | Unit tests không phụ thuộc Internet     |
+| 3    | Adapter VnExpress RSS, fixture, retry/timeout/backoff                            | Unit tests không phụ thuộc Internet     |
 | 4    | Chunking, embedding batch, dedup/upsert, ingestion run records                   | Chạy lại không tạo duplicate            |
 | 5    | Prefect schedule/worker, integration test và PostgreSQL restart/persistence test | Flow end-to-end và persistence evidence |
 

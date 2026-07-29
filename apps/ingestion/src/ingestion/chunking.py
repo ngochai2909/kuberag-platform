@@ -12,7 +12,7 @@ from ingestion.models import SourceDocument, StrictModel, normalize_whitespace
 
 CHUNKING_VERSION = "sentence-overlap-v1"
 
-# Sentence ends common in Vietnamese/English news and CVE descriptions.
+# Sentence ends common in Vietnamese/English news text.
 _SENTENCE_SPLIT_RE = re.compile(r"(?<=[.!?…])\s+")
 _WORD_RE = re.compile(r"\S+\s*")
 

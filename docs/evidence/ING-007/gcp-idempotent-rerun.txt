@@ -1,0 +1,47 @@
+ING-007: Pass for idempotent live GCP ingestion rerun.
+Captured on 2026-07-29 against the temporary single-node GCP k3s cluster.
+
+First completed run:
+  flow_run_id=be7ccb3b-0e5a-43d4-bb9d-0b3d2d882191
+  fetched=80 inserted=80 updated=0 skipped=0 failed=0
+  live counts after run: vnexpress=60, nvd=20, chunks=299
+
+Second completed run:
+  flow_run_id=fe074c64-3830-45b2-9b93-9956ae1acb51
+  fetched=80 inserted=1 updated=0 skipped=79 failed=0
+  A new VnExpress RSS article appeared between runs, so this was not identical input.
+  Existing 79 documents were skipped; only the genuinely new document and its
+  three chunks were inserted.
+
+Immediate stable-input confirmation:
+
+$ make gcp-ingest-run
+job.batch/kuberag-ingest-run condition met
+flow_run_id=31350e67-c291-4f69-a8e0-0132a3eb72e2 state=Completed
+
+$ SQL latest ingestion run
+status: completed
+fetched_count: 80
+inserted_count: 0
+updated_count: 0
+skipped_count: 80
+failed_count: 0
+duration_seconds: 0.082
+
+$ SQL counts after stable-input confirmation
+  source   | documents
+-----------+-----------
+ fixture   |         1
+ nvd       |        20
+ vnexpress |        61
+
+ chunks | min_dims | max_dims
+--------+----------+----------
+    302 |      384 |      384
+
+$ SQL duplicate checks
+duplicate_document_identities: 0
+duplicate_chunk_identities: 0
+
+The stable-input confirmation kept document and chunk counts unchanged and
+skipped all 80 fetched records.

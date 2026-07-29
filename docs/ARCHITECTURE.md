@@ -19,7 +19,7 @@ flowchart TB
     User["Người dùng"] --> Gateway["Envoy Gateway"]
     Gateway --> Web["React UI"]
     Gateway --> API["FastAPI RAG API"]
-    Sources["VnExpress và NVD"] --> Prefect["Prefect ingestion"]
+    Sources["VnExpress RSS"] --> Prefect["Prefect ingestion"]
     Prefect --> PG["PostgreSQL + pgvector"]
     API --> PG
     API --> LLM["llama.cpp"]
@@ -268,7 +268,7 @@ Request:
 
 ```json
 {
-  "question": "Các CVE mới liên quan đến Kubernetes là gì?",
+  "question": "Các tin công nghệ mới liên quan đến AI là gì?",
   "top_k": 5
 }
 ```
@@ -281,8 +281,8 @@ Response:
   "sources": [
     {
       "title": "...",
-      "url": "https://...",
-      "source": "nvd",
+      "url": "https://vnexpress.net/...",
+      "source": "vnexpress",
       "score": 0.82
     }
   ],

@@ -1,0 +1,16 @@
+apiVersion: postgresql.cnpg.io/v1
+kind: DatabaseRole
+metadata:
+  name: prefect
+  namespace: data
+spec:
+  cluster:
+    name: kuberag-pg
+  name: prefect
+  login: true
+  superuser: false
+  createdb: false
+  createrole: false
+  passwordSecret:
+    name: prefect-db-auth
+  databaseRoleReclaimPolicy: retain

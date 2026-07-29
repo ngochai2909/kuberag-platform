@@ -1,15 +1,18 @@
-ING-010 Embedding batch (offline interface + fake)
+ING-010 Embedding batch
 
-Verification:
-  uv run pytest apps/ingestion/tests/unit/test_embedding.py -q --no-cov
+Evidence layers:
 
-Result: Pass on 2026-07-28 for the offline path.
+1. Offline interface + fake:
+   `uv run pytest apps/ingestion/tests/unit/test_embedding.py -q --no-cov`
+2. GCP real model smoke:
+   `docs/evidence/ING-010/gcp-e5-smoke.txt`
 
-What this proves:
-- `EmbeddingProvider` contract (`embed_documents` batching, `embed_query`)
-- `FakeEmbeddingProvider` returns 384-dim L2-normalized vectors without downloading a model
-- Upsert path stores embeddings when an embedder is injected
+What passed on GCP:
 
-What this does not yet prove:
-- Real `intfloat/multilingual-e5-small` CPU/RAM/latency on the GCP VM
-- That evidence waits for the ingestion image/Prefect worker deploy
+- Downloaded `intfloat/multilingual-e5-small` onto PVC `kuberag-embedding-models`
+- Sample batch embed returned 384-dim vectors with measured load/embed latency and RSS
+- Prefect worker set to `KUBERAG_EMBEDDING_MODE=e5` with local-only cache mount
+
+Still deferred:
+
+- Full live Prefect flow upsert into PostgreSQL (user skipped fake-embed DB path; real-e5 flow run can be a later checkpoint)

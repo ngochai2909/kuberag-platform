@@ -17,7 +17,6 @@ from uuid import UUID
 
 from prefect import flow, task
 
-from ingestion.adapters.nvd import DEFAULT_API_BASE, NvdAdapter
 from ingestion.adapters.vnexpress import DEFAULT_FEED_URL, VnExpressAdapter
 from ingestion.chunking import ChunkingConfig
 from ingestion.embedding import EmbeddingProvider
@@ -30,7 +29,7 @@ DAILY_INGEST_FLOW_NAME = "kuberag-daily-ingest"
 DAILY_INGEST_CRON = "0 2 * * *"
 DAILY_INGEST_TIMEZONE = "UTC"
 
-SourceName = Literal["vnexpress", "nvd"]
+SourceName = Literal["vnexpress"]
 
 _RUNTIME: IngestionRuntime | None = None
 
@@ -44,7 +43,6 @@ class IngestionRuntime:
     embedder: EmbeddingProvider | None = None
     chunking: ChunkingConfig = field(default_factory=ChunkingConfig)
     vnexpress_feed_url: str = DEFAULT_FEED_URL
-    nvd_api_base: str = DEFAULT_API_BASE
     embedding_batch_size: int = 32
 
 
@@ -108,13 +106,6 @@ def fetch_vnexpress_documents() -> list[SourceDocument]:
     return adapter.fetch_documents()
 
 
-@task(name="fetch-nvd", retries=2, retry_delay_seconds=1)
-def fetch_nvd_documents() -> list[SourceDocument]:
-    runtime = get_ingestion_runtime()
-    adapter = NvdAdapter(runtime.http, api_base=runtime.nvd_api_base)
-    return adapter.fetch_documents()
-
-
 @task(name="upsert-documents", retries=1, retry_delay_seconds=1)
 def upsert_documents(
     documents: list[SourceDocument],
@@ -144,13 +135,11 @@ def daily_ingest_flow(
 ) -> IngestionFlowResult:
     """Run the deterministic ingestion pipeline for configured sources."""
 
-    selected: list[SourceName] = list(sources) if sources else ["vnexpress", "nvd"]
+    selected: list[SourceName] = list(sources) if sources else ["vnexpress"]
     documents: list[SourceDocument] = []
 
     if "vnexpress" in selected:
         documents.extend(fetch_vnexpress_documents())
-    if "nvd" in selected:
-        documents.extend(fetch_nvd_documents())
 
     source_scope = ",".join(selected)
     run = upsert_documents(documents, source_scope=source_scope)

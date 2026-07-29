@@ -66,7 +66,9 @@ def build_runtime_from_env() -> IngestionRuntime:
         timeout_seconds=timeout_seconds,
         max_attempts=max_attempts,
     )
-    connection = psycopg.connect(database_url)
+    # Autocommit keeps reads from opening a long-lived implicit transaction.
+    # PostgresDocumentStore wraps each mutation in an explicit transaction.
+    connection = psycopg.connect(database_url, autocommit=True)
     store = PostgresDocumentStore(connection)
     return IngestionRuntime(
         http=http,

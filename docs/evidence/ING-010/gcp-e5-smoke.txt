@@ -1,0 +1,23 @@
+ING-010: Pass for GCP multilingual-e5-small batch smoke (CPU).
+Captured on 2026-07-28T11:21:51Z against the temporary GCP k3s cluster.
+
+Model: intfloat/multilingual-e5-small
+Image: kuberag-ingestion:local with optional extra 'embedding' (torch CPU).
+PVC: kuberag-embedding-models (5Gi)
+
+$ make gcp-e5-download (logs)
+downloading intfloat/multilingual-e5-small into /models
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+Loading weights:   0%|          | 0/199 [00:00<?, ?it/s]Loading weights: 100%|██████████| 199/199 [00:00<00:00, 3723.91it/s]
+ok dims=384 elapsed_ms=73080 model_id=intfloat/multilingual-e5-small
+
+$ make gcp-e5-smoke (logs)
+Loading weights:   0%|          | 0/199 [00:00<?, ?it/s]Loading weights: 100%|██████████| 199/199 [00:00<00:00, 3589.28it/s]
+ok model_id=intfloat/multilingual-e5-small dims=384 docs=3 query_dims=384 load_ms=2 embed_ms=10016 max_rss_kb=996468
+
+$ kubectl -n prefect get pvc kuberag-embedding-models
+NAME                       STATUS   VOLUME                                     CAPACITY   ACCESS MODES   STORAGECLASS   VOLUMEATTRIBUTESCLASS   AGE     VOLUMEMODE
+kuberag-embedding-models   Bound    pvc-e9c45037-11a6-4642-b19e-9ddad099617b   5Gi        RWO            local-path     <unset>                 2m16s   Filesystem
+
+$ worker embedding mode
+e5

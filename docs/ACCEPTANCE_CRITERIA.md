@@ -81,8 +81,8 @@ Các mục liên quan 3-node/replica đang đánh dấu `Optional` chỉ để k
 | ID      | Mức      | Tiêu chí                                                      | Cách kiểm chứng                  | Evidence tối thiểu       |
 | ------- | -------- | ------------------------------------------------------------- | -------------------------------- | ------------------------ |
 | ING-001 | Required | Adapter VnExpress lấy/normalize dữ liệu thật hoặc fixture     | unit/integration test            | sample contract          |
-| ING-002 | Required | Adapter NVD lấy/normalize dữ liệu thật hoặc fixture           | unit/integration test            | sample contract          |
-| ING-003 | Required | Hai adapter trả cùng document contract                        | contract tests                   | test output              |
+| ING-002 | Removed  | Adapter NVD — đã loại khỏi scope; chỉ còn VnExpress           | N/A                              | N/A                      |
+| ING-003 | Required | Adapter VnExpress trả `SourceDocument` contract               | contract tests                   | test output              |
 | ING-004 | Required | External calls có timeout/retry/backoff và user-agent phù hợp | tests mô phỏng timeout/429/5xx   | test output              |
 | ING-005 | Required | Prefect flow có schedule hằng ngày                            | inspect deployment/schedule      | Prefect UI/config        |
 | ING-006 | Required | Pipeline thực hiện fetch→normalize→dedup→chunk→embed→upsert   | flow run end-to-end              | Prefect run              |

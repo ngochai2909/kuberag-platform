@@ -71,10 +71,7 @@ class E5EmbeddingProvider:
         result = [list(vector) for vector in raw_vectors]
         for vector in result:
             if len(vector) != self.dimensions:
-                msg = (
-                    f"embedding width {len(vector)} does not match "
-                    f"expected {self.dimensions}"
-                )
+                msg = f"embedding width {len(vector)} does not match expected {self.dimensions}"
                 raise ValueError(msg)
         return result
 
@@ -82,7 +79,7 @@ class E5EmbeddingProvider:
         if self._model is not None:
             return self._model
         try:
-            from sentence_transformers import SentenceTransformer
+            from sentence_transformers import SentenceTransformer  # type: ignore[import-not-found]
         except ImportError as exc:
             msg = (
                 "sentence-transformers is required for KUBERAG_EMBEDDING_MODE=e5. "
@@ -93,8 +90,7 @@ class E5EmbeddingProvider:
         cache_folder = self.cache_folder or os.environ.get("KUBERAG_EMBEDDING_CACHE")
         kwargs: dict[str, Any] = {
             "local_files_only": self.local_files_only
-            or os.environ.get("KUBERAG_EMBEDDING_LOCAL_ONLY", "").lower()
-            in {"1", "true", "yes"},
+            or os.environ.get("KUBERAG_EMBEDDING_LOCAL_ONLY", "").lower() in {"1", "true", "yes"},
         }
         if cache_folder:
             kwargs["cache_folder"] = cache_folder

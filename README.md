@@ -4,12 +4,12 @@ KubeRAG is a cloud-native RAG platform monorepo. The target platform uses FastAP
 
 The current infrastructure target is a **temporary single-node k3s environment** for local development and constrained demo work. The final target remains the original cluster shape: **1 k3s server/control-plane node and 2 k3s worker nodes** on GCP Compute Engine.
 
-Current application state: **phase 2 RAG API skeleton**. The FastAPI backend
-lives in `apps/rag-api`, exposes the KubeRAG query contract, and no longer
-depends on LangGraph, LangChain, OpenAI SDKs, or an external LLM API. The GCP
-data foundation now has CloudNativePG, PostgreSQL/pgvector, and the initial
-Alembic schema, but the API retrieval and llama.cpp providers are intentionally
-not wired yet.
+Current application state: **week 2 data and ingestion complete; week 3 RAG
+providers next**. The FastAPI backend in `apps/rag-api` exposes the KubeRAG
+query contract without LangGraph, LangChain, OpenAI SDKs, or an external LLM
+API. The GCP checkpoint has CloudNativePG/pgvector plus a live Prefect
+VnExpress flow using `multilingual-e5-small`. API retrieval and llama.cpp
+providers are not wired yet.
 
 For an accurate deployed-versus-prepared summary, start with
 [`docs/PROJECT_STATUS.md`](docs/PROJECT_STATUS.md). It records the verified
@@ -118,7 +118,7 @@ tunnel instead of exposing another public administration port. See
 `docs/runbooks/gcp-k3s-foundation.md` for the operating sequence and
 `docs/runbooks/gcp-cost-control.md` for stop/start/destroy operations.
 
-After the tunnel is open, the next GCP foundation commands are:
+After the tunnel is open, common GCP status and ingestion commands are:
 
 ```bash
 make gcp-envoy-install
@@ -126,25 +126,33 @@ make gcp-foundation-apply
 make gcp-foundation-status
 make gcp-foundation-smoke
 make gcp-unsafe-check
+make gcp-prefect-status
+make gcp-ingest-run
 ```
 
-The GCP overlay renders successfully in local validation, but these commands
-have not yet been run against the GCP cluster. Runtime Envoy and HTTP routing
-evidence is captured only after the controller and manifests are deployed.
+Prefect Server stores its deployment/schedule/run metadata in the separate
+`prefect` database on the existing CloudNativePG cluster. This is separate from
+the `kuberag` database that stores crawled documents and vectors. The setup and
+recovery steps are documented in `docs/runbooks/prefect-postgresql.md`.
+
+`make gcp-ingest-run` triggers the registered
+`kuberag-daily-ingest/daily` deployment and waits for its terminal state. It
+fetches live VnExpress data, embeds with the model cached on the cluster
+PVC, and upserts into CloudNativePG. It changes persistent database state.
 
 ## Monorepo Layout
 
 ```text
 apps/
   rag-api/          FastAPI RAG API skeleton
-  ingestion/        Source adapters, Alembic migrations, later Prefect flows
+  ingestion/        Adapters, Prefect flows, e5 embedding, Alembic, upsert
   frontend/         Placeholder for React/Vite UI
 infra/
   terraform/        GCP network, firewall, VM, disk, IP, and outputs
   ansible/          Local and GCP single-node k3s host configuration
 deploy/
-  helm/             Placeholder for project-owned Helm assets
-  kustomize/        Placeholder for Kubernetes workload bases and overlays
+  helm/             Project-owned Helm values/assets
+  kustomize/        Kubernetes workload bases and environment overlays
 observability/
   collector/        Placeholder for OpenTelemetry Collector config
   dashboards/       Placeholder for Grafana dashboards
@@ -158,9 +166,10 @@ docs/
 
 ## Phase Boundaries
 
-Phase 2 only replaces the legacy agent backend with typed RAG API interfaces and a deterministic skeleton. It does not implement PostgreSQL, pgvector, ingestion, llama.cpp HTTP calls, Envoy Gateway, frontend, observability, supply-chain scanning, or Kubernetes manifests.
-
-The current implementation phase is the single-node foundation: local automation for one node, Ansible k3s setup, namespace and Pod Security `restricted` validation, and then a minimal Envoy Gateway route. PostgreSQL/pgvector and ingestion come after that foundation is verified.
+The current boundary has verified the single-node foundation,
+PostgreSQL/pgvector persistence, and ingestion through real e5. Week 3 adds
+query retrieval, bounded prompts, llama.cpp, the frontend, and final Envoy
+application routes. Observability and supply-chain work follow in later phases.
 
 The single-node target is temporary. The 3-node GCP topology and PostgreSQL primary/replica placement must be restored before final acceptance.
 

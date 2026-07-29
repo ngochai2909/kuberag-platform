@@ -88,32 +88,33 @@ class PostgresDocumentStore:
         *,
         embeddings: list[list[float]] | None = None,
     ) -> StoredDocument:
-        with self._connection.cursor(row_factory=dict_row) as cursor:
-            cursor.execute(
-                """
-                INSERT INTO documents (
-                    source, external_id, title, url, published_at,
-                    content, checksum, metadata
+        with self._connection.transaction():  # noqa: SIM117 - explicit transaction boundary
+            with self._connection.cursor(row_factory=dict_row) as cursor:
+                cursor.execute(
+                    """
+                    INSERT INTO documents (
+                        source, external_id, title, url, published_at,
+                        content, checksum, metadata
+                    )
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+                    RETURNING id, source, external_id, title, url, published_at,
+                              content, checksum, metadata
+                    """,
+                    (
+                        document.source,
+                        document.external_id,
+                        document.title,
+                        document.url,
+                        document.published_at,
+                        document.text,
+                        document.checksum,
+                        Jsonb(document.metadata),
+                    ),
                 )
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
-                RETURNING id, source, external_id, title, url, published_at,
-                          content, checksum, metadata
-                """,
-                (
-                    document.source,
-                    document.external_id,
-                    document.title,
-                    document.url,
-                    document.published_at,
-                    document.text,
-                    document.checksum,
-                    Jsonb(document.metadata),
-                ),
-            )
-            row = cursor.fetchone()
-            assert row is not None
-            stored = _document_from_row(row)
-            _insert_chunks(cursor, stored.id, chunks, embeddings=embeddings)
+                row = cursor.fetchone()
+                assert row is not None
+                stored = _document_from_row(row)
+                _insert_chunks(cursor, stored.id, chunks, embeddings=embeddings)
         return stored
 
     def update_document(
@@ -124,38 +125,39 @@ class PostgresDocumentStore:
         *,
         embeddings: list[list[float]] | None = None,
     ) -> StoredDocument:
-        with self._connection.cursor(row_factory=dict_row) as cursor:
-            cursor.execute(
-                """
-                UPDATE documents
-                SET title = %s,
-                    url = %s,
-                    published_at = %s,
-                    content = %s,
-                    checksum = %s,
-                    metadata = %s,
-                    updated_at = now()
-                WHERE id = %s
-                RETURNING id, source, external_id, title, url, published_at,
-                          content, checksum, metadata
-                """,
-                (
-                    document.title,
-                    document.url,
-                    document.published_at,
-                    document.text,
-                    document.checksum,
-                    Jsonb(document.metadata),
-                    document_id,
-                ),
-            )
-            row = cursor.fetchone()
-            if row is None:
-                msg = f"document {document_id} not found for update"
-                raise ValueError(msg)
-            cursor.execute("DELETE FROM chunks WHERE document_id = %s", (document_id,))
-            _insert_chunks(cursor, document_id, chunks, embeddings=embeddings)
-            return _document_from_row(row)
+        with self._connection.transaction():  # noqa: SIM117 - explicit transaction boundary
+            with self._connection.cursor(row_factory=dict_row) as cursor:
+                cursor.execute(
+                    """
+                    UPDATE documents
+                    SET title = %s,
+                        url = %s,
+                        published_at = %s,
+                        content = %s,
+                        checksum = %s,
+                        metadata = %s,
+                        updated_at = now()
+                    WHERE id = %s
+                    RETURNING id, source, external_id, title, url, published_at,
+                              content, checksum, metadata
+                    """,
+                    (
+                        document.title,
+                        document.url,
+                        document.published_at,
+                        document.text,
+                        document.checksum,
+                        Jsonb(document.metadata),
+                        document_id,
+                    ),
+                )
+                row = cursor.fetchone()
+                if row is None:
+                    msg = f"document {document_id} not found for update"
+                    raise ValueError(msg)
+                cursor.execute("DELETE FROM chunks WHERE document_id = %s", (document_id,))
+                _insert_chunks(cursor, document_id, chunks, embeddings=embeddings)
+                return _document_from_row(row)
 
     def start_ingestion_run(
         self,
@@ -166,30 +168,31 @@ class PostgresDocumentStore:
         watermark_to: datetime | None = None,
         prefect_flow_run_id: UUID | None = None,
     ) -> IngestionRunRecord:
-        with self._connection.cursor(row_factory=dict_row) as cursor:
-            cursor.execute(
-                """
-                INSERT INTO ingestion_runs (
-                    prefect_flow_run_id, flow_name, source_scope, status,
-                    watermark_from, watermark_to
+        with self._connection.transaction():  # noqa: SIM117 - explicit transaction boundary
+            with self._connection.cursor(row_factory=dict_row) as cursor:
+                cursor.execute(
+                    """
+                    INSERT INTO ingestion_runs (
+                        prefect_flow_run_id, flow_name, source_scope, status,
+                        watermark_from, watermark_to
+                    )
+                    VALUES (%s, %s, %s, 'running', %s, %s)
+                    RETURNING id, prefect_flow_run_id, flow_name, source_scope, status,
+                              watermark_from, watermark_to, fetched_count, inserted_count,
+                              updated_count, skipped_count, failed_count, error_summary,
+                              started_at, finished_at
+                    """,
+                    (
+                        prefect_flow_run_id,
+                        flow_name,
+                        source_scope,
+                        watermark_from,
+                        watermark_to,
+                    ),
                 )
-                VALUES (%s, %s, %s, 'running', %s, %s)
-                RETURNING id, prefect_flow_run_id, flow_name, source_scope, status,
-                          watermark_from, watermark_to, fetched_count, inserted_count,
-                          updated_count, skipped_count, failed_count, error_summary,
-                          started_at, finished_at
-                """,
-                (
-                    prefect_flow_run_id,
-                    flow_name,
-                    source_scope,
-                    watermark_from,
-                    watermark_to,
-                ),
-            )
-            row = cursor.fetchone()
-            assert row is not None
-            return _run_from_row(row)
+                row = cursor.fetchone()
+                assert row is not None
+                return _run_from_row(row)
 
     def finish_ingestion_run(
         self,
@@ -203,43 +206,44 @@ class PostgresDocumentStore:
         if status == "running":
             msg = "finish_ingestion_run requires completed or failed status"
             raise ValueError(msg)
-        with self._connection.cursor(row_factory=dict_row) as cursor:
-            cursor.execute(
-                """
-                UPDATE ingestion_runs
-                SET status = %s,
-                    fetched_count = %s,
-                    inserted_count = %s,
-                    updated_count = %s,
-                    skipped_count = %s,
-                    failed_count = %s,
-                    error_summary = %s,
-                    watermark_to = COALESCE(%s, watermark_to),
-                    finished_at = %s
-                WHERE id = %s
-                RETURNING id, prefect_flow_run_id, flow_name, source_scope, status,
-                          watermark_from, watermark_to, fetched_count, inserted_count,
-                          updated_count, skipped_count, failed_count, error_summary,
-                          started_at, finished_at
-                """,
-                (
-                    status,
-                    counters.fetched_count,
-                    counters.inserted_count,
-                    counters.updated_count,
-                    counters.skipped_count,
-                    counters.failed_count,
-                    error_summary,
-                    watermark_to,
-                    datetime.now(UTC),
-                    run_id,
-                ),
-            )
-            row = cursor.fetchone()
-            if row is None:
-                msg = f"ingestion run {run_id} not found"
-                raise ValueError(msg)
-            return _run_from_row(row)
+        with self._connection.transaction():  # noqa: SIM117 - explicit transaction boundary
+            with self._connection.cursor(row_factory=dict_row) as cursor:
+                cursor.execute(
+                    """
+                    UPDATE ingestion_runs
+                    SET status = %s,
+                        fetched_count = %s,
+                        inserted_count = %s,
+                        updated_count = %s,
+                        skipped_count = %s,
+                        failed_count = %s,
+                        error_summary = %s,
+                        watermark_to = COALESCE(%s, watermark_to),
+                        finished_at = %s
+                    WHERE id = %s
+                    RETURNING id, prefect_flow_run_id, flow_name, source_scope, status,
+                              watermark_from, watermark_to, fetched_count, inserted_count,
+                              updated_count, skipped_count, failed_count, error_summary,
+                              started_at, finished_at
+                    """,
+                    (
+                        status,
+                        counters.fetched_count,
+                        counters.inserted_count,
+                        counters.updated_count,
+                        counters.skipped_count,
+                        counters.failed_count,
+                        error_summary,
+                        watermark_to,
+                        datetime.now(UTC),
+                        run_id,
+                    ),
+                )
+                row = cursor.fetchone()
+                if row is None:
+                    msg = f"ingestion run {run_id} not found"
+                    raise ValueError(msg)
+                return _run_from_row(row)
 
     def get_ingestion_run(self, run_id: UUID) -> IngestionRunRecord | None:
         with self._connection.cursor(row_factory=dict_row) as cursor:

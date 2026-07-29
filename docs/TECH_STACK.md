@@ -23,8 +23,8 @@
 | Default ingress | Traefik | Disabled locally, unused | Thành phần k3s mặc định | Không phục vụ route của dự án |
 | Frontend | React + Vite | Required | UI truy vấn một trang | Nhẹ, nhanh, đủ cho demo |
 | Backend | FastAPI | Required | RAG HTTP API | Python, async, OpenAPI và dễ instrument |
-| Orchestrator | Prefect | Required | Daily ingestion flow | Nhẹ và dễ tiếp cận hơn Airflow cho scope này |
-| Sources | VnExpress RSS + NVD API | Required | Dữ liệu mới hằng ngày | Hai định dạng và domain khác nhau |
+| Orchestrator | Prefect + PostgreSQL metadata DB | Required | Daily ingestion flow, schedule, retry và run state | Tránh SQLite writer lock khi server, scheduler và worker cùng hoạt động |
+| Sources | VnExpress RSS | Required | Dữ liệu mới hằng ngày | Một nguồn tin tiếng Việt ổn định cho demo RAG |
 | Database | PostgreSQL | Required | OLTP, metadata, documents | Tin cậy, phù hợp dữ liệu quan hệ |
 | DB operator | CloudNativePG | Required | Single PostgreSQL instance tạm thời; primary/replica/failover ở mốc cuối | Kubernetes-native PostgreSQL lifecycle |
 | Vector | pgvector | Required | Embedding và similarity search | Tránh thêm vector database riêng |

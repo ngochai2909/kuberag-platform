@@ -11,4 +11,8 @@ Proven fields:
 - started_at / finished_at duration bounds
 - sanitized error_summary (bounded, whitespace collapsed)
 
-PostgresDocumentStore implements the same contract for later GCP runs.
+GCP cluster result: Pass on 2026-07-29.
+
+Three completed runs persisted in CloudNativePG with fetched/inserted/skipped/
+failed counters and start/finish timestamps. Runtime evidence:
+`gcp-ingestion-runs.txt`.

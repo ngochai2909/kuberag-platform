@@ -29,7 +29,6 @@ def load_fixture(*parts: str) -> str:
 def _runtime_with_fixtures() -> tuple[IngestionRuntime, InMemoryDocumentStore]:
     store = InMemoryDocumentStore()
     feed = load_fixture("vnexpress", "feed.xml")
-    nvd = load_fixture("nvd", "cves-sample.json")
     http = FakeHttpClient(
         {
             "https://vnexpress.net/rss/khoa-hoc-cong-nghe.rss": HttpResponse(200, feed),
@@ -38,9 +37,6 @@ def _runtime_with_fixtures() -> tuple[IngestionRuntime, InMemoryDocumentStore]:
             ),
             "https://vnexpress.net/pin-the-ran-1002.html": HttpResponse(
                 200, load_fixture("vnexpress", "article-1002.html")
-            ),
-            "https://services.nvd.nist.gov/rest/json/cves/2.0?resultsPerPage=20&startIndex=0": (
-                HttpResponse(200, nvd)
             ),
         }
     )
@@ -80,19 +76,19 @@ def test_daily_ingest_flow_runs_offline_with_fakes() -> None:
 
     assert result.flow_name == DAILY_INGEST_FLOW_NAME
     assert result.status == "completed"
-    assert set(result.sources) == {"vnexpress", "nvd"}
-    assert result.document_count == 4
-    assert result.counters.inserted_count == 4
+    assert result.sources == ["vnexpress"]
+    assert result.document_count == 2
+    assert result.counters.inserted_count == 2
     assert result.counters.failed_count == 0
-    assert store.count_documents() == 4
-    assert store.count_chunks() >= 4
+    assert store.count_documents() == 2
+    assert store.count_chunks() >= 2
     # Embeddings were produced for inserted chunks.
     embedded = [chunk for chunks in store.chunks_by_document.values() for chunk in chunks]
     assert embedded
     assert all(chunk.embedding is not None for chunk in embedded)
 
     summary = summarize_flow_result(result)
-    assert summary["inserted_count"] == 4
+    assert summary["inserted_count"] == 2
     assert summary["status"] == "completed"
 
 
@@ -102,13 +98,13 @@ def test_daily_ingest_flow_is_idempotent_on_second_run() -> None:
         first = daily_ingest_flow()
         second = daily_ingest_flow()
 
-    assert first.counters.inserted_count == 4
-    assert second.counters.skipped_count == 4
+    assert first.counters.inserted_count == 2
+    assert second.counters.skipped_count == 2
     assert second.counters.inserted_count == 0
-    assert store.count_documents() == 4
+    assert store.count_documents() == 2
 
 
-def test_daily_ingest_flow_can_run_single_source() -> None:
+def test_daily_ingest_flow_accepts_vnexpress_source() -> None:
     runtime, store = _runtime_with_fixtures()
     with ingestion_runtime(runtime):
         result = daily_ingest_flow(sources=["vnexpress"])

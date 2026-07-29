@@ -1,0 +1,29 @@
+2026-07-29 Prefect metadata PostgreSQL verification
+
+Commands executed against the temporary GCP single-node cluster:
+
+  make gcp-prefect-role-secret
+  make gcp-postgresql-apply
+  make gcp-prefect-server-db-secret
+  make gcp-prefect-apply
+  make gcp-prefect-bootstrap
+  make gcp-prefect-worker-restart
+  make gcp-ingest-run
+
+Redacted results:
+
+  data/prefect-db-auth created as kubernetes.io/basic-auth
+  DatabaseRole/prefect status.applied=true
+  Database/prefect status.applied=true
+  prefect-server availableReplicas=1
+  prefect-worker availableReplicas=1
+  flow_run_id=253aed52-4c93-4530-80a7-f5fa2c30ea83 state=Completed
+
+Post-run server and worker log searches returned no matches for:
+
+  database is locked
+  sqlite
+  connectionrefused
+
+No credential, connection URI, Kubernetes Secret data, or raw article content
+is included in this evidence.

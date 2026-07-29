@@ -1,0 +1,38 @@
+ING-006: Pass for live GCP Prefect ingestion with real e5 and PostgreSQL.
+Captured on 2026-07-29 against the temporary single-node GCP k3s cluster.
+
+$ make gcp-ingest-run
+job.batch "kuberag-ingest-run" deleted from prefect namespace
+job.batch/kuberag-ingest-run created
+job.batch/kuberag-ingest-run condition met
+flow_run_id=be7ccb3b-0e5a-43d4-bb9d-0b3d2d882191 state=Completed
+
+$ SQL source document counts
+  source   | documents
+-----------+-----------
+ fixture   |         1
+ nvd       |        20
+ vnexpress |        60
+
+$ SQL chunk count and embedding dimensions
+ chunks | min_dims | max_dims
+--------+----------+----------
+    299 |      384 |      384
+
+$ SQL first ingestion run
+flow_name: kuberag-daily-ingest
+source_scope: vnexpress,nvd
+status: completed
+fetched_count: 80
+inserted_count: 80
+updated_count: 0
+skipped_count: 0
+failed_count: 0
+duration_seconds: 50.205
+started_at: 2026-07-29 03:26:00.318438+00
+finished_at: 2026-07-29 03:26:50.523783+00
+
+The run exercised:
+fetch -> normalize -> deduplicate -> chunk -> multilingual-e5-small -> PostgreSQL/pgvector upsert.
+
+The pre-existing `fixture` document is unrelated database integration evidence.

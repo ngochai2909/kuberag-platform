@@ -117,16 +117,16 @@ def test_ingestion_run_records_success_counts_and_duration() -> None:
     store = InMemoryDocumentStore()
     session = start_ingestion_run(
         store,
-        flow_name="ingest-nvd",
-        source_scope="nvd:cve",
+        flow_name="ingest-vnexpress",
+        source_scope="vnexpress:khoa-hoc-cong-nghe",
         chunking=ChunkingConfig(max_chars=200, overlap_chars=40),
     )
     session.upsert_document(
         _document(
-            source="nvd",
-            external_id="CVE-2024-12345",
-            title="CVE-2024-12345: demo",
-            text="A demo vulnerability description for upsert tests.",
+            source="vnexpress",
+            external_id="https://vnexpress.net/demo-article.html",
+            title="Tin công nghệ demo",
+            text="A demo technology article description for upsert tests.",
         )
     )
     finished = session.complete()

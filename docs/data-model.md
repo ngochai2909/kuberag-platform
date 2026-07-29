@@ -5,21 +5,18 @@ an Alembic migration or a deployed PostgreSQL schema.
 
 ## Purpose And Scope
 
-KubeRAG ingests two required source types: VnExpress RSS and the NVD CVE API.
-Their raw formats differ, so source adapters must normalize both into one
-document contract before PostgreSQL, chunking, and embedding are involved.
+KubeRAG's required demo source is VnExpress RSS. The VnExpress adapter
+normalizes feed/article data into one `SourceDocument` contract before
+PostgreSQL, chunking, and embedding are involved.
 
 ```text
-VnExpress RSS / NVD API
+VnExpress RSS
 -> source adapter
 -> SourceDocument
 -> documents
 -> chunks + embeddings
 -> RAG retrieval and source links
 ```
-
-The initial implementation starts with VnExpress. NVD uses the same
-`SourceDocument` contract with the mapping below.
 
 ## VnExpress Source Decision
 
@@ -78,30 +75,6 @@ For VnExpress, map the RSS/article data as follows:
 The checksum is calculated from the normalized title and full text, not the raw
 RSS XML. This detects an edited article even when its URL remains unchanged.
 
-## NVD Source Decision
-
-API base:
-
-```text
-https://services.nvd.nist.gov/rest/json/cves/2.0
-```
-
-NVD CVE API 2.0 JSON is already structured, so the adapter normalizes each
-`vulnerabilities[].cve` object without a second HTML fetch.
-
-| Source field | SourceDocument field | Rule |
-|---|---|---|
-| `cve.id` | `external_id` | Stable CVE identifier such as `CVE-2024-12345`. |
-| `cve.id` + English description lead | `title` | Compact display title bounded to 1000 characters. |
-| derived detail URL | `url` | `https://nvd.nist.gov/vuln/detail/{cve.id}` for frontend source links. |
-| `cve.published` | `published_at` | Parsed as timezone-aware UTC. |
-| English `descriptions[].value` | `text` | Prefer `lang` starting with `en`; otherwise first non-empty value. |
-| `vulnStatus`, `sourceIdentifier`, `lastModified` | `metadata.*` | Bounded provenance fields only. |
-| primary CVSS metric when present | `metadata.cvss_*` | Store version, score, and severity; omit when absent. |
-
-Checksum uses the same title+text rule as VnExpress. Raw NVD JSON is not stored
-in PostgreSQL in the first milestone.
-
 ## Chunking Decision
 
 Chunking happens after adapters produce `SourceDocument` and before embedding.
@@ -148,12 +121,12 @@ embed_query(text) -> vector
 
 ### `documents`
 
-One row represents one source article or CVE record.
+One row represents one source article.
 
 | Field | Purpose |
 |---|---|
 | `id` | Internal UUID primary key. |
-| `source` | Source identifier such as `vnexpress` or `nvd`. |
+| `source` | Source identifier such as `vnexpress`. |
 | `external_id` | Stable identity supplied or derived by the source. |
 | `title` | Human-readable source title. |
 | `url` | Canonical URL returned to the user as a clickable source. |
