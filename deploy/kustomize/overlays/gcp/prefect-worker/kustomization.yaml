@@ -2,3 +2,21 @@ apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 resources:
   - ../../../base/prefect-worker
+patches:
+  - target:
+      group: apps
+      version: v1
+      kind: Deployment
+      name: prefect-worker
+      namespace: prefect
+    patch: |-
+      - op: add
+        path: /spec/template/spec/containers/0/env/-
+        value:
+          name: KUBERAG_OTEL_ENABLED
+          value: "true"
+      - op: add
+        path: /spec/template/spec/containers/0/env/-
+        value:
+          name: OTEL_EXPORTER_OTLP_ENDPOINT
+          value: kuberag-otel-collector.observability.svc.cluster.local:4317

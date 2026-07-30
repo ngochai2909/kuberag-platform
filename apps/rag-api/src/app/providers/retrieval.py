@@ -16,6 +16,7 @@ from typing import Any, Protocol
 import psycopg
 from psycopg.rows import dict_row
 
+from app.core.telemetry import get_tracer
 from app.services.rag import RetrievedChunk
 from ingestion.embedding import EmbeddingProvider
 
@@ -122,7 +123,8 @@ class PostgresRetriever:
             msg = "top_k must be >= 1"
             raise ValueError(msg)
 
-        embedding = await asyncio.to_thread(self._embedder.embed_query, question)
+        with get_tracer(__name__).start_as_current_span("rag.embed_query"):
+            embedding = await asyncio.to_thread(self._embedder.embed_query, question)
         if len(embedding) != self._embedder.dimensions:
             msg = (
                 f"embedding width {len(embedding)} does not match "
@@ -130,11 +132,12 @@ class PostgresRetriever:
             )
             raise ValueError(msg)
 
-        matches = await asyncio.to_thread(
-            self._store.search,
-            embedding=embedding,
-            top_k=top_k,
-        )
+        with get_tracer(__name__).start_as_current_span("rag.pgvector_search"):
+            matches = await asyncio.to_thread(
+                self._store.search,
+                embedding=embedding,
+                top_k=top_k,
+            )
         return [
             RetrievedChunk(
                 title=match.title,

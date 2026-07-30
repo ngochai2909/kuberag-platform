@@ -6,6 +6,8 @@ from typing import Any
 
 import httpx
 
+from app.core.telemetry import get_tracer
+
 
 class LlamaCppGenerator:
     """Call llama.cpp's OpenAI-compatible chat completion endpoint.
@@ -59,20 +61,21 @@ class LlamaCppGenerator:
         headers = {"X-Request-ID": request_id}
 
         try:
-            if self._client is not None:
-                response = await self._client.post(
-                    f"{self._base_url}/v1/chat/completions",
-                    json=payload,
-                    headers=headers,
-                    timeout=self._timeout_seconds,
-                )
-            else:
-                async with httpx.AsyncClient(timeout=self._timeout_seconds) as client:
-                    response = await client.post(
+            with get_tracer(__name__).start_as_current_span("rag.llm_generate"):
+                if self._client is not None:
+                    response = await self._client.post(
                         f"{self._base_url}/v1/chat/completions",
                         json=payload,
                         headers=headers,
+                        timeout=self._timeout_seconds,
                     )
+                else:
+                    async with httpx.AsyncClient(timeout=self._timeout_seconds) as client:
+                        response = await client.post(
+                            f"{self._base_url}/v1/chat/completions",
+                            json=payload,
+                            headers=headers,
+                        )
 
             response.raise_for_status()
             return _completion_content(response.json())

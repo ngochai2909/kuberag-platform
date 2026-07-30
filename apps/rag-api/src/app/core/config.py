@@ -40,6 +40,13 @@ class Settings(BaseSettings):
     app_api_key: SecretStr | None = None
     public_demo_mode: bool = False
 
+    otel_enabled: bool = False
+    otel_service_name: str = "kuberag-rag-api"
+    otel_exporter_otlp_endpoint: str = "kuberag-otel-collector.observability.svc.cluster.local:4317"
+    otel_export_timeout_seconds: float = Field(default=2.0, gt=0, le=30)
+    pyroscope_enabled: bool = False
+    pyroscope_server_address: str = "http://kuberag-pyroscope.observability.svc.cluster.local:4040"
+
     rag_timeout_seconds: float = Field(default=45.0, gt=0, le=600)
     rag_max_context_chars: int = Field(default=12000, ge=1000, le=100000)
     rag_runtime_enabled: bool = False

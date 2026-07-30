@@ -1,0 +1,125 @@
+# Temporary single-node observability budget. All services remain ClusterIP and
+# are accessed by an IAP-backed kubectl port-forward, not Envoy/public firewall.
+alertmanager:
+  enabled: false
+
+defaultRules:
+  create: false
+
+grafana:
+  admin:
+    existingSecret: kuberag-grafana-admin
+    userKey: admin-user
+    passwordKey: admin-password
+  ingress:
+    enabled: false
+  persistence:
+    enabled: true
+    type: pvc
+    size: 2Gi
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 300m
+      memory: 384Mi
+  grafana.ini:
+    users:
+      allow_sign_up: false
+    auth.anonymous:
+      enabled: false
+    security:
+      allow_embedding: false
+  sidecar:
+    dashboards:
+      enabled: true
+      label: grafana_dashboard
+      labelValue: "1"
+      searchNamespace: ALL
+  additionalDataSources:
+    - name: Loki
+      uid: loki
+      type: loki
+      access: proxy
+      url: http://kuberag-loki.observability.svc.cluster.local:3100
+      editable: false
+      jsonData:
+        derivedFields:
+          - name: TraceID
+            matcherRegex: '"trace_id":"([a-f0-9]{32})"'
+            datasourceUid: tempo
+            url: '$${__value.raw}'
+    - name: Tempo
+      uid: tempo
+      type: tempo
+      access: proxy
+      url: http://kuberag-tempo.observability.svc.cluster.local:3200
+      editable: false
+      jsonData:
+        tracesToLogsV2:
+          datasourceUid: loki
+          tags:
+            - service.name
+          filterByTraceID: true
+          filterBySpanID: false
+          spanStartTimeShift: -5m
+          spanEndTimeShift: 5m
+    - name: Pyroscope
+      uid: pyroscope
+      type: grafana-pyroscope-datasource
+      access: proxy
+      url: http://kuberag-pyroscope.observability.svc.cluster.local:4040
+      editable: false
+
+prometheus-node-exporter:
+  enabled: false
+
+nodeExporter:
+  enabled: false
+
+kube-state-metrics:
+  resources:
+    requests:
+      cpu: 50m
+      memory: 96Mi
+    limits:
+      cpu: 200m
+      memory: 192Mi
+
+prometheusOperator:
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 300m
+      memory: 256Mi
+
+prometheus:
+  prometheusSpec:
+    scrapeInterval: 15s
+    evaluationInterval: 15s
+    retention: 3d
+    retentionSize: 8GB
+    serviceMonitorSelectorNilUsesHelmValues: false
+    serviceMonitorSelector: {}
+    serviceMonitorNamespaceSelector: {}
+    podMonitorSelectorNilUsesHelmValues: false
+    podMonitorSelector: {}
+    podMonitorNamespaceSelector: {}
+    resources:
+      requests:
+        cpu: 250m
+        memory: 512Mi
+      limits:
+        cpu: "1"
+        memory: 1Gi
+    storageSpec:
+      volumeClaimTemplate:
+        spec:
+          accessModes:
+            - ReadWriteOnce
+          resources:
+            requests:
+              storage: 10Gi

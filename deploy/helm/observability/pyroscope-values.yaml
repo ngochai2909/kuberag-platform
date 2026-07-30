@@ -1,0 +1,36 @@
+# Python SDKs push profiles directly to this single binary. Grafana Alloy is
+# deliberately disabled because OTel Collector is KubeRAG's only telemetry gateway.
+pyroscope:
+  disableSelfProfile: true
+  extraArgs:
+    log.level: info
+    pyroscopedb.max-block-duration: 30m
+  podSecurityContext:
+    fsGroup: 10001
+    runAsUser: 10001
+    runAsNonRoot: true
+    seccompProfile:
+      type: RuntimeDefault
+  securityContext:
+    allowPrivilegeEscalation: false
+    capabilities:
+      drop:
+        - ALL
+  resources:
+    requests:
+      cpu: 100m
+      memory: 192Mi
+    limits:
+      cpu: 400m
+      memory: 384Mi
+  persistence:
+    enabled: true
+    size: 5Gi
+alloy:
+  enabled: false
+agent:
+  enabled: false
+minio:
+  enabled: false
+serviceMonitor:
+  enabled: true

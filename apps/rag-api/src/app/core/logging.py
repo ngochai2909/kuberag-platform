@@ -37,13 +37,15 @@ def _json_safe(value: Any) -> Any:
     return value
 
 
-def configure_logging(level: str) -> None:
+def configure_logging(level: str, *, telemetry_handler: logging.Handler | None = None) -> None:
     handler = logging.StreamHandler()
     handler.setFormatter(JsonFormatter())
 
     root_logger = logging.getLogger()
     root_logger.handlers.clear()
     root_logger.addHandler(handler)
+    if telemetry_handler is not None:
+        root_logger.addHandler(telemetry_handler)
     root_logger.setLevel(level)
 
     for logger_name in ("uvicorn", "uvicorn.error", "uvicorn.access"):

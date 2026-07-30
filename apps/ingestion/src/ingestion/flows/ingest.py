@@ -23,6 +23,12 @@ from ingestion.embedding import EmbeddingProvider
 from ingestion.http import HttpClient
 from ingestion.models import SourceDocument
 from ingestion.store import DocumentStore, IngestionCounters, IngestionRunRecord
+from ingestion.telemetry import (
+    configure_ingestion_telemetry,
+    get_tracer,
+    log_event,
+    record_flow_result,
+)
 from ingestion.upsert import start_ingestion_run
 
 DAILY_INGEST_FLOW_NAME = "kuberag-daily-ingest"
@@ -104,7 +110,8 @@ def deployment_schedule() -> dict[str, str]:
 def fetch_vnexpress_documents() -> list[SourceDocument]:
     runtime = get_ingestion_runtime()
     adapter = VnExpressAdapter(runtime.http, feed_url=runtime.vnexpress_feed_url)
-    return adapter.fetch_documents()
+    with get_tracer().start_as_current_span("ingestion.fetch"):
+        return adapter.fetch_documents()
 
 
 @task(name="upsert-documents", retries=1, retry_delay_seconds=1)
@@ -122,11 +129,12 @@ def upsert_documents(
         embedder=runtime.embedder,
         embedding_batch_size=runtime.embedding_batch_size,
     )
-    for document in documents:
-        try:
-            session.upsert_document(document)
-        except Exception as exc:
-            session.record_failure(exc)
+    with get_tracer().start_as_current_span("ingestion.upsert"):
+        for document in documents:
+            try:
+                session.upsert_document(document)
+            except Exception as exc:
+                session.record_failure(exc)
     return session.complete(watermark_to=datetime.now(UTC))
 
 
@@ -136,26 +144,58 @@ def daily_ingest_flow(
 ) -> IngestionFlowResult:
     """Run the deterministic ingestion pipeline for configured sources."""
 
+    configure_ingestion_telemetry()
+    started_monotonic = datetime.now(UTC)
     selected: list[SourceName] = list(sources) if sources else ["vnexpress"]
     documents: list[SourceDocument] = []
-
-    if "vnexpress" in selected:
-        documents.extend(fetch_vnexpress_documents())
-
-    source_scope = ",".join(selected)
-    run = upsert_documents(documents, source_scope=source_scope)
-    status: Literal["completed", "failed"] = "failed" if run.status != "completed" else "completed"
-    return IngestionFlowResult(
-        flow_name=DAILY_INGEST_FLOW_NAME,
-        status=status,
-        sources=list(selected),
-        document_count=len(documents),
-        counters=run.counters,
-        run_id=run.id,
-        started_at=run.started_at,
-        finished_at=run.finished_at,
-        error_summary=run.error_summary,
+    log_event(
+        "ingestion_started", flow_name=DAILY_INGEST_FLOW_NAME, source_scope=",".join(selected)
     )
+
+    try:
+        if "vnexpress" in selected:
+            documents.extend(fetch_vnexpress_documents())
+
+        source_scope = ",".join(selected)
+        run = upsert_documents(documents, source_scope=source_scope)
+        status: Literal["completed", "failed"] = (
+            "failed" if run.status != "completed" else "completed"
+        )
+        duration_seconds = (datetime.now(UTC) - started_monotonic).total_seconds()
+        record_flow_result(
+            status=status,
+            document_count=len(documents),
+            duration_seconds=duration_seconds,
+        )
+        log_event(
+            "ingestion_completed",
+            flow_name=DAILY_INGEST_FLOW_NAME,
+            status=status,
+            document_count=len(documents),
+            duration_ms=round(duration_seconds * 1000, 2),
+        )
+        return IngestionFlowResult(
+            flow_name=DAILY_INGEST_FLOW_NAME,
+            status=status,
+            sources=list(selected),
+            document_count=len(documents),
+            counters=run.counters,
+            run_id=run.id,
+            started_at=run.started_at,
+            finished_at=run.finished_at,
+            error_summary=run.error_summary,
+        )
+    except Exception:
+        duration_seconds = (datetime.now(UTC) - started_monotonic).total_seconds()
+        record_flow_result(
+            status="failed", document_count=len(documents), duration_seconds=duration_seconds
+        )
+        log_event(
+            "ingestion_failed",
+            flow_name=DAILY_INGEST_FLOW_NAME,
+            duration_ms=round(duration_seconds * 1000, 2),
+        )
+        raise
 
 
 def flow_pipeline_steps() -> list[str]:

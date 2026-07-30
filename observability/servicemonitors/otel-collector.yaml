@@ -1,0 +1,18 @@
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: kuberag-otel-ingestion
+  namespace: observability
+  labels:
+    app.kubernetes.io/part-of: kuberag
+spec:
+  namespaceSelector:
+    matchNames:
+      - observability
+  selector:
+    matchLabels:
+      app.kubernetes.io/instance: kuberag-otel
+  endpoints:
+    - port: prometheus
+      path: /metrics
+      interval: 15s

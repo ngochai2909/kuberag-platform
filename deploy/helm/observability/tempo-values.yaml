@@ -1,0 +1,30 @@
+# Tempo stores traces locally for 48h. It has no public Service and no HA in
+# this temporary all-in-one cluster.
+tempo:
+  reportingEnabled: false
+  retention: 48h
+  memBallastSizeMbs: 64
+  resources:
+    requests:
+      cpu: 150m
+      memory: 256Mi
+    limits:
+      cpu: 500m
+      memory: 768Mi
+  securityContext:
+    allowPrivilegeEscalation: false
+    capabilities:
+      drop:
+        - ALL
+securityContext:
+  runAsUser: 10001
+  runAsGroup: 10001
+  fsGroup: 10001
+  runAsNonRoot: true
+  seccompProfile:
+    type: RuntimeDefault
+serviceMonitor:
+  enabled: true
+persistence:
+  enabled: true
+  size: 5Gi

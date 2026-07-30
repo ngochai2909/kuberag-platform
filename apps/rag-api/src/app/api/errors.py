@@ -64,9 +64,9 @@ async def handle_validation_error(request: Request, exc: RequestValidationError)
 
 
 async def handle_unexpected_error(request: Request, exc: Exception) -> JSONResponse:
-    logger.exception(
+    # Do not attach exception details: OTLP exports this record to Loki.
+    logger.error(
         "unhandled_request_error",
-        exc_info=exc,
         extra={
             "request_id": _request_id(request),
             "trace_id": _trace_id(request),

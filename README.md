@@ -171,6 +171,46 @@ For day-to-day terminal operation, K9s navigation, RAG/llama.cpp checks, logs,
 resource metrics, and a clear read-only versus mutating command split, see
 [`docs/runbooks/README.md`](docs/runbooks/README.md).
 
+## GCP Observability
+
+The temporary GCP cluster now runs a private, persistent observability stack in
+the `observability` namespace: Prometheus, Grafana, Loki, Tempo, Pyroscope, and
+the OpenTelemetry (OTel) Collector. These workloads are `ClusterIP` only; they
+are not exposed through the public Envoy listener or a GCP firewall rule.
+
+```text
+FastAPI / Prefect -> OTel Collector -> Loki (logs) and Tempo (traces)
+FastAPI / Prefect -> Prometheus scrape -> Prometheus (metrics)
+FastAPI -> Pyroscope (CPU profiles)
+Grafana -> Prometheus, Loki, Tempo, Pyroscope
+```
+
+Grafana is reached temporarily through the existing IAP-backed Kubernetes API
+tunnel, not by publishing an additional port:
+
+```bash
+# Terminal A: keep the Kubernetes API tunnel open.
+make gcp-k3s-tunnel
+
+# Terminal B: expose Grafana only at this laptop's loopback address.
+make gcp-observability-grafana-port-forward
+```
+
+Open `http://127.0.0.1:3000`. Retrieve the locally generated Grafana username
+and password from the Kubernetes Secret only when logging in; never commit or
+paste them into a ticket:
+
+```bash
+ssh kuberag-gcp 'sudo k3s kubectl -n observability get secret kuberag-grafana-admin -o jsonpath="{.data.admin-user}" | base64 -d; echo'
+ssh kuberag-gcp 'sudo k3s kubectl -n observability get secret kuberag-grafana-admin -o jsonpath="{.data.admin-password}" | base64 -d; echo'
+```
+
+The provisioned `KubeRAG Overview` dashboard covers API request rate, p95
+latency, response statuses including `429`, RAG stage duration, Pod memory, and
+restart counts. See [`docs/runbooks/observability.md`](docs/runbooks/observability.md)
+for verification commands, trace/log correlation, resource limits, retention,
+and common failures.
+
 `make gcp-llama-status` is read-only and shows the internal llama.cpp
 Deployment, Service, model PVC, and Pod. The Service is `ClusterIP`: only
 in-cluster workloads such as the future FastAPI Pod can call it. It is not an
@@ -213,9 +253,8 @@ deploy/
   helm/             Project-owned Helm values/assets
   kustomize/        Kubernetes workload bases and environment overlays
 observability/
-  collector/        Placeholder for OpenTelemetry Collector config
-  dashboards/       Placeholder for Grafana dashboards
-  alerts/           Placeholder for alerting config
+  dashboards/       Provisioned KubeRAG Grafana dashboard ConfigMaps
+  servicemonitors/  Prometheus scrape definitions for project workloads
 tests/
   k6/               Placeholder for load and rate-limit tests
 docs/
@@ -228,7 +267,8 @@ docs/
 The current boundary has verified the single-node foundation,
 PostgreSQL/pgvector persistence, ingestion through real E5, a deployed
 FastAPI-to-llama.cpp RAG request, and React source-card UI through Envoy.
-Observability and supply-chain work follow in later phases.
+The private observability stack is now deployed; alerting, k6 and supply-chain
+work still follow in later phases.
 
 The single-node target is temporary. The 3-node GCP topology and PostgreSQL primary/replica placement must be restored before final acceptance.
 

@@ -12,6 +12,7 @@ from app.api.router import api_router, root_router
 from app.core.config import Settings, get_settings
 from app.core.logging import configure_logging
 from app.core.middleware import add_request_context
+from app.core.telemetry import configure_pyroscope, configure_telemetry
 from app.services.composition import build_rag_service
 from app.services.rag import RagService
 
@@ -23,7 +24,9 @@ def create_app(
     rag_service: RagService | None = None,
 ) -> FastAPI:
     resolved_settings = settings or get_settings()
-    configure_logging(resolved_settings.log_level)
+    telemetry_handler = configure_telemetry(resolved_settings)
+    configure_logging(resolved_settings.log_level, telemetry_handler=telemetry_handler)
+    configure_pyroscope(resolved_settings)
     resolved_rag_service = rag_service or build_rag_service(resolved_settings)
 
     @asynccontextmanager

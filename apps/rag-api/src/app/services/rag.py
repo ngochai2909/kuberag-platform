@@ -9,6 +9,8 @@ from typing import Protocol
 
 from app.core.config import Settings
 from app.core.errors import RagEmptyResponseError, RagExecutionError, RagTimeoutError
+from app.core.metrics import RAG_QUERIES_TOTAL, RAG_STAGE_DURATION_SECONDS
+from app.core.telemetry import get_tracer
 
 logger = logging.getLogger(__name__)
 
@@ -106,19 +108,28 @@ class RagPipelineService:
                     )
                 )
                 retrieval_ms = _elapsed_ms(retrieval_started_at)
+                RAG_STAGE_DURATION_SECONDS.labels(stage="retrieval").observe(retrieval_ms / 1000)
 
-                prompt = build_rag_prompt(
-                    question=question,
-                    chunks=chunks,
-                    max_context_chars=self._settings.rag_max_context_chars,
+                prompt_started_at = time.perf_counter()
+                with get_tracer(__name__).start_as_current_span("rag.build_prompt"):
+                    prompt = build_rag_prompt(
+                        question=question,
+                        chunks=chunks,
+                        max_context_chars=self._settings.rag_max_context_chars,
+                    )
+                RAG_STAGE_DURATION_SECONDS.labels(stage="prompt").observe(
+                    _elapsed_ms(prompt_started_at) / 1000
                 )
                 generation_started_at = time.perf_counter()
                 answer = await self._generator.generate(prompt=prompt, request_id=request_id)
                 generation_ms = _elapsed_ms(generation_started_at)
+                RAG_STAGE_DURATION_SECONDS.labels(stage="generation").observe(generation_ms / 1000)
         except TimeoutError as exc:
+            RAG_QUERIES_TOTAL.labels(outcome="timeout").inc()
             raise RagTimeoutError from exc
         except Exception as exc:
-            logger.exception(
+            RAG_QUERIES_TOTAL.labels(outcome="error").inc()
+            logger.error(
                 "rag_execution_failed",
                 extra={"request_id": request_id, "trace_id": trace_id},
             )
@@ -126,7 +137,10 @@ class RagPipelineService:
 
         answer = answer.strip()
         if not answer:
+            RAG_QUERIES_TOTAL.labels(outcome="empty").inc()
             raise RagEmptyResponseError
+
+        RAG_QUERIES_TOTAL.labels(outcome="success").inc()
 
         return RagReply(
             answer=answer,

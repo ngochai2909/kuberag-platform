@@ -38,8 +38,18 @@ INGESTION_IMAGE_IMPORT_SCRIPT ?= scripts/gcp-ingestion-image-import.sh
 RAG_API_IMAGE_IMPORT_SCRIPT ?= scripts/gcp-rag-api-image-import.sh
 FRONTEND_IMAGE_IMPORT_SCRIPT ?= scripts/gcp-frontend-image-import.sh
 FRONTEND_DIR ?= apps/frontend
+OBSERVABILITY_NAMESPACE ?= observability
+OBSERVABILITY_VALUES_DIR ?= deploy/helm/observability
+OBSERVABILITY_KUSTOMIZE ?= observability
+KUBE_PROMETHEUS_STACK_VERSION ?= 87.21.0
+LOKI_CHART_VERSION ?= 7.2.0
+TEMPO_CHART_VERSION ?= 1.24.4
+PYROSCOPE_CHART_VERSION ?= 2.2.0
+OTEL_COLLECTOR_CHART_VERSION ?= 0.165.0
+GRAFANA_ADMIN_SECRET_SCRIPT ?= scripts/gcp-grafana-admin-secret.sh
 
 .PHONY: setup run test test-cov lint format format-check typecheck check lock clean frontend-install frontend-dev frontend-typecheck frontend-build docker-frontend-build gcp-frontend-image-import gcp-frontend-render gcp-frontend-apply gcp-frontend-status gcp-frontend-smoke infra-check k3s-install gcp-k3s-syntax gcp-k3s-install gcp-k3s-tunnel gcp-k3s-status gcp-envoy-install gcp-foundation-apply gcp-foundation-delete gcp-foundation-status gcp-foundation-smoke gcp-unsafe-check k3s-foundation-apply k3s-foundation-delete k3s-foundation-status k3s-foundation-smoke k3s-unsafe-check cnpg-render postgresql-render migration-sql gcp-cnpg-install gcp-postgresql-apply gcp-postgresql-status gcp-db-migrate gcp-db-current gcp-db-vector-test gcp-rag-retrieval-test gcp-llama-render gcp-llama-apply gcp-llama-status docker-ingestion-build docker-ingestion-smoke gcp-ingestion-image-import docker-rag-api-build docker-rag-api-smoke gcp-rag-api-image-import gcp-rag-db-secret gcp-rag-api-auth-secret gcp-rag-api-render gcp-rag-api-apply gcp-rag-api-status gcp-rag-routing-render gcp-rag-routing-apply gcp-rag-routing-status gcp-rag-routing-smoke gcp-rag-rate-limit-smoke gcp-prefect-db-secret gcp-prefect-role-secret gcp-prefect-server-db-secret gcp-prefect-apply gcp-prefect-bootstrap gcp-prefect-worker-apply gcp-prefect-worker-restart gcp-prefect-status gcp-e5-download gcp-e5-smoke gcp-ingest-run
+.PHONY: gcp-grafana-admin-secret gcp-observability-render gcp-observability-install gcp-observability-apply gcp-observability-status gcp-observability-grafana-port-forward
 
 setup:
 	uv sync --group dev
@@ -124,6 +134,75 @@ gcp-k3s-tunnel:
 
 gcp-k3s-status:
 	KUBECONFIG=$(GCP_KUBECONFIG) kubectl get nodes -o wide
+
+gcp-grafana-admin-secret:
+	KUBECONFIG=$(GCP_KUBECONFIG) $(GRAFANA_ADMIN_SECRET_SCRIPT)
+
+gcp-observability-render:
+	helm template kuberag-monitoring prometheus-community/kube-prometheus-stack \
+		--version $(KUBE_PROMETHEUS_STACK_VERSION) \
+		--namespace $(OBSERVABILITY_NAMESPACE) \
+		--values $(OBSERVABILITY_VALUES_DIR)/kube-prometheus-stack-values.yaml
+	helm template kuberag-loki grafana/loki \
+		--version $(LOKI_CHART_VERSION) \
+		--namespace $(OBSERVABILITY_NAMESPACE) \
+		--values $(OBSERVABILITY_VALUES_DIR)/loki-values.yaml
+	helm template kuberag-tempo grafana/tempo \
+		--version $(TEMPO_CHART_VERSION) \
+		--namespace $(OBSERVABILITY_NAMESPACE) \
+		--values $(OBSERVABILITY_VALUES_DIR)/tempo-values.yaml
+	helm template kuberag-pyroscope grafana/pyroscope \
+		--version $(PYROSCOPE_CHART_VERSION) \
+		--namespace $(OBSERVABILITY_NAMESPACE) \
+		--values $(OBSERVABILITY_VALUES_DIR)/pyroscope-values.yaml
+	helm template kuberag-otel open-telemetry/opentelemetry-collector \
+		--version $(OTEL_COLLECTOR_CHART_VERSION) \
+		--namespace $(OBSERVABILITY_NAMESPACE) \
+		--values $(OBSERVABILITY_VALUES_DIR)/otel-collector-values.yaml
+	kubectl kustomize $(OBSERVABILITY_KUSTOMIZE)
+
+gcp-observability-install: gcp-grafana-admin-secret
+	KUBECONFIG=$(GCP_KUBECONFIG) helm upgrade --install kuberag-monitoring prometheus-community/kube-prometheus-stack \
+		--version $(KUBE_PROMETHEUS_STACK_VERSION) \
+		--namespace $(OBSERVABILITY_NAMESPACE) \
+		--create-namespace \
+		--values $(OBSERVABILITY_VALUES_DIR)/kube-prometheus-stack-values.yaml
+	KUBECONFIG=$(GCP_KUBECONFIG) helm upgrade --install kuberag-loki grafana/loki \
+		--version $(LOKI_CHART_VERSION) \
+		--namespace $(OBSERVABILITY_NAMESPACE) \
+		--create-namespace \
+		--values $(OBSERVABILITY_VALUES_DIR)/loki-values.yaml
+	KUBECONFIG=$(GCP_KUBECONFIG) helm upgrade --install kuberag-tempo grafana/tempo \
+		--version $(TEMPO_CHART_VERSION) \
+		--namespace $(OBSERVABILITY_NAMESPACE) \
+		--create-namespace \
+		--values $(OBSERVABILITY_VALUES_DIR)/tempo-values.yaml
+	KUBECONFIG=$(GCP_KUBECONFIG) helm upgrade --install kuberag-pyroscope grafana/pyroscope \
+		--version $(PYROSCOPE_CHART_VERSION) \
+		--namespace $(OBSERVABILITY_NAMESPACE) \
+		--create-namespace \
+		--values $(OBSERVABILITY_VALUES_DIR)/pyroscope-values.yaml
+	KUBECONFIG=$(GCP_KUBECONFIG) helm upgrade --install kuberag-otel open-telemetry/opentelemetry-collector \
+		--version $(OTEL_COLLECTOR_CHART_VERSION) \
+		--namespace $(OBSERVABILITY_NAMESPACE) \
+		--create-namespace \
+		--values $(OBSERVABILITY_VALUES_DIR)/otel-collector-values.yaml
+	KUBECONFIG=$(GCP_KUBECONFIG) kubectl -n $(OBSERVABILITY_NAMESPACE) wait --for=condition=Available deployment/kuberag-monitoring-grafana --timeout=10m
+	KUBECONFIG=$(GCP_KUBECONFIG) kubectl -n $(OBSERVABILITY_NAMESPACE) wait --for=condition=Available deployment/kuberag-otel-collector --timeout=10m
+	KUBECONFIG=$(GCP_KUBECONFIG) kubectl -n $(OBSERVABILITY_NAMESPACE) rollout status statefulset/kuberag-loki --timeout=10m
+	KUBECONFIG=$(GCP_KUBECONFIG) kubectl -n $(OBSERVABILITY_NAMESPACE) rollout status statefulset/kuberag-tempo --timeout=10m
+	KUBECONFIG=$(GCP_KUBECONFIG) kubectl -n $(OBSERVABILITY_NAMESPACE) rollout status statefulset/kuberag-pyroscope --timeout=10m
+
+gcp-observability-apply:
+	KUBECONFIG=$(GCP_KUBECONFIG) kubectl apply -k $(OBSERVABILITY_KUSTOMIZE)
+
+gcp-observability-status:
+	KUBECONFIG=$(GCP_KUBECONFIG) kubectl -n $(OBSERVABILITY_NAMESPACE) get deployment,statefulset,pods,services,pvc -o wide
+	KUBECONFIG=$(GCP_KUBECONFIG) kubectl get servicemonitor -A
+	KUBECONFIG=$(GCP_KUBECONFIG) helm list -n $(OBSERVABILITY_NAMESPACE)
+
+gcp-observability-grafana-port-forward:
+	KUBECONFIG=$(GCP_KUBECONFIG) kubectl -n $(OBSERVABILITY_NAMESPACE) port-forward service/kuberag-monitoring-grafana 3000:80
 
 gcp-envoy-install:
 	KUBECONFIG=$(GCP_KUBECONFIG) helm upgrade --install envoy-gateway \

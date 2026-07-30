@@ -1,0 +1,14 @@
+Command executed on 2026-07-30 from the FastAPI Pod:
+
+    GET /pyroscope/render?query=process_cpu:cpu:nanoseconds:cpu:nanoseconds{
+      service_name="kuberag-rag-api"
+    }&from=now-30m
+
+Relevant output:
+
+    profile_render_status=200
+    profile_bytes=72389
+
+Meaning: the direct, non-privileged Python Pyroscope SDK has uploaded a CPU
+profile for `kuberag-rag-api`. No eBPF, hostPath, privileged Pod, or Grafana
+Alloy agent is used.

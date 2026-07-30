@@ -62,7 +62,8 @@ d          xem describe/chi tiết resource đang chọn
 ```
 
 `--readonly` chặn thao tác sửa, xóa, scale hoặc restart. K9s cho trạng thái
-realtime; Grafana ở phase sau sẽ lưu lịch sử metrics, logs và traces.
+realtime; Grafana lưu lịch sử metrics, logs, traces và profiles sau khi stack
+observability được cài. Xem thêm [`observability.md`](observability.md).
 
 ## Logs, events và Pod lỗi
 
@@ -215,6 +216,8 @@ Không chạy các lệnh sau chỉ để kiểm tra. Chúng thay đổi cluster
 make gcp-rag-api-apply
 make gcp-rag-routing-apply
 make gcp-llama-apply
+make gcp-observability-install
+make gcp-observability-apply
 make gcp-prefect-worker-restart
 make gcp-ingest-run          # crawl/upsert PostgreSQL
 kubectl delete ...

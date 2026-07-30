@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 import re
 
 import pytest
@@ -152,13 +153,17 @@ async def test_known_rag_error_does_not_leak_details(
 async def test_unexpected_error_is_generic(
     client: AsyncClient,
     fake_rag: FakeRagService,
+    caplog: pytest.LogCaptureFixture,
 ) -> None:
     fake_rag.error = RuntimeError("provider-secret-must-not-leak")
-    response = await client.post("/api/v1/query", json={"question": "hello"})
+    with caplog.at_level(logging.ERROR, logger="app.api.errors"):
+        response = await client.post("/api/v1/query", json={"question": "hello"})
 
     assert response.status_code == 500
     assert response.json()["error"]["code"] == "internal_server_error"
     assert "provider-secret" not in response.text
+    assert "provider-secret" not in caplog.text
+    assert all(record.exc_info is None for record in caplog.records)
 
 
 @pytest.mark.asyncio

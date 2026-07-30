@@ -20,3 +20,23 @@ patches:
         value:
           name: PUBLIC_DEMO_MODE
           value: "true"
+      - op: add
+        path: /spec/template/spec/containers/0/env/-
+        value:
+          name: OTEL_ENABLED
+          value: "true"
+      - op: add
+        path: /spec/template/spec/containers/0/env/-
+        value:
+          name: OTEL_EXPORTER_OTLP_ENDPOINT
+          value: kuberag-otel-collector.observability.svc.cluster.local:4317
+      - op: add
+        path: /spec/template/spec/containers/0/env/-
+        value:
+          name: PYROSCOPE_ENABLED
+          value: "true"
+      - op: add
+        path: /spec/template/spec/containers/0/env/-
+        value:
+          name: PYROSCOPE_SERVER_ADDRESS
+          value: http://kuberag-pyroscope.observability.svc.cluster.local:4040
