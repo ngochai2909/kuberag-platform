@@ -68,6 +68,17 @@ def test_valid_production_settings_do_not_require_external_llm_api_key() -> None
     assert settings.app_api_key.get_secret_value() == "x" * 32
 
 
+def test_public_demo_mode_allows_an_unauthenticated_production_api() -> None:
+    settings = Settings(
+        _env_file=None,
+        app_env=Environment.PRODUCTION,
+        public_demo_mode=True,
+    )
+
+    assert settings.api_auth_enabled is False
+    assert settings.public_demo_mode is True
+
+
 def test_rag_runtime_accepts_an_internal_database_url() -> None:
     settings = Settings(
         _env_file=None,

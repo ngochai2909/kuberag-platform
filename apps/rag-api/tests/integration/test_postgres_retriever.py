@@ -44,8 +44,8 @@ async def test_postgres_retriever_returns_nearest_chunk_and_document_source() ->
         with psycopg.connect(database_url) as connection, connection.cursor() as cursor:
             cursor.execute(
                 """
-                INSERT INTO documents (source, external_id, title, url, content, checksum)
-                VALUES (%s, %s, %s, %s, %s, %s)
+                INSERT INTO documents (source, external_id, title, url, content, checksum, metadata)
+                VALUES (%s, %s, %s, %s, %s, %s, %s::jsonb)
                 RETURNING id
                 """,
                 (
@@ -55,6 +55,7 @@ async def test_postgres_retriever_returns_nearest_chunk_and_document_source() ->
                     "https://example.invalid/rag-002",
                     "Synthetic document used only by the PostgreSQL retrieval test.",
                     "b" * 64,
+                    '{"image_url": "https://example.invalid/rag-002.jpg"}',
                 ),
             )
             document_row = cursor.fetchone()
@@ -83,6 +84,7 @@ async def test_postgres_retriever_returns_nearest_chunk_and_document_source() ->
         assert chunks[0].source == "fixture"
         assert chunks[0].score == pytest.approx(1.0)
         assert chunks[0].metadata == {"fixture": True}
+        assert chunks[0].thumbnail_url == "https://example.invalid/rag-002.jpg"
     finally:
         if document_id is not None:
             with psycopg.connect(database_url) as connection, connection.cursor() as cursor:

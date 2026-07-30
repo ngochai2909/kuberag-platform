@@ -7,15 +7,18 @@ approved phase, PR, or major verification run.
 
 ## Current Snapshot
 
-- Last updated: 2026-07-29.
+- Last updated: 2026-07-30.
 - Current working branch: `feat/gcp-single-node-foundation`.
 - Latest foundation commit: `94c0cd6 Add GCP single-node foundation`.
-- Last full application verification: `make check` passed (`85 passed`, `2 skipped`,
-  `86.43%` coverage). The skipped tests require an explicit `DATABASE_URL` and
+- Last full application verification: `make check` passed (`94 passed`, `2 skipped`,
+  `85.91%` coverage). The skipped tests require an explicit `DATABASE_URL` and
   are run against the GCP database through the controlled tunnel command.
 - Runtime environment: one `v1.35.5+k3s1` node runs locally on `hainguyenpc` and one runs on the temporary GCP VM `kuberag-server`. They are separate clusters, not two nodes in one cluster.
 - GCP access: SSH and local `kubectl` use IAP tunnels. Envoy Gateway `v1.8.3` and the smoke route are verified on GCP through public port `8080`.
 - Tooling: Helm `v4.2.2`; Envoy Gateway chart `v1.8.3` verified on local and GCP clusters.
+- GCP user-facing demo: `kuberag-web`, `kuberag-rag-api`, and `kuberag-llm` are
+  Ready in namespace `rag`. Envoy serves the React SPA at `/` and FastAPI at
+  `/api/`; `/hostname` remains the separate smoke route.
 
 ## Completed Work
 
@@ -246,12 +249,29 @@ Completed:
   request/trace IDs, and timing fields (`docs/evidence/RAG-006/`). The first
   cold request took 22.9s while the warm path took 8.07s; generation on the
   CPU-only Qwen Pod is the dominant latency.
+- Added a React/Vite source-card UI with loading, error, shared-rate-limit,
+  request/trace ID, timing, dark-mode, and optional VnExpress RSS thumbnail
+  states. The API now exposes the document metadata image URL as
+  `sources[].thumbnail_url`; neither the image binary nor its URL is sent to
+  the generation prompt.
+- Built the frontend as a non-root Nginx image, imported it into the GCP k3s
+  container runtime, and deployed `kuberag-web` with restricted Pod Security
+  settings. Envoy now routes `/` to the frontend and `/api/` to FastAPI; the
+  smoke route moved to `/hostname` to prevent it from taking precedence over
+  the UI.
+- Changed only the GCP API overlay to explicit `PUBLIC_DEMO_MODE=true` with
+  browser bearer authentication disabled. Envoy still owns the shared 10
+  requests/minute limit. This is a constrained demo configuration, not the
+  production authentication design.
+- Increased the Envoy API route request timeout to 60 seconds (backend 55
+  seconds), while FastAPI retains its 45-second bound. A real request through
+  the Envoy data plane returned an answer and three source records with
+  thumbnail URLs.
 
 ## Not Done Yet
 
 The following required scopes are not implemented yet:
 
-- React/Vite frontend.
 - Full OpenTelemetry, Prometheus, Loki, Tempo, Pyroscope, Grafana dashboards, and alerts.
 - k6 load and rate-limit tests.
 - Chainguard image hardening for all custom images.
@@ -260,13 +280,15 @@ The following required scopes are not implemented yet:
 
 ## Recommended Next Phase
 
-Week 2 is complete. Continue week 3 with the user-facing application:
+The user-facing demo path is deployed. Continue with operational visibility and
+load verification:
 
-- Implement the React/Vite source-card UI, including loading/error/`429`
-  handling and request/trace IDs.
-- Route `/` to the frontend through the existing Envoy Gateway while keeping
-  the API bearer token outside browser code.
-- Add k6 load/rate-limit scenarios after the frontend/API route is stable.
+- Add k6 load/rate-limit scenarios and evidence now that the browser/API route
+  is stable.
+- Add OpenTelemetry Collector, Prometheus, Grafana, logs and traces for the
+  deployed request path.
+- Replace temporary public-demo API access with a reviewed user/gateway
+  authentication design before any broader deployment.
 
 Relevant acceptance groups:
 

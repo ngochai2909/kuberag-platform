@@ -77,6 +77,7 @@ async def test_query_returns_answer_sources_ids_and_timings(
                 "url": "https://example.com/source",
                 "source": "fixture",
                 "score": 0.91,
+                "thumbnail_url": "https://example.com/source-thumbnail.jpg",
             }
         ],
         "request_id": "request-123",

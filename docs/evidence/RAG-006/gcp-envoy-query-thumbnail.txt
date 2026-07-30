@@ -1,0 +1,23 @@
+# RAG-006 GCP Envoy query with source thumbnails
+
+Captured on 2026-07-30. The command is read-only with respect to PostgreSQL,
+but it performs real embedding, retrieval, and generation, so it consumes one
+request in the temporary demo's shared Envoy rate-limit window.
+
+```text
+$ ssh kuberag-gcp "curl --fail --silent --show-error -X POST http://10.42.0.2:8080/api/v1/query -H 'Content-Type: application/json' -d '{\"question\":\"Nguon du lieu cua KubeRAG la gi?\",\"top_k\":3}' | jq '{has_answer: (.answer | length > 0), source_count: (.sources | length), thumbnail_urls: [.sources[].thumbnail_url]}'"
+{
+  "has_answer": true,
+  "source_count": 3,
+  "thumbnail_urls": [
+    "https://vcdn1-vnexpress.vnecdn.net/2026/07/24/DSC03153-JPG-1784911951.jpg?w=1200&h=0&q=100&dpr=1&fit=crop&s=HRVAoPmCiD0Pr6MWo-NpAQ",
+    "https://vcdn1-vnexpress.vnecdn.net/2026/07/24/DSC03153-JPG-1784911951.jpg?w=1200&h=0&q=100&dpr=1&fit=crop&s=HRVAoPmCiD0Pr6MWo-NpAQ",
+    "https://vcdn1-vnexpress.vnecdn.net/2026/07/24/DSC03153-JPG-1784911951.jpg?w=1200&h=0&q=100&dpr=1&fit=crop&s=HRVAoPmCiD0Pr6MWo-NpAQ"
+  ]
+}
+```
+
+The three retrieved chunks currently belong to the same VnExpress document, so
+their document-level RSS image URL is identical. The frontend can render the
+optional URL as a thumbnail beside each source card; the model prompt contains
+retrieved text, not the image binary.

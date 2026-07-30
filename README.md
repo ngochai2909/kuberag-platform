@@ -4,14 +4,15 @@ KubeRAG is a cloud-native RAG platform monorepo. The target platform uses FastAP
 
 The current infrastructure target is a **temporary single-node k3s environment** for local development and constrained demo work. The final target remains the original cluster shape: **1 k3s server/control-plane node and 2 k3s worker nodes** on GCP Compute Engine.
 
-Current application state: **week 2 data and ingestion complete; week 3 RAG
-runtime in progress**. The GCP checkpoint has CloudNativePG/pgvector, a live
+Current application state: **week 3 user-facing demo deployed on the temporary
+GCP single-node cluster**. The GCP checkpoint has CloudNativePG/pgvector, a live
 Prefect VnExpress flow using `multilingual-e5-small`, a running internal
 llama.cpp Pod serving `Qwen2.5-1.5B-Instruct` GGUF `Q4_K_M`, and a running
-FastAPI RAG API. A real authenticated request has completed the deterministic
-E5 -> pgvector -> prompt -> llama.cpp flow on GCP. The FastAPI Service remains
-internal; Envoy now exposes the protected `/api/` route with a local rate
-limit. The React frontend is not deployed yet.
+FastAPI RAG API. A real request has completed the deterministic E5 ->
+pgvector -> prompt -> llama.cpp flow on GCP. Envoy exposes the browser UI at
+`/` and the temporary demo API at `/api/`; PostgreSQL, E5, and llama.cpp remain
+internal services. The UI displays returned VnExpress source titles, links,
+and RSS thumbnail URLs when available.
 
 For an accurate deployed-versus-prepared summary, start with
 [`docs/PROJECT_STATUS.md`](docs/PROJECT_STATUS.md). It records the verified
@@ -27,6 +28,24 @@ safe checkpoint.
 - Terraform for infrastructure validation
 - Ansible for local k3s host configuration
 - kubectl after k3s install; Helm before installing platform charts
+- Node.js 24 and npm 11 for the React/Vite frontend
+
+## Frontend Workspace
+
+The frontend starts in `mock` mode by default for local UI development. Install
+and run it locally:
+
+```bash
+make frontend-install
+make frontend-dev
+```
+
+Open the local Vite URL printed by the second command, normally
+`http://127.0.0.1:5173`. The page provides a RAG chat workflow with mock
+answers, sources, latency, request ID, trace ID, loading, and error states.
+`apps/frontend/.env.example` documents the mode switch. The GCP overlay builds
+the same UI in `real` mode against same-origin `/api/v1`; it is allowed only by
+the explicitly declared temporary `PUBLIC_DEMO_MODE` configuration.
 
 Validated local platform versions:
 
@@ -135,6 +154,7 @@ make gcp-prefect-status
 make gcp-ingest-run
 make gcp-llama-status
 make gcp-rag-routing-status
+make gcp-frontend-status
 ```
 
 Prefect Server stores its deployment/schedule/run metadata in the separate
@@ -156,21 +176,28 @@ Deployment, Service, model PVC, and Pod. The Service is `ClusterIP`: only
 in-cluster workloads such as the future FastAPI Pod can call it. It is not an
 internet-facing model API.
 
-The deployed API uses a 2 GiB E5 cache PVC and two in-cluster Secrets: one
-contains the CNPG database URI and one is a random API bearer token. Neither
-value is printed or committed. Its current status is read-only:
+The deployed API uses a 2 GiB E5 cache PVC and a CNPG database Secret. Its
+GCP demo overlay runs in explicitly declared public-demo mode, so the browser
+can call the API without exposing a bearer token. Envoy still applies the
+shared 10-request-per-minute rate limit. This is suitable only for the
+temporary demo, not multi-user production authentication. Its current status
+is read-only:
 
 ```bash
 make gcp-rag-api-status
 ```
 
 The API routing overlay is deliberately separate from the foundation. Once it
-has been rendered and reviewed, `make gcp-rag-routing-apply` exposes only
-`/api/` through the existing Envoy listener on port `8080`; the FastAPI
-Service, PostgreSQL, and llama.cpp remain internal ClusterIP services. The
-route preserves bearer-token authentication and applies Envoy local rate
-limiting at 10 requests per minute. See `docs/runbooks/README.md` for the
-status and smoke commands.
+has been rendered and reviewed, `make gcp-rag-routing-apply` exposes `/api/`
+through the existing Envoy listener on port `8080`; PostgreSQL and llama.cpp
+remain internal ClusterIP services. The route applies Envoy local rate limiting
+at 10 requests per minute. See `docs/runbooks/README.md` for the status and
+smoke commands.
+
+The deployed browser demo is served by Envoy at
+`http://VM_EXTERNAL_IP:8080/`. It is a public-demo endpoint within the
+firewall's administrator CIDRs, without production user authentication or TLS.
+Run `make gcp-frontend-status` to verify its Deployment, Service, and route.
 
 ## Monorepo Layout
 
@@ -178,7 +205,7 @@ status and smoke commands.
 apps/
   rag-api/          FastAPI contract, retrieval, llama.cpp client, composition
   ingestion/        Adapters, Prefect flows, e5 embedding, Alembic, upsert
-  frontend/         Placeholder for React/Vite UI
+  frontend/         React/Vite browser UI and non-root Nginx runtime image
 infra/
   terraform/        GCP network, firewall, VM, disk, IP, and outputs
   ansible/          Local and GCP single-node k3s host configuration
@@ -199,10 +226,9 @@ docs/
 ## Phase Boundaries
 
 The current boundary has verified the single-node foundation,
-PostgreSQL/pgvector persistence, ingestion through real E5, and a deployed
-internal FastAPI-to-llama.cpp RAG request. The frontend and final Envoy
-application routes follow. Observability and supply-chain work follow in later
-phases.
+PostgreSQL/pgvector persistence, ingestion through real E5, a deployed
+FastAPI-to-llama.cpp RAG request, and React source-card UI through Envoy.
+Observability and supply-chain work follow in later phases.
 
 The single-node target is temporary. The 3-node GCP topology and PostgreSQL primary/replica placement must be restored before final acceptance.
 

@@ -133,18 +133,13 @@ Terminal A:
 kubectl -n rag port-forward service/kuberag-rag-api 18000:80
 ```
 
-Terminal B. Token chỉ nằm trong biến shell, không in ra hoặc ghi vào Git:
+Terminal B. GCP demo hiện không yêu cầu bearer token, nhưng vẫn chịu rate limit
+chung ở Envoy. Lệnh này gọi model thật, vì vậy chỉ dùng khi cần xác minh:
 
 ```bash
-TOKEN="$(kubectl -n rag get secret/kuberag-rag-api-auth \
-  -o jsonpath='{.data.api-key}' | base64 --decode)"
-
 curl --fail --silent --show-error http://127.0.0.1:18000/api/v1/query \
-  -H "Authorization: Bearer $TOKEN" \
   -H 'Content-Type: application/json' \
   -d '{"question":"Cac nguon tin nay den tu dau?","top_k":2}' | jq
-
-unset TOKEN
 ```
 
 Response có `answer`, `sources`, `request_id`, `trace_id`, `retrieval_ms`,
@@ -155,7 +150,7 @@ FastAPI -> E5 embedding -> PostgreSQL/pgvector -> bounded prompt
         -> llama.cpp/Qwen -> answer + VnExpress source URLs
 ```
 
-## Envoy API route and rate limit
+## Envoy routes, demo API, and rate limit
 
 The API remains internal until the dedicated routing overlay is applied. Render
 it first; rendering is local and does not change the cluster:
@@ -166,10 +161,11 @@ make gcp-rag-routing-render
 
 After the operator has reviewed the render and applied it, Envoy routes
 `http://VM_EXTERNAL_IP:8080/api/` to the internal `kuberag-rag-api` Service.
-The endpoint retains its bearer-token check. The `BackendTrafficPolicy` allows
-10 requests per minute for the whole `/api/` route on the current single Envoy
-data-plane Pod; the next request is rejected with HTTP `429` before FastAPI,
-PostgreSQL, or llama.cpp runs.
+The GCP overlay explicitly enables `PUBLIC_DEMO_MODE`, allowing the same-origin
+browser frontend to call this temporary demo API without exposing a bearer
+token. The `BackendTrafficPolicy` allows 10 requests per minute for the whole
+`/api/` route on the current single Envoy data-plane Pod; the next request is
+rejected with HTTP `429` before FastAPI, PostgreSQL, or llama.cpp runs.
 
 ```bash
 make gcp-rag-routing-status
@@ -177,17 +173,39 @@ make gcp-rag-routing-smoke
 make gcp-rag-rate-limit-smoke
 ```
 
-`gcp-rag-routing-smoke` reads the token only into a temporary shell variable
-and does not print it. It makes one real RAG request, so it consumes CPU time
-on the model Pod. Do not place that bearer token in a future browser frontend;
-the frontend authentication design needs a separate review.
+`gcp-rag-routing-smoke` makes one unauthenticated real RAG request, so it
+consumes CPU time on the model Pod. Public demo mode is intentionally limited
+to this single-node demonstration and must be replaced with real user or
+gateway authentication before any broader deployment.
 
-`gcp-rag-rate-limit-smoke` sends 11 valid JSON requests without a bearer token.
-It does not call the LLM or write data: the first requests should be `401`, and
-at least one later request must be `429` from Envoy. It consumes the shared
-single-Pod quota temporarily, so wait one minute before another API smoke test.
-This is a lightweight configuration check, not the required k6 load-test
-evidence.
+`gcp-rag-rate-limit-smoke` sends 11 valid JSON requests. The first ten may
+reach the model unless the route has already consumed its shared quota; at
+least one later request must be `429` from Envoy. It can consume model CPU and
+the shared quota, so wait one minute before another API smoke test. This is a
+lightweight configuration check, not the required k6 load-test evidence.
+
+## Browser demo
+
+The GCP frontend is a separate `kuberag-web` Deployment. Envoy serves the SPA
+at the root path and FastAPI remains behind the same origin:
+
+```text
+Browser -> Envoy :8080 -> /       -> kuberag-web Service -> React/Vite SPA
+                       -> /api/   -> kuberag-rag-api Service -> E5/pgvector/llama.cpp
+```
+
+Use the VM external IP that Terraform prints, for example:
+
+```bash
+make gcp-frontend-status
+```
+
+Then open `http://VM_EXTERNAL_IP:8080/` from a browser whose public egress IP
+is in the Terraform firewall's administrator CIDRs. The page contains no
+database credential, model credential, or bearer token. It is a temporary
+unauthenticated demo endpoint; do not publish it beyond the restricted demo
+network. Source cards show an RSS thumbnail only when the source document has
+`metadata.image_url`.
 
 ## Lệnh thay đổi trạng thái
 

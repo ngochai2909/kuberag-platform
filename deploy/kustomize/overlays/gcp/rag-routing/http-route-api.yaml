@@ -14,6 +14,9 @@ spec:
         - path:
             type: PathPrefix
             value: /api/
+      timeouts:
+        request: 60s
+        backendRequest: 55s
       backendRefs:
         - name: kuberag-rag-api
           port: 80

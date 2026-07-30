@@ -30,6 +30,7 @@ class VectorSearchResult:
     content: str
     score: float
     metadata: dict[str, object] = field(default_factory=dict)
+    thumbnail_url: str | None = None
 
 
 class VectorSearchStore(Protocol):
@@ -80,6 +81,7 @@ class PostgresVectorStore:
                     documents.title,
                     documents.url,
                     documents.source,
+                    documents.metadata AS document_metadata,
                     chunks.content,
                     chunks.metadata,
                     chunks.embedding <=> %s::vector AS cosine_distance
@@ -141,6 +143,7 @@ class PostgresRetriever:
                 content=match.content,
                 score=match.score,
                 metadata=match.metadata,
+                thumbnail_url=match.thumbnail_url,
             )
             for match in matches
         ]
@@ -148,6 +151,8 @@ class PostgresRetriever:
 
 def _row_to_search_result(row: dict[str, Any]) -> VectorSearchResult:
     metadata = row["metadata"]
+    document_metadata = row["document_metadata"]
+    image_url = document_metadata.get("image_url") if isinstance(document_metadata, dict) else None
     return VectorSearchResult(
         title=str(row["title"]),
         url=str(row["url"]),
@@ -155,6 +160,7 @@ def _row_to_search_result(row: dict[str, Any]) -> VectorSearchResult:
         content=str(row["content"]),
         score=_score_from_cosine_distance(float(row["cosine_distance"])),
         metadata=dict(metadata) if isinstance(metadata, dict) else {},
+        thumbnail_url=image_url if isinstance(image_url, str) and image_url else None,
     )
 
 

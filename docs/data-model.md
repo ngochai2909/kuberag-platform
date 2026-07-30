@@ -68,7 +68,7 @@ For VnExpress, map the RSS/article data as follows:
 | RSS `pubDate` | `published_at` | Parse as a timezone-aware timestamp. |
 | Article body | `text` | Extract readable text, normalize whitespace, and exclude navigation, images, scripts, and captions unless intentionally retained later. |
 | RSS HTML `description` | `metadata.summary` | Strip HTML before storage; do not use it as the normal full-text corpus. |
-| RSS `enclosure.url` | `metadata.image_url` | Optional display metadata only; images are not embedded in this phase. |
+| RSS `enclosure.url` | `metadata.image_url` | Optional display metadata. RAG API may return it as `sources[].thumbnail_url`; the browser loads it for the source card. Images are never embedded or passed to the LLM in this phase. |
 | Feed URL | `metadata.feed_url` | Records which configured feed discovered the article. |
 | Extractor revision | `metadata.extraction_version` | Allows a future extractor change to be traced. |
 

@@ -22,10 +22,12 @@ DB_INTEGRATION_TEST ?= apps/ingestion/tests/integration/test_vector_query.py
 RAG_RETRIEVAL_INTEGRATION_TEST ?= apps/rag-api/tests/integration/test_postgres_retriever.py
 LLAMA_GCP_KUSTOMIZE ?= deploy/kustomize/overlays/gcp/llama-cpp
 RAG_API_GCP_KUSTOMIZE ?= deploy/kustomize/overlays/gcp/rag-api
+FRONTEND_GCP_KUSTOMIZE ?= deploy/kustomize/overlays/gcp/frontend
 RAG_ROUTING_GCP_KUSTOMIZE ?= deploy/kustomize/overlays/gcp/rag-routing
 RAG_RATE_LIMIT_BURST ?= 11
 INGESTION_IMAGE ?= kuberag-ingestion:local
 RAG_API_IMAGE ?= kuberag-rag-api:local
+FRONTEND_IMAGE ?= kuberag-web:local
 UV_VERSION ?= 0.11.15
 PREFECT_DB_SECRET_SCRIPT ?= scripts/gcp-prefect-db-secret.sh
 PREFECT_ROLE_SECRET_SCRIPT ?= scripts/gcp-prefect-role-secret.sh
@@ -34,8 +36,10 @@ RAG_DB_SECRET_SCRIPT ?= scripts/gcp-rag-db-secret.sh
 RAG_API_AUTH_SECRET_SCRIPT ?= scripts/gcp-rag-api-auth-secret.sh
 INGESTION_IMAGE_IMPORT_SCRIPT ?= scripts/gcp-ingestion-image-import.sh
 RAG_API_IMAGE_IMPORT_SCRIPT ?= scripts/gcp-rag-api-image-import.sh
+FRONTEND_IMAGE_IMPORT_SCRIPT ?= scripts/gcp-frontend-image-import.sh
+FRONTEND_DIR ?= apps/frontend
 
-.PHONY: setup run test test-cov lint format format-check typecheck check lock clean infra-check k3s-install gcp-k3s-syntax gcp-k3s-install gcp-k3s-tunnel gcp-k3s-status gcp-envoy-install gcp-foundation-apply gcp-foundation-delete gcp-foundation-status gcp-foundation-smoke gcp-unsafe-check k3s-foundation-apply k3s-foundation-delete k3s-foundation-status k3s-foundation-smoke k3s-unsafe-check cnpg-render postgresql-render migration-sql gcp-cnpg-install gcp-postgresql-apply gcp-postgresql-status gcp-db-migrate gcp-db-current gcp-db-vector-test gcp-rag-retrieval-test gcp-llama-render gcp-llama-apply gcp-llama-status docker-ingestion-build docker-ingestion-smoke gcp-ingestion-image-import docker-rag-api-build docker-rag-api-smoke gcp-rag-api-image-import gcp-rag-db-secret gcp-rag-api-auth-secret gcp-rag-api-render gcp-rag-api-apply gcp-rag-api-status gcp-rag-routing-render gcp-rag-routing-apply gcp-rag-routing-status gcp-rag-routing-smoke gcp-rag-rate-limit-smoke gcp-prefect-db-secret gcp-prefect-role-secret gcp-prefect-server-db-secret gcp-prefect-apply gcp-prefect-bootstrap gcp-prefect-worker-apply gcp-prefect-worker-restart gcp-prefect-status gcp-e5-download gcp-e5-smoke gcp-ingest-run
+.PHONY: setup run test test-cov lint format format-check typecheck check lock clean frontend-install frontend-dev frontend-typecheck frontend-build docker-frontend-build gcp-frontend-image-import gcp-frontend-render gcp-frontend-apply gcp-frontend-status gcp-frontend-smoke infra-check k3s-install gcp-k3s-syntax gcp-k3s-install gcp-k3s-tunnel gcp-k3s-status gcp-envoy-install gcp-foundation-apply gcp-foundation-delete gcp-foundation-status gcp-foundation-smoke gcp-unsafe-check k3s-foundation-apply k3s-foundation-delete k3s-foundation-status k3s-foundation-smoke k3s-unsafe-check cnpg-render postgresql-render migration-sql gcp-cnpg-install gcp-postgresql-apply gcp-postgresql-status gcp-db-migrate gcp-db-current gcp-db-vector-test gcp-rag-retrieval-test gcp-llama-render gcp-llama-apply gcp-llama-status docker-ingestion-build docker-ingestion-smoke gcp-ingestion-image-import docker-rag-api-build docker-rag-api-smoke gcp-rag-api-image-import gcp-rag-db-secret gcp-rag-api-auth-secret gcp-rag-api-render gcp-rag-api-apply gcp-rag-api-status gcp-rag-routing-render gcp-rag-routing-apply gcp-rag-routing-status gcp-rag-routing-smoke gcp-rag-rate-limit-smoke gcp-prefect-db-secret gcp-prefect-role-secret gcp-prefect-server-db-secret gcp-prefect-apply gcp-prefect-bootstrap gcp-prefect-worker-apply gcp-prefect-worker-restart gcp-prefect-status gcp-e5-download gcp-e5-smoke gcp-ingest-run
 
 setup:
 	uv sync --group dev
@@ -61,10 +65,46 @@ format-check:
 typecheck:
 	uv run mypy apps/rag-api/src apps/rag-api/tests apps/ingestion/src apps/ingestion/tests
 
-check: lint format-check typecheck test
+check: lint format-check typecheck test frontend-typecheck frontend-build
 
 lock:
 	uv lock
+
+frontend-install:
+	npm --prefix $(FRONTEND_DIR) install
+
+frontend-dev:
+	npm --prefix $(FRONTEND_DIR) run dev -- --host 127.0.0.1
+
+frontend-typecheck:
+	npm --prefix $(FRONTEND_DIR) run typecheck
+
+frontend-build:
+	npm --prefix $(FRONTEND_DIR) run build
+
+docker-frontend-build:
+	docker build \
+		-f apps/frontend/Dockerfile \
+		-t $(FRONTEND_IMAGE) \
+		.
+
+gcp-frontend-image-import: docker-frontend-build
+	FRONTEND_IMAGE=$(FRONTEND_IMAGE) $(FRONTEND_IMAGE_IMPORT_SCRIPT)
+
+gcp-frontend-render:
+	kubectl kustomize $(FRONTEND_GCP_KUSTOMIZE)
+
+gcp-frontend-apply:
+	KUBECONFIG=$(GCP_KUBECONFIG) kubectl apply -k $(FRONTEND_GCP_KUSTOMIZE)
+	KUBECONFIG=$(GCP_KUBECONFIG) kubectl -n rag wait --for=condition=Available deployment/kuberag-web --timeout=300s
+
+gcp-frontend-status:
+	KUBECONFIG=$(GCP_KUBECONFIG) kubectl -n rag get deployment/kuberag-web service/kuberag-web
+	KUBECONFIG=$(GCP_KUBECONFIG) kubectl -n rag get pods -l app.kubernetes.io/name=kuberag-web -o wide
+
+gcp-frontend-smoke:
+	@gateway_address=$$(terraform -chdir=infra/terraform output -raw external_ip); \
+	curl --fail --silent --show-error "http://$$gateway_address:8080/" | grep -q '<title>KubeRAG</title>'
 
 infra-check:
 	@command -v terraform >/dev/null || (echo "terraform is required" && exit 1)
@@ -193,10 +233,7 @@ gcp-rag-routing-smoke:
 	@test "$$(KUBECONFIG=$(GCP_KUBECONFIG) kubectl -n rag get httproute/kuberag-api -o jsonpath='{.status.parents[0].conditions[?(@.type=="Accepted")].status}')" = "True"
 	@test "$$(KUBECONFIG=$(GCP_KUBECONFIG) kubectl -n rag get httproute/kuberag-api -o jsonpath='{.status.parents[0].conditions[?(@.type=="ResolvedRefs")].status}')" = "True"
 	@gateway_address=$$(terraform -chdir=infra/terraform output -raw external_ip); \
-		token=$$(KUBECONFIG=$(GCP_KUBECONFIG) kubectl -n rag get secret/kuberag-rag-api-auth -o jsonpath='{.data.api-key}' | base64 --decode); \
-		trap 'unset token' EXIT; \
 		curl --fail --silent --show-error "http://$$gateway_address:8080/api/v1/query" \
-			-H "Authorization: Bearer $$token" \
 			-H 'Content-Type: application/json' \
 			-d '{"question":"Nguon tin nay den tu dau?","top_k":2}' | jq -e '.answer and (.sources | length > 0) and .request_id and .trace_id' >/dev/null
 

@@ -48,6 +48,7 @@ async def test_postgres_retriever_embeds_question_and_maps_vector_results() -> N
                 content="A retrieved source chunk.",
                 score=0.91,
                 metadata={"chunk_index": 0},
+                thumbnail_url="https://example.com/vnexpress-thumbnail.jpg",
             )
         ]
     )
@@ -64,6 +65,7 @@ async def test_postgres_retriever_embeds_question_and_maps_vector_results() -> N
     assert chunks[0].title == "VnExpress technology"
     assert chunks[0].url == "https://vnexpress.net/technology.html"
     assert chunks[0].metadata == {"chunk_index": 0}
+    assert chunks[0].thumbnail_url == "https://example.com/vnexpress-thumbnail.jpg"
 
 
 @pytest.mark.asyncio

@@ -1,0 +1,35 @@
+# WEB-001 GCP frontend routing evidence
+
+Captured on 2026-07-30 against the temporary GCP single-node cluster through
+the existing local IAP kubeconfig tunnel. These commands are read-only.
+
+```text
+$ kubectl --kubeconfig="$HOME/.kube/kuberag-gcp.yaml" --server=https://127.0.0.1:16444 -n rag get deployment,service,httproute -o wide
+NAME                                READY   UP-TO-DATE   AVAILABLE   AGE    CONTAINERS     IMAGES
+deployment.apps/kuberag-llm         1/1     1            1           21h    llama-server   ghcr.io/ggml-org/llama.cpp@sha256:51570a4f93c5ce81ac6f2b1ea16a58771cfded2adb34241df7e75329b24fe76e
+deployment.apps/kuberag-pss-smoke   1/1     1            1           2d1h   smoke          registry.k8s.io/e2e-test-images/agnhost:2.53
+deployment.apps/kuberag-rag-api     1/1     1            1           20h    api            kuberag-rag-api:local
+deployment.apps/kuberag-web         1/1     1            1           14m    web            kuberag-web:local
+
+NAME                        TYPE        CLUSTER-IP      EXTERNAL-IP   PORT(S)    AGE
+service/kuberag-llm         ClusterIP   10.53.30.134    <none>        8080/TCP   21h
+service/kuberag-pss-smoke   ClusterIP   10.53.221.137   <none>        80/TCP     2d1h
+service/kuberag-rag-api     ClusterIP   10.53.144.36    <none>        80/TCP     20h
+service/kuberag-web         ClusterIP   10.53.36.231    <none>        80/TCP     14m
+
+NAME                                                HOSTNAMES   AGE
+httproute.gateway.networking.k8s.io/kuberag-api                 18h
+httproute.gateway.networking.k8s.io/kuberag-smoke               2d1h
+httproute.gateway.networking.k8s.io/kuberag-web                 13m
+
+$ kubectl --kubeconfig="$HOME/.kube/kuberag-gcp.yaml" --server=https://127.0.0.1:16444 -n rag get httproute/kuberag-web httproute/kuberag-api -o jsonpath='...'
+kuberag-web accepted=True resolved=True
+kuberag-api accepted=True resolved=True
+
+$ ssh kuberag-gcp 'curl --fail --silent --show-error http://10.42.0.2:8080/ | grep -o "<title>[^<]*</title>"'
+<title>KubeRAG</title>
+```
+
+The VM-local request enters the Envoy data plane at its Gateway address,
+matches `HTTPRoute/kuberag-web` path prefix `/`, and reaches the frontend
+Service. The separate smoke route is intentionally at `/hostname`.

@@ -38,6 +38,7 @@ class Settings(BaseSettings):
 
     api_auth_enabled: bool = False
     app_api_key: SecretStr | None = None
+    public_demo_mode: bool = False
 
     rag_timeout_seconds: float = Field(default=45.0, gt=0, le=600)
     rag_max_context_chars: int = Field(default=12000, ge=1000, le=100000)
@@ -66,8 +67,15 @@ class Settings(BaseSettings):
             if len(self.app_api_key.get_secret_value()) < 32:
                 raise ValueError("APP_API_KEY must contain at least 32 characters")
 
-        if self.app_env is Environment.PRODUCTION and not self.api_auth_enabled:
-            raise ValueError("API authentication must be enabled in production")
+        if (
+            self.app_env is Environment.PRODUCTION
+            and not self.api_auth_enabled
+            and not self.public_demo_mode
+        ):
+            raise ValueError(
+                "API authentication must be enabled in production unless "
+                "PUBLIC_DEMO_MODE is enabled"
+            )
 
         if self.rag_runtime_enabled and self.database_url is None:
             raise ValueError("DATABASE_URL is required when RAG_RUNTIME_ENABLED is true")

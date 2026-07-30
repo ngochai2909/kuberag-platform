@@ -21,6 +21,7 @@ class RetrievedChunk:
     content: str
     score: float
     metadata: dict[str, object] = field(default_factory=dict)
+    thumbnail_url: str | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -29,6 +30,7 @@ class RagSource:
     url: str
     source: str
     score: float
+    thumbnail_url: str | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -134,6 +136,7 @@ class RagPipelineService:
                     url=chunk.url,
                     source=chunk.source,
                     score=chunk.score,
+                    thumbnail_url=chunk.thumbnail_url,
                 )
                 for chunk in chunks
             ),
