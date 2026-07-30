@@ -1,0 +1,20 @@
+apiVersion: gateway.envoyproxy.io/v1alpha1
+kind: BackendTrafficPolicy
+metadata:
+  name: kuberag-api-rate-limit
+  namespace: rag
+  labels:
+    app.kubernetes.io/part-of: kuberag
+spec:
+  targetRefs:
+    - group: gateway.networking.k8s.io
+      kind: HTTPRoute
+      name: kuberag-api
+  rateLimit:
+    # This is local to each Envoy data-plane replica. The current demo has one.
+    local:
+      rules:
+        - limit:
+            requests: 10
+            unit: Minute
+          xRateLimitHeaders: DraftVersion03

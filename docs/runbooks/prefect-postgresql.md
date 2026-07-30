@@ -73,6 +73,25 @@ worker một lần để xóa kết nối HTTP cũ giữ từ lúc server đổi
 make gcp-prefect-worker-restart
 ```
 
+## Lịch crawl hằng ngày
+
+Lịch được khai báo trong Git tại
+`apps/ingestion/src/ingestion/flows/ingest.py`. Cấu hình hiện tại là
+`0 3 * * *` với timezone `UTC`, tương đương **10:00 giờ Việt Nam**. Giữ cron
+ở UTC giúp timestamp và vận hành cloud nhất quán.
+
+Sau khi đổi cron, cần build/import lại image ingestion rồi chạy Bootstrap Job
+để cập nhật deployment đã có. Bootstrap chỉ đăng ký lịch; nó không crawl:
+
+```bash
+make gcp-ingestion-image-import
+make gcp-prefect-bootstrap
+```
+
+Log Bootstrap phải có `schedule={'cron': '0 3 * * *', 'timezone': 'UTC'}`.
+Evidence runtime hiện tại nằm tại
+`docs/evidence/ING-005/gcp-prefect-schedule-1000-vietnam.txt`.
+
 ## Xác minh
 
 Các lệnh sau chỉ đọc trạng thái hoặc logs, không in credential:

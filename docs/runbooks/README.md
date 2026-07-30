@@ -155,12 +155,47 @@ FastAPI -> E5 embedding -> PostgreSQL/pgvector -> bounded prompt
         -> llama.cpp/Qwen -> answer + VnExpress source URLs
 ```
 
+## Envoy API route and rate limit
+
+The API remains internal until the dedicated routing overlay is applied. Render
+it first; rendering is local and does not change the cluster:
+
+```bash
+make gcp-rag-routing-render
+```
+
+After the operator has reviewed the render and applied it, Envoy routes
+`http://VM_EXTERNAL_IP:8080/api/` to the internal `kuberag-rag-api` Service.
+The endpoint retains its bearer-token check. The `BackendTrafficPolicy` allows
+10 requests per minute for the whole `/api/` route on the current single Envoy
+data-plane Pod; the next request is rejected with HTTP `429` before FastAPI,
+PostgreSQL, or llama.cpp runs.
+
+```bash
+make gcp-rag-routing-status
+make gcp-rag-routing-smoke
+make gcp-rag-rate-limit-smoke
+```
+
+`gcp-rag-routing-smoke` reads the token only into a temporary shell variable
+and does not print it. It makes one real RAG request, so it consumes CPU time
+on the model Pod. Do not place that bearer token in a future browser frontend;
+the frontend authentication design needs a separate review.
+
+`gcp-rag-rate-limit-smoke` sends 11 valid JSON requests without a bearer token.
+It does not call the LLM or write data: the first requests should be `401`, and
+at least one later request must be `429` from Envoy. It consumes the shared
+single-Pod quota temporarily, so wait one minute before another API smoke test.
+This is a lightweight configuration check, not the required k6 load-test
+evidence.
+
 ## Lệnh thay đổi trạng thái
 
 Không chạy các lệnh sau chỉ để kiểm tra. Chúng thay đổi cluster hoặc dữ liệu:
 
 ```bash
 make gcp-rag-api-apply
+make gcp-rag-routing-apply
 make gcp-llama-apply
 make gcp-prefect-worker-restart
 make gcp-ingest-run          # crawl/upsert PostgreSQL

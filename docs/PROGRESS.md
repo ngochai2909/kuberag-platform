@@ -198,6 +198,10 @@ Completed:
   Prefect/ZoneInfo. Bootstrap Job registered work pool `kuberag-ingestion` and
   deployment `kuberag-daily-ingest/daily` with cron `0 2 * * *` UTC
   (`docs/evidence/ING-005/gcp-prefect-schedule.txt`).
+- Updated the registered Prefect deployment schedule to `0 3 * * *` UTC
+  (10:00 Vietnam) by rebuilding/importing the ingestion image and rerunning
+  the Bootstrap Job. The Job completed without executing ingestion
+  (`docs/evidence/ING-005/gcp-prefect-schedule-1000-vietnam.txt`).
 - Added optional extra `embedding` (sentence-transformers + torch CPU),
   `E5EmbeddingProvider`, PVC `kuberag-embedding-models`, download/smoke Jobs,
   and switched the GCP Prefect worker to `KUBERAG_EMBEDDING_MODE=e5`
@@ -247,10 +251,6 @@ Completed:
 
 The following required scopes are not implemented yet:
 
-- Application routes from `/` to React and `/api/` to FastAPI.
-- Envoy Gateway rate limiting and the `429` load test.
-- Add Envoy routing/rate limiting for the deployed API, then implement the
-  React/Vite source-card UI.
 - React/Vite frontend.
 - Full OpenTelemetry, Prometheus, Loki, Tempo, Pyroscope, Grafana dashboards, and alerts.
 - k6 load and rate-limit tests.
@@ -260,12 +260,13 @@ The following required scopes are not implemented yet:
 
 ## Recommended Next Phase
 
-Week 2 is complete. Continue week 3 with the deterministic RAG API deployment:
+Week 2 is complete. Continue week 3 with the user-facing application:
 
-- Import the API image and apply the restricted workload after reviewing the
-  render and creating the in-cluster database/API-key Secrets.
-- Verify one authenticated `POST /api/v1/query` request before adding frontend
-  or public Envoy application routes.
+- Implement the React/Vite source-card UI, including loading/error/`429`
+  handling and request/trace IDs.
+- Route `/` to the frontend through the existing Envoy Gateway while keeping
+  the API bearer token outside browser code.
+- Add k6 load/rate-limit scenarios after the frontend/API route is stable.
 
 Relevant acceptance groups:
 

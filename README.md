@@ -9,8 +9,9 @@ runtime in progress**. The GCP checkpoint has CloudNativePG/pgvector, a live
 Prefect VnExpress flow using `multilingual-e5-small`, a running internal
 llama.cpp Pod serving `Qwen2.5-1.5B-Instruct` GGUF `Q4_K_M`, and a running
 FastAPI RAG API. A real authenticated request has completed the deterministic
-E5 -> pgvector -> prompt -> llama.cpp flow on GCP. The API remains internal;
-the frontend and final Envoy application route are not deployed yet.
+E5 -> pgvector -> prompt -> llama.cpp flow on GCP. The FastAPI Service remains
+internal; Envoy now exposes the protected `/api/` route with a local rate
+limit. The React frontend is not deployed yet.
 
 For an accurate deployed-versus-prepared summary, start with
 [`docs/PROJECT_STATUS.md`](docs/PROJECT_STATUS.md). It records the verified
@@ -133,6 +134,7 @@ make gcp-unsafe-check
 make gcp-prefect-status
 make gcp-ingest-run
 make gcp-llama-status
+make gcp-rag-routing-status
 ```
 
 Prefect Server stores its deployment/schedule/run metadata in the separate
@@ -161,6 +163,14 @@ value is printed or committed. Its current status is read-only:
 ```bash
 make gcp-rag-api-status
 ```
+
+The API routing overlay is deliberately separate from the foundation. Once it
+has been rendered and reviewed, `make gcp-rag-routing-apply` exposes only
+`/api/` through the existing Envoy listener on port `8080`; the FastAPI
+Service, PostgreSQL, and llama.cpp remain internal ClusterIP services. The
+route preserves bearer-token authentication and applies Envoy local rate
+limiting at 10 requests per minute. See `docs/runbooks/README.md` for the
+status and smoke commands.
 
 ## Monorepo Layout
 

@@ -26,7 +26,8 @@ from ingestion.store import DocumentStore, IngestionCounters, IngestionRunRecord
 from ingestion.upsert import start_ingestion_run
 
 DAILY_INGEST_FLOW_NAME = "kuberag-daily-ingest"
-DAILY_INGEST_CRON = "0 2 * * *"
+# 03:00 UTC is 10:00 Asia/Ho_Chi_Minh (Vietnam, UTC+7).
+DAILY_INGEST_CRON = "0 3 * * *"
 DAILY_INGEST_TIMEZONE = "UTC"
 
 SourceName = Literal["vnexpress"]

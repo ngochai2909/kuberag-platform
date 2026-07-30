@@ -1,6 +1,6 @@
 # KubeRAG Project Status
 
-Last updated: 2026-07-29
+Last updated: 2026-07-30
 
 This page is the quickest starting point for a contributor, reviewer, or
 operator joining the project. It separates what is running now from what is
@@ -18,9 +18,9 @@ FastAPI now has a provider-independent PostgreSQL retrieval adapter with local
 unit/type/lint verification and a passing controlled GCP pgvector integration
 test. The internal llama.cpp generation runtime is now deployed and verified.
 FastAPI composition is deployed with a separate E5 cache PVC and has completed
-an authenticated real RAG request through pgvector and llama.cpp. The API is
-internal-only; the React frontend and final Envoy application route have not
-started.
+an authenticated real RAG request through pgvector and llama.cpp. Envoy now
+routes the protected `/api/` prefix to FastAPI and enforces a local rate limit.
+The React frontend has not started.
 
 The final intended topology remains one k3s server and two worker nodes. The
 current one-node setup is a deliberately temporary, lower-cost checkpoint.
@@ -38,9 +38,9 @@ current one-node setup is a deliberately temporary, lower-cost checkpoint.
 | PSS restricted | Verified | Verified | Unsafe privileged/root Pods are rejected. |
 | PostgreSQL/pgvector | Not deployed | Verified single instance | PVC 20 GiB is Bound; `vector` is enabled; Alembic schema and sample similarity query pass. |
 | Source adapters | Offline fixtures/unit tests | Live VnExpress scheduled | Demo source is VnExpress RSS only. |
-| Prefect flow | Offline skeleton tested | Deployed and verified | `daily_ingest_flow` cron `0 2 * * *` UTC; Prefect metadata uses PostgreSQL database `prefect`, separate from RAG data. |
+| Prefect flow | Offline skeleton tested | Deployed and verified | Daily `0 3 * * *` UTC is registered (10:00 Vietnam); Prefect metadata uses PostgreSQL database `prefect`, separate from RAG data. |
 | llama.cpp | Not deployed | Verified running | Internal `ClusterIP` Service loads Qwen2.5-1.5B GGUF from a 5 GiB PVC; it is not public. |
-| RAG API | Skeleton only | Verified running, internal only | Restricted FastAPI Deployment has E5 cache PVC, CNPG Secret, and llama.cpp Service dependency; end-to-end query passed through a local-only tunnel. |
+| RAG API | Skeleton only | Verified through Envoy | Restricted FastAPI Deployment has E5 cache PVC, CNPG Secret, and llama.cpp Service dependency; an authenticated public-Envoy smoke query passed. |
 | Frontend | Not deployed | Not deployed | React/Vite UI and final Envoy routes remain. |
 
 ## Verified GCP Foundation
@@ -84,7 +84,7 @@ firewall CIDRs when the operator egress changes.
 | `DB-010` | Pass GCP | Marker checksum/count survived controlled Pod recreate; PVC remained Bound. |
 | `ING-001`, `ING-003`, `ING-004` | Pass offline | VnExpress fixtures, contract, timeout/retry/backoff unit evidence. |
 | `ING-002` | Removed | NVD fully removed from code, fixtures, and demo corpus. |
-| `ING-005` | Pass GCP | Daily cron `0 2 * * *` UTC registered on Prefect deployment `kuberag-daily-ingest/daily`. |
+| `ING-005` | Pass GCP | Daily `0 3 * * *` UTC (10:00 Vietnam) is registered on `kuberag-daily-ingest/daily`; evidence: `docs/evidence/ING-005/gcp-prefect-schedule-1000-vietnam.txt`. |
 | `ING-006` | Pass GCP | Live VnExpress flow completed through real e5 into CloudNativePG. |
 | `ING-007` | Pass GCP | Stable rerun skipped unchanged records; counts unchanged and SQL duplicate checks returned zero. |
 | `ING-008` | Pass GCP | Completed run lifecycle, counters, and duration persisted in `ingestion_runs`. |
@@ -95,6 +95,8 @@ firewall CIDRs when the operator egress changes.
 | `RAG-004` | Pass GCP runtime | llama.cpp reports healthy, exposes Qwen model alias, and completed a chat-completion request through a temporary local tunnel; evidence: `docs/evidence/RAG-004/`. |
 | `RAG-005` | Pass GCP runtime | API composition calls only in-cluster E5/pgvector/llama.cpp; no external LLM API or OpenAI SDK is used. |
 | `RAG-006` | Pass GCP runtime | Authenticated API query returned answer, VnExpress sources/URLs, request ID, trace ID, and timings; evidence: `docs/evidence/RAG-006/`. |
+| `NET-003`, `NET-005` | Pass GCP runtime | Envoy accepted `/api/` to FastAPI and the local `BackendTrafficPolicy` rate-limit policy. Public authenticated smoke passed. |
+| `NET-006` | Partial | Controlled curl burst produced `429` after 10 requests; evidence: `docs/evidence/NET-006/gcp-rate-limit-429.txt`. Required k6 rate-limit evidence remains pending. |
 
 ## Immediate Next Checkpoint
 
@@ -105,18 +107,16 @@ unchanged input on rerun.
 
 Next checkpoint (week 3):
 
-1. Add Envoy `HTTPRoute` for `/api/` and verify the authenticated API is only
-   reachable through the Gateway in the demo path.
+1. Add a k6 rate-limit scenario and load-test evidence.
 2. Add the React/Vite frontend, source cards, and latency/ID display.
 
 See `docs/ROADMAP.md` week 2 and `docs/data-model.md`.
 
 ## Major Work Still Ahead
 
-- Envoy API routing, rate limiting, frontend, and observability.
-- React/Vite frontend and Envoy routing for `/` and `/api/`.
+- React/Vite frontend and Envoy routing for `/`.
 - OpenTelemetry, Prometheus, Loki, Tempo, Pyroscope, Grafana, alerts, and dashboards.
-- Gateway rate limiting, k6 load tests, Chainguard images, scanning, SBOMs, and signing.
+- k6 load/rate-limit tests, Chainguard image hardening, scanning, SBOMs, and signing.
 - Restoration of the final 1 server + 2 worker topology and PostgreSQL replication/failover evidence.
 
 ## Useful References

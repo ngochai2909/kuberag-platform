@@ -1,0 +1,41 @@
+# NET-006: GCP Envoy local rate-limit smoke
+
+Date: 2026-07-30
+
+The applied `BackendTrafficPolicy/rag/kuberag-api-rate-limit` targets
+`HTTPRoute/rag/kuberag-api` and sets a local limit of 10 requests per minute.
+
+Command executed from the operator workstation:
+
+```bash
+gateway_address=$(terraform -chdir=infra/terraform output -raw external_ip)
+statuses=$(for request in $(seq 1 11); do
+  curl --silent --output /dev/null --write-out '%{http_code}\n' \
+    --connect-timeout 10 --max-time 15 \
+    "http://${gateway_address}:8080/api/v1/query" \
+    -H 'Content-Type: application/json' \
+    -d '{"question":"rate limit verification","top_k":2}'
+done)
+printf '%s\n' "$statuses"
+```
+
+Observed status codes:
+
+```text
+401
+401
+401
+401
+401
+401
+401
+401
+401
+401
+429
+```
+
+The requests deliberately omitted the bearer token. The first ten reached
+FastAPI and were rejected as `401`; the eleventh was rejected by Envoy with
+`429`. No LLM request, embedding, or database write was performed. This is a
+controlled curl smoke only; required k6 rate-limit/load evidence remains open.
