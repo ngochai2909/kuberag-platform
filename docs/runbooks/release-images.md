@@ -63,6 +63,28 @@ Base Python Chainguard trong hai Dockerfile đã pin digest ngày 2026-08-01;
 frontend đã pin Node/Nginx. Pin giảm thay đổi bất ngờ nhưng cần review/refresh
 định kỳ để nhận security fixes.
 
+## Node identity của k3s trên GCP
+
+Một **Kubernetes Node object** là danh tính mà kubelet đăng ký trong API
+server; nó không hoàn toàn giống với VM. GCP có thể cung cấp hostname đầy đủ
+như `kuberag-server.asia-southeast1-b.c.PROJECT.internal`. Nếu k3s dùng hostname
+đó sau một lần restart trong khi trước đây dùng `kuberag-server`, cluster sẽ
+thấy hai Node object cho cùng một VM: Node cũ `NotReady` và Node mới `Ready`.
+
+Playbook đặt `node-name: kuberag-server` để danh tính này ổn định qua reboot và
+reconfigure. Sau bất kỳ lần chạy playbook nào, kiểm tra đúng một Node `Ready`:
+
+```bash
+KUBECONFIG="$HOME/.kube/kuberag-gcp.yaml" kubectl get nodes -o wide
+KUBECONFIG="$HOME/.kube/kuberag-gcp.yaml" kubectl get pods -A -o wide
+```
+
+Nếu còn một Node tên khác, **không xóa ngay**. Trước hết xác nhận
+`kuberag-server` đã `Ready` và workload stateful (PostgreSQL, Prometheus, Loki,
+Tempo) vẫn chạy trên nó. Chỉ sau đó mới xóa Node thừa bằng một checkpoint vận
+hành riêng; thao tác này sẽ làm DaemonSet trên Node thừa bị dừng nhưng không xóa
+PVC hay dữ liệu PostgreSQL.
+
 ## Release hiện tại: `24a106b`
 
 Workflow thành công của commit `24a106b06c73de55f6dcfc472367e655b2d4917f`

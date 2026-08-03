@@ -180,6 +180,7 @@
         content: |
           write-kubeconfig-mode: "0600"
           data-dir: "{{ k3s_data_dir }}"
+          node-name: "{{ k3s_node_name }}"
           cluster-cidr: "{{ k3s_cluster_cidr }}"
           service-cidr: "{{ k3s_service_cidr }}"
           disable:
