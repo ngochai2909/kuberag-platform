@@ -127,6 +127,40 @@ Các Job có side effect được tách khỏi rollout: dùng
 muốn chạy đúng Job đó. `gcp-release-ingest-run` có thể fetch/upsert dữ liệu nên
 cần checkpoint xác nhận riêng.
 
+### App-only reinstall (không phải full clean install)
+
+Khi cần kiểm chứng một bản release có thể tạo lại các workload ứng dụng mà
+không chủ ý xóa dữ liệu, chỉ được xóa chính xác bảy resource stateless dưới
+đây. Lệnh này **thay đổi cluster** và gây gián đoạn ngắn API/UI; cần xác nhận
+ngay trước khi chạy. Nó không được thay bằng `kubectl delete -k`, vì overlay có
+tham chiếu PVC cần giữ.
+
+```bash
+KUBECONFIG="$HOME/.kube/kuberag-gcp.yaml" \
+  kubectl -n rag delete deployment/kuberag-rag-api deployment/kuberag-web \
+  service/kuberag-rag-api service/kuberag-web --wait=true
+
+KUBECONFIG="$HOME/.kube/kuberag-gcp.yaml" \
+  kubectl -n prefect delete deployment/prefect-server deployment/prefect-worker \
+  service/prefect-server --wait=true
+
+make gcp-release-apply
+```
+
+Sau rollout, kiểm tra PVC, endpoint public và Prefect worker. Worker có init
+container `wait-for-prefect-server`; log `Prefect server is healthy` rồi
+`Worker ... started!` với restart count `0` là kết quả mong đợi.
+
+```bash
+KUBECONFIG="$HOME/.kube/kuberag-gcp.yaml" kubectl get pvc -A
+KUBECONFIG="$HOME/.kube/kuberag-gcp.yaml" kubectl -n prefect get pods
+curl --fail --silent --show-error http://VM_EXTERNAL_IP:8080/api/v1/status
+```
+
+Đây chỉ kiểm tra phục hồi application trên cluster hiện hữu. Nó không chứng
+minh `DOC-004` (clean install từ môi trường sạch), không chạy Prefect Job/migration
+và không thay thế kiểm thử persistence PostgreSQL.
+
 ## Private pull trên k3s Compute Engine
 
 Khác GKE, k3s tự quản lý không tự chuyển service account của VM thành registry

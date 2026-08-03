@@ -240,9 +240,10 @@ Completed:
 
 ### Phase 8 - Full-stack Observability
 
-Status: Core single-node observability is deployed with runtime evidence on GCP
-for `OBS-002`–`OBS-014`. `OBS-001` remains Partial (no Envoy scrape target).
-Alerting and k6 remain pending for Week 5.
+Status: Single-node observability is deployed with GCP runtime evidence for
+`OBS-001`–`OBS-014`. Envoy Gateway data-plane metrics are scraped. Alertmanager
+Slack lifecycle and bounded k6 runtime evidence are complete; UI screenshots
+remain optional evidence.
 
 Completed:
 
@@ -273,13 +274,9 @@ Completed:
   `OBS-005/gcp-loki-ingestion-log.txt`,
   `OBS-008/gcp-tempo-ingestion-spans.txt`).
 
-Still required for the roadmap acceptance set:
-
-- Optional: add Envoy Prometheus scrape to close `OBS-001`.
-- Alertmanager/Slack lifecycle is verified; keep the test-only rule deleted
-  and retain its redacted `ALT-008` evidence.
-- Run the separately confirmed k6 scenarios/correlation window (`PERF-*`,
-  close `NET-006`).
+Alertmanager/Slack lifecycle is verified; keep the test-only rule deleted and
+retain its redacted `ALT-008` evidence. The verified k6 bound is 3 VUs; the
+rate-limit scenario closed `NET-006` and generated the expected `429` alert.
 
 - Week 2 data/ingestion quality gate is complete on the temporary GCP
   single-node path.
@@ -329,10 +326,10 @@ The following required scopes are not implemented yet:
   runtime rate-limit Firing state, JSON summaries, resource snapshot, and
   Alertmanager delivery metrics are stored under `docs/evidence/PERF-*` and
   `docs/evidence/ALT-007/`.
-- Optional Envoy Prometheus scrape to finish `OBS-001`.
-- Chainguard image hardening for all custom images.
-- Semgrep, Trivy, SBOM, Cosign signing/verification.
-- Runtime evidence for the remaining platform phases.
+- Repository-administration evidence for `SEC-009` branch protection.
+- Full clean-install evidence in a genuinely isolated environment and final
+  demo rehearsal. The app-only recovery run is recorded under
+  `docs/evidence/DOC-004/` and must not be mislabeled as a clean install.
 
 ## Recommended Next Phase
 

@@ -46,6 +46,13 @@ release manifest on 2026-08-03. Envoy is a Prometheus scrape target
 The final intended topology remains one k3s server and two worker nodes. The
 current one-node setup is a deliberately temporary, lower-cost checkpoint.
 
+On 2026-08-03, a controlled app-only reinstall deleted and recreated only the
+four application Deployments and three application Services. All PVCs remained
+`Bound`; all release workloads became Ready; Envoy status was ready; and the
+Prefect worker completed its server-readiness init step with zero restarts.
+This is recovery evidence on an existing cluster, not a full clean-install
+claim; see `docs/evidence/DOC-004/`.
+
 ## What Exists Today
 
 | Area | Local machine | GCP VM | Meaning |
@@ -127,32 +134,25 @@ firewall CIDRs when the operator egress changes.
 | `OBS-005`–`OBS-007` | Pass GCP runtime | FastAPI and Prefect OTLP logs in Loki; required fields present as structured metadata; sample review shows no raw prompt/document/secret (`docs/evidence/OBS-005`–`OBS-007/`). |
 | `OBS-008`–`OBS-010` | Pass GCP runtime | Tempo RAG span tree, ingestion fetch/upsert spans, and response↔Loki↔Tempo `trace_id` correlation (`docs/evidence/OBS-008`–`OBS-010/`). |
 | `OBS-011`–`OBS-014` | Pass GCP runtime | Pyroscope CPU profile, Git-provisioned Grafana datasources/dashboard (API evidence), no Alloy inventory, retention/PVC/limits match single-node budget (`docs/evidence/OBS-011`–`OBS-014/`). |
+| `DOC-004` | Partial GCP recovery evidence | App-only reinstall preserved all PVCs and restored the four release workloads. A genuinely clean environment/install run remains required before `Pass`; evidence: `docs/evidence/DOC-004/`. |
 
 ## Immediate Next Checkpoint
 
-Week 2 ingestion is complete on the GCP single-node checkpoint. The live
-VnExpress Prefect flow uses real `intfloat/multilingual-e5-small`, writes
-384-dimensional vectors to CloudNativePG, persists run counters, and skips
-unchanged input on rerun.
-
-Next checkpoint:
-
-1. Add an Envoy Prometheus scrape target to close `OBS-001` fully (optional
-   narrow follow-up) or accept the documented gap until Week 5 networking polish.
-2. Restore IAP tunnel and pass the 30-minute observability stability gate.
-3. Capture optional Grafana/Slack UI screenshots for the completed k6 window
-   (`PERF-003`, `ALT-007`) without exposing the internal Alertmanager link.
-
-See `docs/ROADMAP.md` week 2 and `docs/data-model.md`.
+The single-node application recovery path is now repeatable with immutable
+images. The next required operational checkpoints are controlled failure tests
+(RSS/Prefect, RAG/llama.cpp, and PostgreSQL persistence), a complete clean
+install in an isolated environment, and a demo rehearsal. Each mutation needs
+its own confirmation because it can interrupt a workload or change data.
 
 ## Major Work Still Ahead
 
-- Grafana/Slack UI screenshots for the completed rate-limit alert run
-  (`docs/evidence/ALT-007/`); the runtime Firing state is captured already.
+- Optional Grafana/Slack UI screenshots for the completed rate-limit alert
+  run (`docs/evidence/ALT-007/`); the runtime Firing state is captured already.
 - A larger-capacity benchmark only after a separate single-node safety
   checkpoint; the verified safe demo bound is 3 VU.
-- Optional Envoy Prometheus scrape to finish `OBS-001`.
-- Chainguard image hardening, scanning, SBOMs, and signing.
+- Repository-administration screenshot/settings evidence for `SEC-009`.
+- A full clean install from an isolated environment, then smoke and demo
+  rehearsal.
 - Restoration of the final 1 server + 2 worker topology and PostgreSQL replication/failover evidence.
 
 ## Useful References
