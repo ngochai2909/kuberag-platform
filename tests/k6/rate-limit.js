@@ -5,6 +5,7 @@ import { Counter, Rate } from 'k6/metrics';
 const gatewayUrl = (__ENV.KUBERAG_GATEWAY_URL || '').replace(/\/$/, '');
 const rateLimited = new Counter('envoy_rate_limited_responses');
 const unexpectedStatus = new Rate('rate_limit_unexpected_status');
+const expectedRateLimitStatuses = http.expectedStatuses({ min: 200, max: 299 }, 429);
 
 if (!gatewayUrl) {
   throw new Error('KUBERAG_GATEWAY_URL is required, for example http://VM_EXTERNAL_IP:8080');
@@ -35,7 +36,12 @@ export function setup() {
 }
 
 export default function () {
-  const response = http.get(`${gatewayUrl}/api/v1/status`, { timeout: '15s' });
+  const response = http.get(`${gatewayUrl}/api/v1/status`, {
+    timeout: '15s',
+    // A 429 proves Envoy's limiter worked, so it is an expected response for
+    // this scenario. Other 4xx and every 5xx remain failed HTTP requests.
+    responseCallback: expectedRateLimitStatuses,
+  });
   const accepted = response.status >= 200 && response.status < 300;
   const limited = response.status === 429;
   const valid = accepted || limited;
