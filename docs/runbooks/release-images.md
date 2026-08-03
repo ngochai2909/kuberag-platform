@@ -85,17 +85,17 @@ Tempo) vẫn chạy trên nó. Chỉ sau đó mới xóa Node thừa bằng mộ
 hành riêng; thao tác này sẽ làm DaemonSet trên Node thừa bị dừng nhưng không xóa
 PVC hay dữ liệu PostgreSQL.
 
-## Release hiện tại: `24a106b`
+## Release hiện tại: `cb6c0f0`
 
-Workflow thành công của commit `24a106b06c73de55f6dcfc472367e655b2d4917f`
+Workflow thành công của commit `cb6c0f07c9e0280f5fd2ac4a5ccaf356d59f0598`
 đã quét, tạo SBOM và ký ba digest dưới đây. Release overlay tại
 `deploy/kustomize/overlays/gcp-release/` là bản ghi Git của đúng release này.
 
 | Workload | Immutable image |
 | --- | --- |
-| RAG API (gồm init container) | `asia-southeast1-docker.pkg.dev/kube-rag-platform/kuberag/kuberag-api@sha256:41d5e6b962d4d2d320a8723898a2c05f995734131422be40ee63e5c3d7589dd5` |
-| Prefect server, worker và Job | `asia-southeast1-docker.pkg.dev/kube-rag-platform/kuberag/kuberag-ingestion@sha256:046e3751b3d56b173a6d04eeb4d0e67a494b9c7340d1c35ba74ef274b59a0984` |
-| Frontend | `asia-southeast1-docker.pkg.dev/kube-rag-platform/kuberag/kuberag-web@sha256:ff429d39e6ec6d97e3cd0ef28e72c0047098f57d1bbd7e6dced324b54f932f7c` |
+| RAG API (gồm init container) | `asia-southeast1-docker.pkg.dev/kube-rag-platform/kuberag/kuberag-api@sha256:3effa480d690775d75f7eaa251f585918378018253d15ceabafb64559cb3aa29` |
+| Prefect server, worker và Job | `asia-southeast1-docker.pkg.dev/kube-rag-platform/kuberag/kuberag-ingestion@sha256:a6217acf0598a01400fd44b1f4fe030931145ad5a04b5362e26d27bd53373037` |
+| Frontend | `asia-southeast1-docker.pkg.dev/kube-rag-platform/kuberag/kuberag-web@sha256:05181867af46b95469ffefc6b0e4543a1e68650b8d897967128dfeea4e5dbd25` |
 
 Các base manifest vẫn dùng `*:local` và `imagePullPolicy: Never` cho phát
 triển local. Release overlay thay cả image bằng digest và policy bằng
