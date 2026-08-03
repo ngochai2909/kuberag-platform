@@ -116,8 +116,8 @@ firewall CIDRs when the operator egress changes.
 | `RAG-006` | Pass GCP runtime | API query through Envoy returned answer, VnExpress sources/URLs, optional thumbnail URLs, request ID, trace ID, and timings; evidence: `docs/evidence/RAG-006/`. |
 | `NET-003`, `NET-005` | Pass GCP runtime | Envoy accepted `/api/` to FastAPI and the local `BackendTrafficPolicy` rate-limit policy. The temporary GCP demo is intentionally unauthenticated. |
 | `WEB-001` | Pass GCP runtime | `kuberag-web` is Ready; its Service and accepted `/` HTTPRoute return the React SPA from the Envoy data plane. |
-| `NET-006` | Partial | Controlled curl burst produced `429` after 10 requests; evidence: `docs/evidence/NET-006/gcp-rate-limit-429.txt`. Required k6 rate-limit evidence remains pending. |
-| `OBS-001` | Partial | Kubernetes + FastAPI/`kube-state-metrics` targets scrape (`docs/evidence/OBS-001/`). Envoy Gateway is not yet a Prometheus `up` job/ServiceMonitor target. |
+| `NET-006` | Pass GCP runtime | k6 status burst through Envoy returned 5 expected `429` and no `5xx`; Envoy Prometheus metric increased. Evidence: `docs/evidence/NET-006/k6-rate-limit-2026-08-03.md`. |
+| `OBS-001` | Pass GCP runtime | Kubernetes, FastAPI/`kube-state-metrics`, and Envoy Gateway data-plane targets scrape. Post-k6 `up{job="kuberag-envoy-metrics"}=1`; evidence: `docs/evidence/OBS-001/` and `docs/evidence/PERF-003/`. |
 | `OBS-002`–`OBS-004` | Pass GCP runtime | PromQL RPS/p50/p95/p99/status codes, Pod memory/restarts, RAG stage metrics, and ingestion `kuberag_ingestion_*` metrics captured under `docs/evidence/OBS-002`–`OBS-004/`. |
 | `OBS-005`–`OBS-007` | Pass GCP runtime | FastAPI and Prefect OTLP logs in Loki; required fields present as structured metadata; sample review shows no raw prompt/document/secret (`docs/evidence/OBS-005`–`OBS-007/`). |
 | `OBS-008`–`OBS-010` | Pass GCP runtime | Tempo RAG span tree, ingestion fetch/upsert spans, and response↔Loki↔Tempo `trace_id` correlation (`docs/evidence/OBS-008`–`OBS-010/`). |
@@ -135,15 +135,17 @@ Next checkpoint:
 1. Add an Envoy Prometheus scrape target to close `OBS-001` fully (optional
    narrow follow-up) or accept the documented gap until Week 5 networking polish.
 2. Restore IAP tunnel and pass the 30-minute observability stability gate.
-3. Run the separately confirmed k6 scenarios and capture evidence (`PERF-*`,
-   close `NET-006` and `ALT-007`).
+3. Capture optional Grafana/Slack UI screenshots for the completed k6 window
+   (`PERF-003`, `ALT-007`) without exposing the internal Alertmanager link.
 
 See `docs/ROADMAP.md` week 2 and `docs/data-model.md`.
 
 ## Major Work Still Ahead
 
-- Alert rules/contact point and alert lifecycle test (`ALT-*`).
-- k6 load/rate-limit tests (`PERF-*`) and full `NET-006` k6 evidence.
+- Grafana/Slack UI screenshots for the completed rate-limit alert run
+  (`docs/evidence/ALT-007/`); the runtime Firing state is captured already.
+- A larger-capacity benchmark only after a separate single-node safety
+  checkpoint; the verified safe demo bound is 3 VU.
 - Optional Envoy Prometheus scrape to finish `OBS-001`.
 - Chainguard image hardening, scanning, SBOMs, and signing.
 - Restoration of the final 1 server + 2 worker topology and PostgreSQL replication/failover evidence.

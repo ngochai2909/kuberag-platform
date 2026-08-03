@@ -12,6 +12,9 @@ if (!gatewayUrl) {
 }
 
 export const options = {
+  // k6 defaults setup() to 60 seconds. The deliberate 65-second quota reset
+  // must be allowed to complete before the burst begins.
+  setupTimeout: '2m',
   scenarios: {
     rate_limit_burst: {
       executor: 'shared-iterations',
