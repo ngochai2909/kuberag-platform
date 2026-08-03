@@ -75,6 +75,9 @@ jobs:
           severity: HIGH,CRITICAL
           exit-code: "1"
           ignore-unfixed: true
+          # Negative PSS fixture is deliberately privileged so admission can
+          # reject it. It is documented and excluded from every Trivy scanner.
+          skip-files: deploy/kustomize/examples/unsafe-root-pod.yaml
 
   release-images:
     # Pull requests never get cloud credentials or push images. The exact

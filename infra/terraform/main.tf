@@ -224,6 +224,10 @@ resource "google_compute_disk" "data" {
   labels = local.resource_labels
 }
 
+# The temporary demo exposes Envoy on this reserved IP. The gateway firewall
+# restricts it to gateway_source_cidrs/admin_source_cidr; observability remains
+# ClusterIP/IAP-only. This exception is documented in SECURITY_EXCEPTIONS.md.
+# trivy:ignore:GCP-0031
 resource "google_compute_instance" "kuberag" {
   name         = local.instance_name
   machine_type = var.machine_type
