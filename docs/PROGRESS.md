@@ -320,8 +320,10 @@ Still required for the roadmap acceptance set:
 
 The following required scopes are not implemented yet:
 
-- Remaining runtime alert evidence from the k6 rate-limit spike (`ALT-007`).
-- Runtime k6 load/rate-limit reports and dashboard correlation (`PERF-*`).
+- Optional Grafana and Slack UI screenshots for the k6 rate-limit window. The
+  runtime rate-limit Firing state, JSON summaries, resource snapshot, and
+  Alertmanager delivery metrics are stored under `docs/evidence/PERF-*` and
+  `docs/evidence/ALT-007/`.
 - Optional Envoy Prometheus scrape to finish `OBS-001`.
 - Chainguard image hardening for all custom images.
 - Semgrep, Trivy, SBOM, Cosign signing/verification.
@@ -332,9 +334,9 @@ The following required scopes are not implemented yet:
 The user-facing demo path and Week 4 observability evidence path are deployed.
 Continue with Week 5 operational controls:
 
-- Restore IAP tunnel, complete the 30-minute observability stability gate, then
-  run the k6 rate-limit scenario to verify `ALT-007`.
-- Run k6 load/rate-limit only after that gate and capture `PERF-*` evidence.
+- Keep the verified 3-VU single-node bound for demos. Capture optional Grafana
+  and Slack UI screenshots for the completed k6 rate-limit scenario; do not
+  publicize the internal Alertmanager link.
 - Replace temporary public-demo API access with a reviewed user/gateway
   authentication design before any broader deployment.
 
