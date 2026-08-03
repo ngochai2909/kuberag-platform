@@ -5,6 +5,7 @@ from http_fakes import FakeHttpClient, make_timeout
 
 from ingestion.http import (
     DEFAULT_USER_AGENT,
+    HttpError,
     HttpResponse,
     HttpStatusError,
     HttpTimeoutError,
@@ -92,3 +93,29 @@ def test_exhausts_retries_on_persistent_timeout() -> None:
     with pytest.raises(HttpTimeoutError):
         client.get("https://example.invalid/down")
     assert len(inner.calls) == 3
+
+
+def test_retries_connection_errors_before_failing() -> None:
+    sleeps: list[float] = []
+    inner = FakeHttpClient(
+        {
+            "https://example.invalid/down": [
+                HttpError("connection refused"),
+                HttpError("connection refused"),
+                HttpError("connection refused"),
+            ]
+        }
+    )
+    client = RetryingHttpClient(
+        inner,
+        max_attempts=3,
+        base_delay_seconds=0.1,
+        sleep=sleeps.append,
+        random_unit=lambda: 1.0,
+    )
+
+    with pytest.raises(HttpError, match="connection refused"):
+        client.get("https://example.invalid/down")
+
+    assert len(inner.calls) == 3
+    assert sleeps == [0.1, 0.2]

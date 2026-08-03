@@ -55,8 +55,9 @@ RngFn = Callable[[], float]
 class RetryingHttpClient:
     """Wraps an inner HTTP client with timeout defaults and exponential backoff.
 
-    Retries only temporary failures: timeouts, 429, and selected 5xx responses.
-    Permanent 4xx responses (except 408/425/429) fail immediately.
+    Retries only temporary failures: connection/timeout errors, 429, and
+    selected 5xx responses. Permanent 4xx responses (except 408/425/429) fail
+    immediately.
     """
 
     inner: HttpClient
@@ -89,6 +90,15 @@ class RetryingHttpClient:
                     timeout=request_timeout,
                 )
             except HttpTimeoutError as exc:
+                last_error = exc
+                if attempt >= self.max_attempts:
+                    raise
+                self._backoff(attempt)
+                continue
+            except HttpError as exc:
+                # httpx wraps connection refusal/reset/DNS failures as our
+                # transport-level HttpError. They are transient in a scheduled
+                # ingestion flow, unlike a permanent 4xx response.
                 last_error = exc
                 if attempt >= self.max_attempts:
                     raise

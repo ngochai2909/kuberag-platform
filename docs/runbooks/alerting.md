@@ -90,3 +90,21 @@ Lưu timestamp/ảnh Slack đã che tên workspace và URL ở
 
 PostgreSQL single-node không có replica để failover; đây là cảnh báo
 unavailable, không phải bằng chứng HA hay backup.
+
+## Failure test RSS/Prefect có kiểm soát
+
+`make gcp-release-ingestion-failure-test` là Job test-only, cố ý gọi flow
+Prefect với `http://127.0.0.1:1` bên trong **chính Pod Job**. Địa chỉ đó không
+phải VnExpress, không ra Internet và không ghi tài liệu/chunk/embedding: lỗi
+xảy ra trước bước upsert. Flow vẫn gửi log, trace và metric
+`kuberag_ingestion_runs_total{status="failed"}` qua OTel Collector, do đó rule
+`KubeRagIngestionFailed` có thể Firing và gửi Slack.
+
+Lệnh này tạo một Job `Failed`, một Prefect flow run `Failed` và một Slack alert;
+nó thay đổi cluster nhưng không tạo VM/disk/firewall. Chỉ chạy sau khi image
+release chứa manifest đã được review, có xác nhận riêng, và operator sẵn sàng
+chụp evidence. Không dùng trong lúc daily schedule đang được debug.
+
+Sau `Firing`, chỉ đọc trạng thái/log/Prometheus, lưu evidence rồi chờ cửa sổ
+30 phút của rule trôi qua để nhận `Resolved`. Job có TTL 24 giờ; không xóa
+`ingestion_runs` hay sửa metric để ép alert biến mất.

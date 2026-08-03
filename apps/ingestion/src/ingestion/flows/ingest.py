@@ -108,9 +108,12 @@ def deployment_schedule() -> dict[str, str]:
 
 
 @task(name="fetch-vnexpress", retries=2, retry_delay_seconds=1)
-def fetch_vnexpress_documents() -> list[SourceDocument]:
+def fetch_vnexpress_documents(*, feed_url: str | None = None) -> list[SourceDocument]:
     runtime = get_ingestion_runtime()
-    adapter = VnExpressAdapter(runtime.http, feed_url=runtime.vnexpress_feed_url)
+    adapter = VnExpressAdapter(
+        runtime.http,
+        feed_url=feed_url or runtime.vnexpress_feed_url,
+    )
     with get_tracer().start_as_current_span("ingestion.fetch"):
         return adapter.fetch_documents()
 
@@ -142,8 +145,15 @@ def upsert_documents(
 @flow(name=DAILY_INGEST_FLOW_NAME, log_prints=False)
 def daily_ingest_flow(
     sources: list[SourceName] | None = None,
+    *,
+    vnexpress_feed_url: str | None = None,
 ) -> IngestionFlowResult:
-    """Run the deterministic ingestion pipeline for configured sources."""
+    """Run the deterministic ingestion pipeline for configured sources.
+
+    ``vnexpress_feed_url`` is an operator-only override used by the isolated
+    failure-test Job. It is not exposed by the RAG API and the daily deployment
+    keeps the configured production feed URL.
+    """
 
     configure_ingestion_telemetry()
     started_monotonic = datetime.now(UTC)
@@ -155,7 +165,7 @@ def daily_ingest_flow(
 
     try:
         if "vnexpress" in selected:
-            documents.extend(fetch_vnexpress_documents())
+            documents.extend(fetch_vnexpress_documents(feed_url=vnexpress_feed_url))
 
         source_scope = ",".join(selected)
         run = upsert_documents(documents, source_scope=source_scope)

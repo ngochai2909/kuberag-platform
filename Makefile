@@ -32,6 +32,7 @@ RELEASE_PREFECT_BOOTSTRAP_GCP_KUSTOMIZE ?= deploy/kustomize/overlays/gcp-release
 RELEASE_E5_DOWNLOAD_GCP_KUSTOMIZE ?= deploy/kustomize/overlays/gcp-release/e5-download
 RELEASE_E5_SMOKE_GCP_KUSTOMIZE ?= deploy/kustomize/overlays/gcp-release/e5-smoke
 RELEASE_INGEST_RUN_GCP_KUSTOMIZE ?= deploy/kustomize/overlays/gcp-release/ingest-run
+RELEASE_INGESTION_FAILURE_TEST_GCP_KUSTOMIZE ?= deploy/kustomize/overlays/gcp-release/ingestion-failure-test
 RAG_RATE_LIMIT_BURST ?= 11
 INGESTION_IMAGE ?= kuberag-ingestion:local
 RAG_API_IMAGE ?= kuberag-rag-api:local
@@ -61,7 +62,7 @@ K6_SUMMARY_DIR ?= docs/evidence/PERF-001
 K6_DOCKER_IMAGE ?= grafana/k6:2.1.0@sha256:65c920dc067d5e2e00befbf982af6ad6ad0117034e8b1c65817c7975c52d4669
 
 .PHONY: setup run test test-cov lint format format-check typecheck check lock clean frontend-install frontend-dev frontend-typecheck frontend-build docker-frontend-build gcp-frontend-image-import gcp-frontend-render gcp-frontend-apply gcp-frontend-status gcp-frontend-smoke infra-check k3s-install gcp-k3s-syntax gcp-k3s-install gcp-k3s-tunnel gcp-k3s-status gcp-envoy-install gcp-foundation-apply gcp-foundation-delete gcp-foundation-status gcp-foundation-smoke gcp-unsafe-check k3s-foundation-apply k3s-foundation-delete k3s-foundation-status k3s-foundation-smoke k3s-unsafe-check cnpg-render postgresql-render migration-sql gcp-cnpg-install gcp-postgresql-apply gcp-postgresql-status gcp-db-migrate gcp-db-current gcp-db-vector-test gcp-rag-retrieval-test gcp-llama-render gcp-llama-apply gcp-llama-status docker-ingestion-build docker-ingestion-smoke gcp-ingestion-image-import docker-rag-api-build docker-rag-api-smoke gcp-rag-api-image-import gcp-rag-db-secret gcp-rag-api-auth-secret gcp-rag-api-render gcp-rag-api-apply gcp-rag-api-status gcp-rag-routing-render gcp-rag-routing-apply gcp-rag-routing-status gcp-rag-routing-smoke gcp-rag-rate-limit-smoke gcp-prefect-db-secret gcp-prefect-role-secret gcp-prefect-server-db-secret gcp-prefect-apply gcp-prefect-bootstrap gcp-prefect-worker-apply gcp-prefect-worker-restart gcp-prefect-status gcp-e5-download gcp-e5-smoke gcp-ingest-run
-.PHONY: gcp-grafana-admin-secret gcp-alertmanager-slack-secret gcp-observability-render gcp-observability-install gcp-observability-apply gcp-observability-status gcp-observability-grafana-port-forward gcp-alert-lifecycle-test gcp-alert-lifecycle-cleanup gcp-release-render gcp-release-apply gcp-release-status gcp-release-prefect-bootstrap gcp-release-e5-download gcp-release-e5-smoke gcp-release-ingest-run k6-load k6-rate-limit
+.PHONY: gcp-grafana-admin-secret gcp-alertmanager-slack-secret gcp-observability-render gcp-observability-install gcp-observability-apply gcp-observability-status gcp-observability-grafana-port-forward gcp-alert-lifecycle-test gcp-alert-lifecycle-cleanup gcp-release-render gcp-release-apply gcp-release-status gcp-release-prefect-bootstrap gcp-release-e5-download gcp-release-e5-smoke gcp-release-ingest-run gcp-release-ingestion-failure-test k6-load k6-rate-limit
 
 setup:
 	uv sync --group dev
@@ -391,6 +392,12 @@ gcp-release-ingest-run:
 	KUBECONFIG=$(GCP_KUBECONFIG) kubectl apply -k $(RELEASE_INGEST_RUN_GCP_KUSTOMIZE)
 	KUBECONFIG=$(GCP_KUBECONFIG) kubectl -n prefect wait --for=condition=Complete job/kuberag-ingest-run --timeout=3600s
 	KUBECONFIG=$(GCP_KUBECONFIG) kubectl -n prefect logs job/kuberag-ingest-run
+
+gcp-release-ingestion-failure-test:
+	KUBECONFIG=$(GCP_KUBECONFIG) kubectl -n prefect delete job/kuberag-ingestion-failure-test --ignore-not-found
+	KUBECONFIG=$(GCP_KUBECONFIG) kubectl apply -k $(RELEASE_INGESTION_FAILURE_TEST_GCP_KUSTOMIZE)
+	KUBECONFIG=$(GCP_KUBECONFIG) kubectl -n prefect wait --for=condition=Failed job/kuberag-ingestion-failure-test --timeout=300s
+	KUBECONFIG=$(GCP_KUBECONFIG) kubectl -n prefect logs job/kuberag-ingestion-failure-test
 
 gcp-rag-routing-render:
 	kubectl kustomize $(RAG_ROUTING_GCP_KUSTOMIZE)
