@@ -7,9 +7,9 @@ approved phase, PR, or major verification run.
 
 ## Current Snapshot
 
-- Last updated: 2026-07-31.
-- Current working branch: `feat/gcp-single-node-foundation`.
-- Latest foundation commit: `94c0cd6 Add GCP single-node foundation`.
+- Last updated: 2026-08-03.
+- Current tracked release branch: `main`.
+- Latest immutable release-manifest merge: `43871eb` (PR #26).
 - Last full application verification: `make check` passed (`100 passed`, `2 skipped`,
   `85.91%` coverage). The skipped tests require an explicit `DATABASE_URL` and
   are run against the GCP database through the controlled tunnel command.
@@ -19,11 +19,16 @@ approved phase, PR, or major verification run.
 - GCP user-facing demo: `kuberag-web`, `kuberag-rag-api`, and `kuberag-llm` are
   Ready in namespace `rag`. Envoy serves the React SPA at `/` and FastAPI at
   `/api/`; `/hostname` remains the separate smoke route.
+- Immutable GCP release: API, frontend, Prefect server and Prefect worker were
+  rolled out from CI-produced Artifact Registry digests after image scan, SBOM
+  generation and Cosign verification. Runtime digest evidence is
+  `docs/evidence/SEC-007/`.
 - GCP observability: Prometheus, Grafana, Loki, Tempo, Pyroscope, and
   `kuberag-otel-collector` are Running as private `ClusterIP` workloads in
   `observability`. FastAPI four-signal evidence and Prefect ingestion
   telemetry evidence are captured under `docs/evidence/OBS-*`
-  (2026-07-31). Envoy is not yet a Prometheus scrape target.
+  (2026-07-31). Envoy is a Prometheus scrape target; the post-release API and
+  Envoy targets were both `up=1`.
 
 ## Completed Work
 

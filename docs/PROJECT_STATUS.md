@@ -1,6 +1,6 @@
 # KubeRAG Project Status
 
-Last updated: 2026-07-31
+Last updated: 2026-08-03
 
 This page is the quickest starting point for a contributor, reviewer, or
 operator joining the project. It separates what is running now from what is
@@ -37,8 +37,11 @@ spans, and a Pyroscope CPU profile. A Prefect ingest run
 short-lived-process OTLP flush fix. Grafana data sources and the
 `KubeRAG Overview` dashboard are provisioned from Git and verified via the
 in-Pod Grafana API. Alertmanager/Slack has been verified through a test-only
-Firing→Resolved lifecycle; k6 runtime evidence and supply-chain CI execution
-remain pending. Envoy is a Prometheus scrape target (OBS-001 closed).
+Firing→Resolved lifecycle; k6 runtime evidence is captured under `PERF-*`, and
+the supply-chain CI path built, scanned, SBOM-generated, keylessly signed and
+verified the three release digests. Those digests were deployed by reviewed
+release manifest on 2026-08-03. Envoy is a Prometheus scrape target
+(OBS-001 closed).
 
 The final intended topology remains one k3s server and two worker nodes. The
 current one-node setup is a deliberately temporary, lower-cost checkpoint.
@@ -96,6 +99,8 @@ firewall CIDRs when the operator egress changes.
 | `INF-004` GCP Ansible idempotency | Pass | Second run reported `changed=0`, `failed=0`. |
 | `INF-005` Cost control | Pass | Budget alert and stop/start/destroy runbook captured. |
 | `INF-006` Secret hygiene | Pending | Requires the planned secret/config scan evidence. |
+| `SEC-001`–`SEC-008` | Pass CI + GCP runtime | Chainguard/non-root bases, Semgrep, Trivy filesystem/image scans, CycloneDX SBOM, Cosign, digest rollout and OIDC least privilege are captured under `docs/evidence/SEC-*`. |
+| `SEC-009` | Pending settings evidence | Branch protection API needs repository-administration authentication; capture the Ruleset/branch-protection screen before marking Pass. |
 | `K8S-001` to `K8S-005` | Pass local + GCP | Node, PSS, safe smoke workload, and unsafe rejection verified on both clusters. |
 | `NET-001` | Pass local + GCP | Envoy GatewayClass/Gateway/HTTPRoute accepted; smoke hostname returned. |
 | `NET-004` | Pass local + GCP | Traefik absent from kube-system on both clusters. |
