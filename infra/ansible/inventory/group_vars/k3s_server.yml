@@ -9,3 +9,5 @@ k3s_disable_components:
 k3s_node_labels:
   - "kuberag.io/topology=single-node"
   - "kuberag.io/role=all-in-one"
+gcp_artifact_registry_hostname: "asia-southeast1-docker.pkg.dev"
+gcp_image_credential_provider_dir: /opt/kuberag/kubelet-credential-provider
