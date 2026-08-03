@@ -348,10 +348,10 @@ gcp-release-apply:
 	KUBECONFIG=$(GCP_KUBECONFIG) kubectl -n prefect rollout status deployment/prefect-worker --timeout=300s
 
 gcp-release-status:
-	KUBECONFIG=$(GCP_KUBECONFIG) kubectl -n rag get deployment/kuberag-rag-api,kuberag-web -o wide
-	KUBECONFIG=$(GCP_KUBECONFIG) kubectl -n prefect get deployment/prefect-server,prefect-worker -o wide
-	KUBECONFIG=$(GCP_KUBECONFIG) kubectl -n rag get deployment/kuberag-rag-api,kuberag-web -o jsonpath='{range .items[*]}{.metadata.name}{": "}{range .spec.template.spec.initContainers[*]}{.image}{" "}{end}{range .spec.template.spec.containers[*]}{.image}{" "}{end}{"\\n"}{end}'
-	KUBECONFIG=$(GCP_KUBECONFIG) kubectl -n prefect get deployment/prefect-server,prefect-worker -o jsonpath='{range .items[*]}{.metadata.name}{": "}{range .spec.template.spec.containers[*]}{.image}{" "}{end}{"\\n"}{end}'
+	KUBECONFIG=$(GCP_KUBECONFIG) kubectl -n rag get deployment kuberag-rag-api kuberag-web -o wide
+	KUBECONFIG=$(GCP_KUBECONFIG) kubectl -n prefect get deployment prefect-server prefect-worker -o wide
+	KUBECONFIG=$(GCP_KUBECONFIG) kubectl -n rag get deployment kuberag-rag-api kuberag-web -o jsonpath='{range .items[*]}{.metadata.name}{": "}{range .spec.template.spec.initContainers[*]}{.image}{" "}{end}{range .spec.template.spec.containers[*]}{.image}{" "}{end}{"\\n"}{end}'
+	KUBECONFIG=$(GCP_KUBECONFIG) kubectl -n prefect get deployment prefect-server prefect-worker -o jsonpath='{range .items[*]}{.metadata.name}{": "}{range .spec.template.spec.containers[*]}{.image}{" "}{end}{"\\n"}{end}'
 
 gcp-release-prefect-bootstrap:
 	KUBECONFIG=$(GCP_KUBECONFIG) kubectl -n prefect delete job/prefect-bootstrap --ignore-not-found
