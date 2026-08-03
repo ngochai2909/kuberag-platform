@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+from typing import cast
 
 from http_fakes import FakeHttpClient
 
@@ -111,4 +112,21 @@ def test_daily_ingest_flow_accepts_vnexpress_source() -> None:
 
     assert result.sources == ["vnexpress"]
     assert result.document_count == 2
+    assert store.count_documents() == 2
+
+
+def test_daily_ingest_flow_uses_operator_feed_override() -> None:
+    runtime, store = _runtime_with_fixtures()
+    http = cast(FakeHttpClient, runtime.http)
+    override_url = "https://fixture.example.invalid/vnexpress.rss"
+    http.responses[override_url] = http.responses.pop(
+        "https://vnexpress.net/rss/khoa-hoc-cong-nghe.rss"
+    )
+
+    with ingestion_runtime(runtime):
+        result = daily_ingest_flow(vnexpress_feed_url=override_url)
+
+    assert result.status == "completed"
+    assert result.document_count == 2
+    assert http.calls[0][0] == override_url
     assert store.count_documents() == 2

@@ -1,0 +1,19 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - ../../../base/prefect/ingestion-failure-test
+images:
+  - name: kuberag-ingestion
+    newName: asia-southeast1-docker.pkg.dev/kube-rag-platform/kuberag/kuberag-ingestion
+    digest: sha256:a6217acf0598a01400fd44b1f4fe030931145ad5a04b5362e26d27bd53373037
+patches:
+  - target:
+      group: batch
+      version: v1
+      kind: Job
+      name: kuberag-ingestion-failure-test
+      namespace: prefect
+    patch: |-
+      - op: replace
+        path: /spec/template/spec/containers/0/imagePullPolicy
+        value: IfNotPresent

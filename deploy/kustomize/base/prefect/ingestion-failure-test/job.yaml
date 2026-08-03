@@ -1,0 +1,89 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: kuberag-ingestion-failure-test
+  namespace: prefect
+  labels:
+    app.kubernetes.io/name: kuberag-ingestion-failure-test
+    app.kubernetes.io/part-of: kuberag
+    kuberag.io/test-only: "true"
+spec:
+  # This Job is expected to fail once; do not retry and accidentally repeat an alert.
+  backoffLimit: 0
+  activeDeadlineSeconds: 180
+  ttlSecondsAfterFinished: 86400
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: kuberag-ingestion-failure-test
+        app.kubernetes.io/part-of: kuberag
+        kuberag.io/test-only: "true"
+    spec:
+      restartPolicy: Never
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532
+        runAsGroup: 65532
+        fsGroup: 65532
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: failure-test
+          image: kuberag-ingestion:local
+          imagePullPolicy: Never
+          args:
+            - /app/.venv/bin/python
+            - -c
+            - |
+              from ingestion.flows.ingest import daily_ingest_flow
+
+              try:
+                  daily_ingest_flow(
+                      vnexpress_feed_url="http://127.0.0.1:1/kuberag-rss-failure-test"
+                  )
+              except Exception as error:
+                  print(f"expected_rss_failure={type(error).__name__}", flush=True)
+                  raise SystemExit(1) from error
+              raise SystemExit("failure test unexpectedly completed")
+          env:
+            - name: PREFECT_HOME
+              value: /tmp/prefect-home
+            - name: PREFECT_API_URL
+              value: http://prefect-server.prefect.svc.cluster.local:4200/api
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: kuberag-db-app
+                  key: uri
+            - name: KUBERAG_EMBEDDING_MODE
+              value: e5
+            - name: KUBERAG_OTEL_ENABLED
+              value: "true"
+            - name: OTEL_EXPORTER_OTLP_ENDPOINT
+              value: kuberag-otel-collector.observability.svc.cluster.local:4317
+            - name: KUBERAG_HTTP_TIMEOUT_SECONDS
+              value: "2"
+            - name: KUBERAG_HTTP_MAX_ATTEMPTS
+              value: "3"
+            - name: HOME
+              value: /tmp
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: "1"
+              memory: 512Mi
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: tmp
+          emptyDir: {}
