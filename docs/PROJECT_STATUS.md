@@ -114,6 +114,7 @@ firewall CIDRs when the operator egress changes.
 | `ING-008` | Pass GCP | Completed run lifecycle, counters, and duration persisted in `ingestion_runs`. |
 | `ING-009` | Pass offline | Sentence-aware chunk size/overlap boundary tests captured. |
 | `ING-010` | Pass GCP smoke | `multilingual-e5-small` on PVC; batch smoke ~10s / ~1 GiB RSS; worker mode `e5`. |
+| `ING-011`, `ALT-005` | Pass GCP runtime | Test-only Prefect failure stopped before fetch/upsert; its structured Loki log, Tempo error trace, Prometheus failure timestamp, active Slack-routed alert, and zero Slack-delivery-failure counters are captured in `docs/evidence/ING-011/` and `docs/evidence/ALT-005/`. |
 | Prefect metadata persistence | Pass GCP | Separate CNPG role/database `prefect`; flow completed after migration with no SQLite lock log match. |
 | `RAG-002` | Pass GCP integration | `PostgresRetriever` query vector retrieves the nearest fixture chunk through pgvector with its source fields; evidence: `docs/evidence/RAG-002/`. |
 | `RAG-004` | Pass GCP runtime | llama.cpp reports healthy, exposes Qwen model alias, and completed a chat-completion request through a temporary local tunnel; evidence: `docs/evidence/RAG-004/`. |
