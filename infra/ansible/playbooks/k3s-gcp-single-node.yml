@@ -164,7 +164,7 @@
 
     - name: Configure the Artifact Registry kubelet credential provider
       ansible.builtin.template:
-        src: gcp-artifact-registry-credential-provider.yaml.j2
+        src: ../templates/gcp-artifact-registry-credential-provider.yaml.j2
         dest: "{{ gcp_image_credential_provider_dir }}/config.yaml"
         owner: root
         group: root
