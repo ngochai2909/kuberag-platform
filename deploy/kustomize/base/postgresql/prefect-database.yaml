@@ -1,0 +1,11 @@
+apiVersion: postgresql.cnpg.io/v1
+kind: Database
+metadata:
+  name: prefect
+  namespace: data
+spec:
+  name: prefect
+  owner: prefect
+  databaseReclaimPolicy: retain
+  cluster:
+    name: kuberag-pg

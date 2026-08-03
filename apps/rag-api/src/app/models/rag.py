@@ -19,6 +19,7 @@ class SourceReference(StrictModel):
     url: HttpUrl
     source: str = Field(min_length=1, max_length=100)
     score: float = Field(ge=0, le=1)
+    thumbnail_url: HttpUrl | None = None
 
 
 class QueryResponse(StrictModel):

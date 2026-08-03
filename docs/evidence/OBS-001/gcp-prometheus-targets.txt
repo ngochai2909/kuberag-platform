@@ -1,0 +1,24 @@
+Command executed on 2026-07-31 (read-only through IAP SSH):
+
+    prom=$(sudo k3s kubectl -n observability get svc \
+      kuberag-monitoring-kube-pr-prometheus -o jsonpath="{.spec.clusterIP}")
+    curl --silent --get --data-urlencode 'query=count by (job) (up)' \
+      "http://$prom:9090/api/v1/query"
+    curl --silent --get --data-urlencode 'query=up{job="kuberag-rag-api"}' \
+      "http://$prom:9090/api/v1/query"
+    curl --silent --get --data-urlencode 'query=up{job="kube-state-metrics"}' \
+      "http://$prom:9090/api/v1/query"
+
+Relevant output:
+
+    prometheus_status=success
+    up_jobs=[('apiserver', '1'), ('coredns', '1'), ('kube-state-metrics', '1'), ('kubelet', '3'), ('kuberag-monitoring-grafana', '1'), ('kuberag-monitoring-kube-pr-operator', '1'), ('kuberag-monitoring-kube-pr-prometheus', '2'), ('kuberag-otel-collector', '2'), ('kuberag-pyroscope', '1'), ('kuberag-pyroscope-headless', '1'), ('kuberag-rag-api', '1'), ('kuberag-tempo', '1'), ('observability/kuberag-loki', '1')]
+    rag_api_up=1
+    kube_state_metrics_up=1
+    total_up_series=17
+
+Meaning: Prometheus scrapes Kubernetes control-plane/kubelet targets,
+kube-state-metrics, and the custom FastAPI ServiceMonitor `kuberag-rag-api`.
+No Envoy Gateway ServiceMonitor/`up` job was present in this scrape set on
+2026-07-31; Envoy remains the data-plane entrypoint but is not yet a Prometheus
+target in the single-node observability install.

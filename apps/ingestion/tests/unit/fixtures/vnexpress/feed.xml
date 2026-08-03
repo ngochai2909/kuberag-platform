@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0">
+  <channel>
+    <title>Khoa học công nghệ - Fixture</title>
+    <link>https://vnexpress.net/khoa-hoc</link>
+    <description>Minimal offline fixture for KubeRAG adapter tests</description>
+    <item>
+      <title>  Robot hỗ trợ  vận hành kho  </title>
+      <link>https://vnexpress.net/robot-ho-tro-van-hanh-kho-1001.html</link>
+      <guid>https://vnexpress.net/robot-ho-tro-van-hanh-kho-1001.html</guid>
+      <pubDate>Mon, 27 Jul 2026 08:15:00 +0700</pubDate>
+      <description><![CDATA[<p>Tóm tắt HTML về robot kho.</p>]]></description>
+      <enclosure url="https://example.invalid/robot.jpg" type="image/jpeg" />
+    </item>
+    <item>
+      <title>Pin thể rắn tăng mật độ năng lượng</title>
+      <link>https://vnexpress.net/pin-the-ran-1002.html#section</link>
+      <guid isPermaLink="true">https://vnexpress.net/pin-the-ran-1002.html</guid>
+      <pubDate>Sun, 26 Jul 2026 19:00:00 +0700</pubDate>
+      <description><![CDATA[Tóm tắt ngắn về pin thể rắn.]]></description>
+    </item>
+  </channel>
+</rss>

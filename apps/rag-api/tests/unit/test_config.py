@@ -43,6 +43,7 @@ def test_cors_wildcard_with_credentials_is_rejected() -> None:
             "at least 32 characters",
         ),
         ({"app_env": Environment.PRODUCTION}, "authentication must be enabled"),
+        ({"rag_runtime_enabled": True}, "DATABASE_URL is required"),
         ({"rag_timeout_seconds": 0}, "greater than 0"),
         ({"rag_max_context_chars": 999}, "greater than or equal to 1000"),
     ],
@@ -65,3 +66,25 @@ def test_valid_production_settings_do_not_require_external_llm_api_key() -> None
 
     assert settings.app_api_key is not None
     assert settings.app_api_key.get_secret_value() == "x" * 32
+
+
+def test_public_demo_mode_allows_an_unauthenticated_production_api() -> None:
+    settings = Settings(
+        _env_file=None,
+        app_env=Environment.PRODUCTION,
+        public_demo_mode=True,
+    )
+
+    assert settings.api_auth_enabled is False
+    assert settings.public_demo_mode is True
+
+
+def test_rag_runtime_accepts_an_internal_database_url() -> None:
+    settings = Settings(
+        _env_file=None,
+        rag_runtime_enabled=True,
+        database_url="postgresql://kuberag:placeholder@kuberag-pg-rw.data.svc:5432/kuberag",
+    )
+
+    assert settings.rag_runtime_enabled is True
+    assert settings.database_url is not None

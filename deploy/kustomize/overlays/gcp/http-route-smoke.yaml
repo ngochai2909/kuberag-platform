@@ -10,7 +10,7 @@ spec:
     - matches:
         - path:
             type: PathPrefix
-            value: /
+            value: /hostname
       backendRefs:
         - name: kuberag-pss-smoke
           port: 80

@@ -1,0 +1,5 @@
+# Captured 2026-07-28T10:35:11Z
+# Command: make docker-ingestion-smoke
+
+kuberag-daily-ingest
+{'flow_name': 'kuberag-daily-ingest', 'cron': '0 2 * * *', 'timezone': 'UTC'}

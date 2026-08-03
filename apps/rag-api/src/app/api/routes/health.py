@@ -6,6 +6,7 @@ from fastapi import APIRouter, Request, Response, status
 from fastapi.responses import PlainTextResponse
 
 from app.core.config import Settings
+from app.core.metrics import render_metrics
 from app.models.rag import HealthResponse, RagStatusResponse
 from app.services.rag import RagService
 
@@ -45,10 +46,10 @@ async def readiness(request: Request, response: Response) -> HealthResponse:
 @router.get("/metrics", response_class=PlainTextResponse, include_in_schema=False)
 async def metrics(request: Request) -> PlainTextResponse:
     version = _settings(request).app_version
-    body = f'kuberag_api_info{{version="{version}"}} 1\n'
+    body, media_type = render_metrics(version=version)
     return PlainTextResponse(
         content=body,
-        media_type="text/plain; version=0.0.4; charset=utf-8",
+        media_type=media_type,
     )
 
 

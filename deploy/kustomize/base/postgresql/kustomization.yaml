@@ -4,3 +4,5 @@ kind: Kustomization
 resources:
   - cluster.yaml
   - database.yaml
+  - prefect-role.yaml
+  - prefect-database.yaml

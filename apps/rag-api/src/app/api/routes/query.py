@@ -44,6 +44,7 @@ async def query(
                 url=source.url,
                 source=source.source,
                 score=source.score,
+                thumbnail_url=source.thumbnail_url,
             )
             for source in reply.sources
         ],

@@ -1,0 +1,16 @@
+Command executed on 2026-07-30 after an internal FastAPI health request:
+
+    curl --get --data-urlencode 'query={service_name="kuberag-rag-api"}' \
+      --data-urlencode 'limit=5' \
+      http://kuberag-loki.observability.svc.cluster.local:3100/loki/api/v1/query_range
+
+Relevant output:
+
+    health_status=200
+    trace_id=e2835d2475de9e27d43fd182af699a40
+    loki_status=success
+    streams=5
+    entries=5
+
+Meaning: the FastAPI structured log reached OTel Collector and is queryable in
+Loki. The trace ID can be used to correlate this request with Tempo.

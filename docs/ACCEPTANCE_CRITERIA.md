@@ -81,8 +81,8 @@ Các mục liên quan 3-node/replica đang đánh dấu `Optional` chỉ để k
 | ID      | Mức      | Tiêu chí                                                      | Cách kiểm chứng                  | Evidence tối thiểu       |
 | ------- | -------- | ------------------------------------------------------------- | -------------------------------- | ------------------------ |
 | ING-001 | Required | Adapter VnExpress lấy/normalize dữ liệu thật hoặc fixture     | unit/integration test            | sample contract          |
-| ING-002 | Required | Adapter NVD lấy/normalize dữ liệu thật hoặc fixture           | unit/integration test            | sample contract          |
-| ING-003 | Required | Hai adapter trả cùng document contract                        | contract tests                   | test output              |
+| ING-002 | Removed  | Adapter NVD — đã loại khỏi scope; chỉ còn VnExpress           | N/A                              | N/A                      |
+| ING-003 | Required | Adapter VnExpress trả `SourceDocument` contract               | contract tests                   | test output              |
 | ING-004 | Required | External calls có timeout/retry/backoff và user-agent phù hợp | tests mô phỏng timeout/429/5xx   | test output              |
 | ING-005 | Required | Prefect flow có schedule hằng ngày                            | inspect deployment/schedule      | Prefect UI/config        |
 | ING-006 | Required | Pipeline thực hiện fetch→normalize→dedup→chunk→embed→upsert   | flow run end-to-end              | Prefect run              |
@@ -143,13 +143,13 @@ Các mục liên quan 3-node/replica đang đánh dấu `Optional` chỉ để k
 
 | ID      | Mức      | Tiêu chí                                                | Cách kiểm chứng         | Evidence tối thiểu     |
 | ------- | -------- | ------------------------------------------------------- | ----------------------- | ---------------------- |
-| ALT-001 | Required | Telegram contact point dùng Secret, không hardcode      | config/secret review    | redacted manifest      |
-| ALT-002 | Required | Test notification tới Telegram thành công               | send test               | screenshot             |
+| ALT-001 | Required | Slack webhook dùng Secret, không hardcode               | config/secret review    | redacted manifest      |
+| ALT-002 | Required | Test notification tới Slack thành công                  | send test               | screenshot             |
 | ALT-003 | Required | High latency/error alert được provision                 | inspect rule            | rule YAML              |
 | ALT-004 | Required | High memory/restart alert được provision                | inspect rule            | rule YAML              |
-| ALT-005 | Required | Ingestion failure alert được provision                  | inject flow failure     | Telegram + logs        |
+| ALT-005 | Required | Ingestion failure alert được provision                  | inject flow failure     | Slack + logs           |
 | ALT-006 | Required | PostgreSQL unavailable alert được provision; replication alert khôi phục ở mốc 3-node | safe simulation/query   | rule/evidence          |
-| ALT-007 | Required | Rate-limit spike alert được provision                   | k6 rate test            | dashboard + Telegram   |
+| ALT-007 | Required | Rate-limit spike alert được provision                   | k6 rate test            | dashboard + Slack      |
 | ALT-008 | Required | Ít nhất một alert có đủ Pending→Firing→Resolved         | synthetic/real workload | timestamps/screenshots |
 
 ## 11. Load và stress testing

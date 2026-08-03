@@ -1,0 +1,95 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: kuberag-overview-dashboard
+  namespace: observability
+  labels:
+    grafana_dashboard: "1"
+    app.kubernetes.io/part-of: kuberag
+data:
+  kuberag-overview.json: |
+    {
+      "annotations": {"list": []},
+      "editable": false,
+      "panels": [
+        {
+          "datasource": {"type": "prometheus", "uid": "prometheus"},
+          "fieldConfig": {"defaults": {"unit": "reqps"}, "overrides": []},
+          "gridPos": {"h": 8, "w": 12, "x": 0, "y": 0},
+          "id": 1,
+          "targets": [{"expr": "sum(rate(kuberag_api_requests_total[5m]))", "legendFormat": "RPS", "refId": "A"}],
+          "title": "RAG API request rate",
+          "type": "timeseries"
+        },
+        {
+          "datasource": {"type": "prometheus", "uid": "prometheus"},
+          "fieldConfig": {"defaults": {"unit": "s"}, "overrides": []},
+          "gridPos": {"h": 8, "w": 12, "x": 12, "y": 0},
+          "id": 2,
+          "targets": [{"expr": "histogram_quantile(0.95, sum by (le) (rate(kuberag_api_request_duration_seconds_bucket[5m])))", "legendFormat": "p95", "refId": "A"}],
+          "title": "RAG API p95 latency",
+          "type": "timeseries"
+        },
+        {
+          "datasource": {"type": "prometheus", "uid": "prometheus"},
+          "fieldConfig": {"defaults": {"unit": "reqps"}, "overrides": []},
+          "gridPos": {"h": 8, "w": 12, "x": 0, "y": 8},
+          "id": 3,
+          "targets": [{"expr": "sum by (status_code) (rate(kuberag_api_requests_total[5m]))", "legendFormat": "{{status_code}}", "refId": "A"}],
+          "title": "API status codes including 429",
+          "type": "timeseries"
+        },
+        {
+          "datasource": {"type": "prometheus", "uid": "prometheus"},
+          "fieldConfig": {"defaults": {"unit": "s"}, "overrides": []},
+          "gridPos": {"h": 8, "w": 12, "x": 12, "y": 8},
+          "id": 4,
+          "targets": [{"expr": "histogram_quantile(0.95, sum by (le, stage) (rate(kuberag_rag_stage_duration_seconds_bucket[5m])))", "legendFormat": "{{stage}} p95", "refId": "A"}],
+          "title": "RAG pipeline stages",
+          "type": "timeseries"
+        },
+        {
+          "datasource": {"type": "prometheus", "uid": "prometheus"},
+          "fieldConfig": {"defaults": {"unit": "bytes"}, "overrides": []},
+          "gridPos": {"h": 8, "w": 12, "x": 0, "y": 16},
+          "id": 5,
+          "targets": [{"expr": "sum by (pod) (container_memory_working_set_bytes{namespace=~\"rag|prefect|data\",container!=\"\"})", "legendFormat": "{{pod}}", "refId": "A"}],
+          "title": "Application memory by Pod",
+          "type": "timeseries"
+        },
+        {
+          "datasource": {"type": "prometheus", "uid": "prometheus"},
+          "fieldConfig": {"defaults": {"unit": "short"}, "overrides": []},
+          "gridPos": {"h": 8, "w": 12, "x": 12, "y": 16},
+          "id": 6,
+          "targets": [{"expr": "sum by (namespace, pod) (kube_pod_container_status_restarts_total{namespace=~\"rag|prefect|data\"})", "legendFormat": "{{namespace}}/{{pod}}", "refId": "A"}],
+          "title": "Pod restart count",
+          "type": "timeseries"
+        },
+        {
+          "datasource": {"type": "prometheus", "uid": "prometheus"},
+          "fieldConfig": {"defaults": {"unit": "reqps"}, "overrides": []},
+          "gridPos": {"h": 8, "w": 12, "x": 0, "y": 24},
+          "id": 7,
+          "targets": [{"expr": "sum by (envoy_response_code_class) (rate(envoy_http_downstream_rq_xx{envoy_http_conn_manager_prefix=\"http-8080\"}[5m]))", "legendFormat": "{{envoy_response_code_class}}xx", "refId": "A"}],
+          "title": "Envoy downstream status classes",
+          "type": "timeseries"
+        },
+        {
+          "datasource": {"type": "prometheus", "uid": "prometheus"},
+          "fieldConfig": {"defaults": {"unit": "ops"}, "overrides": []},
+          "gridPos": {"h": 8, "w": 12, "x": 12, "y": 24},
+          "id": 8,
+          "targets": [{"expr": "sum(rate(envoy_http_local_rate_limit_rate_limited[5m]))", "legendFormat": "429 rate", "refId": "A"}],
+          "title": "Envoy rate-limit rejections (429)",
+          "type": "timeseries"
+        }
+      ],
+      "schemaVersion": 41,
+      "tags": ["kuberag", "provisioned"],
+      "templating": {"list": []},
+      "time": {"from": "now-1h", "to": "now"},
+      "title": "KubeRAG Overview",
+      "uid": "kuberag-overview",
+      "version": 1
+    }

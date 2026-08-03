@@ -7,13 +7,23 @@ approved phase, PR, or major verification run.
 
 ## Current Snapshot
 
-- Last updated: 2026-07-28.
+- Last updated: 2026-07-31.
 - Current working branch: `feat/gcp-single-node-foundation`.
 - Latest foundation commit: `94c0cd6 Add GCP single-node foundation`.
-- Last full application verification: `make check` passed (`35 passed`, `98.41%` coverage).
+- Last full application verification: `make check` passed (`100 passed`, `2 skipped`,
+  `85.91%` coverage). The skipped tests require an explicit `DATABASE_URL` and
+  are run against the GCP database through the controlled tunnel command.
 - Runtime environment: one `v1.35.5+k3s1` node runs locally on `hainguyenpc` and one runs on the temporary GCP VM `kuberag-server`. They are separate clusters, not two nodes in one cluster.
 - GCP access: SSH and local `kubectl` use IAP tunnels. Envoy Gateway `v1.8.3` and the smoke route are verified on GCP through public port `8080`.
 - Tooling: Helm `v4.2.2`; Envoy Gateway chart `v1.8.3` verified on local and GCP clusters.
+- GCP user-facing demo: `kuberag-web`, `kuberag-rag-api`, and `kuberag-llm` are
+  Ready in namespace `rag`. Envoy serves the React SPA at `/` and FastAPI at
+  `/api/`; `/hostname` remains the separate smoke route.
+- GCP observability: Prometheus, Grafana, Loki, Tempo, Pyroscope, and
+  `kuberag-otel-collector` are Running as private `ClusterIP` workloads in
+  `observability`. FastAPI four-signal evidence and Prefect ingestion
+  telemetry evidence are captured under `docs/evidence/OBS-*`
+  (2026-07-31). Envoy is not yet a Prometheus scrape target.
 
 ## Completed Work
 
@@ -146,46 +156,192 @@ Completed:
 - Captured GCP runtime evidence under `docs/evidence/K8S-*`, `NET-001`,
   `NET-004`, and `INF-002`.
 
+### Phase 5 - PostgreSQL/pgvector Data Foundation
+
+Status: CloudNativePG, PostgreSQL, pgvector, and the initial Alembic schema are
+verified on the temporary GCP single-node cluster. Persistence restart testing
+remains pending.
+
+Completed:
+
+- Installed CloudNativePG chart `0.29.0` / operator `1.30.0` in namespace
+  `data` with single-namespace RBAC and PSS-restricted security contexts.
+- Created `Cluster/kuberag-pg` with one PostgreSQL `18.4` instance and a 20 GiB
+  `local-path` PVC on the dedicated GCP data disk.
+- Created `Database/kuberag`; CNPG generated the application Secret and
+  reconciled pgvector `0.8.5`.
+- Added Alembic `20260728_0001` for `documents`, `chunks`, and
+  `ingestion_runs`, including identity/chunk constraints and unbounded
+  `vector` storage without a premature ANN index.
+- Ran `alembic upgrade head` from the empty application database and reran it
+  successfully as a no-op.
+- Passed the synthetic vector insert/cosine-query integration test; the test
+  transaction was rolled back.
+- Captured evidence for `DB-001`, `DB-003` through `DB-007`.
+- Passed `DB-010`: inserted synthetic marker
+  `db-010-20260728T090636Z`, deleted only Pod `kuberag-pg-1`, waited for CNPG
+  recreate, and verified the same checksum/count plus Bound PVC
+  (`docs/evidence/DB-010/`).
+- Added the `ingestion` package with shared `SourceDocument`, injectable
+  `RetryingHttpClient`, and offline VnExpress adapter plus fixtures.
+- Captured offline evidence for `ING-001`, `ING-003`, and `ING-004`
+  (`ING-002` removed after NVD was deleted from the repository).
+- Added sentence-aware chunking (`sentence-overlap-v1`) with configurable
+  `max_chars`/`overlap_chars`, title prefixing, and boundary unit tests
+  (`ING-009`).
+- Added checksum-based document/chunk upsert, in-memory + Postgres stores, and
+  `ingestion_runs` session counters (`ING-007`, `ING-008` offline).
+- Added `EmbeddingProvider` + `FakeEmbeddingProvider` (384-dim) and wired
+  batched embed into upsert (`ING-010` offline; real e5 deferred to cluster).
+- Added Prefect 3 dependency and `daily_ingest_flow` skeleton with daily cron
+  declaration plus offline end-to-end tests (`ING-005` config / `ING-006`
+  offline).
+- Added `apps/ingestion/Dockerfile` on Chainguard bases. Free `:latest` is
+  CPython 3.14, so the builder installs managed 3.13 under `/python` and the
+  runtime copies it with the venv. `make docker-ingestion-smoke` prints
+  `kuberag-daily-ingest` and cron `0 2 * * *` UTC. Live crawl JSON in
+  `tmp/vnexpress-smoke.json` is local reference only (no GCP upsert).
+- Deployed Prefect server/worker to GCP namespace `prefect` using
+  `kuberag-ingestion:local` (imported into k3s containerd). Added `tzdata` for
+  Prefect/ZoneInfo. Bootstrap Job registered work pool `kuberag-ingestion` and
+  deployment `kuberag-daily-ingest/daily` with cron `0 2 * * *` UTC
+  (`docs/evidence/ING-005/gcp-prefect-schedule.txt`).
+- Updated the registered Prefect deployment schedule to `0 3 * * *` UTC
+  (10:00 Vietnam) by rebuilding/importing the ingestion image and rerunning
+  the Bootstrap Job. The Job completed without executing ingestion
+  (`docs/evidence/ING-005/gcp-prefect-schedule-1000-vietnam.txt`).
+- Added optional extra `embedding` (sentence-transformers + torch CPU),
+  `E5EmbeddingProvider`, PVC `kuberag-embedding-models`, download/smoke Jobs,
+  and switched the GCP Prefect worker to `KUBERAG_EMBEDDING_MODE=e5`
+  (`docs/evidence/ING-010/gcp-e5-smoke.txt`).
+- Added a restricted `kuberag-ingest-run` trigger Job and `make gcp-ingest-run`.
+  The first live attempt exposed missing PostgreSQL transaction commits; fixed
+  the cluster runtime to use autocommit reads plus explicit store transactions.
+- Completed the live VnExpress flow through real e5 into CloudNativePG.
+  An early dual-source experiment briefly included NVD; NVD was later
+  removed from scope, code, fixtures, and the live corpus. Stable
+  VnExpress reruns skip unchanged records with zero SQL duplicates
+  (`ING-006`–`ING-008` GCP evidence).
+- Compressed the large Torch CPU image stream during k3s import and added a
+  persistent uv build cache/longer HTTP timeout after transient network resets.
+- Replaced Prefect Server's SQLite metadata PVC with a separate CNPG-managed
+  PostgreSQL database/role `prefect`. The legacy SQLite PVC remains on the GCP
+  cluster only for rollback and is no longer part of a clean install. A new
+  Prefect bootstrap, worker restart, and manual flow run completed successfully
+  without a `database is locked` log match
+  (`docs/evidence/ING-005/prefect-postgresql-metadata.txt`).
+
 ## In Progress / Local Changes
 
-- No foundation blockers remain for the temporary GCP single-node checkpoint.
-  The next implementation phase is CloudNativePG / PostgreSQL / pgvector.
+### Phase 8 - Full-stack Observability
+
+Status: Core single-node observability is deployed with runtime evidence on GCP
+for `OBS-002`–`OBS-014`. `OBS-001` remains Partial (no Envoy scrape target).
+Alerting and k6 remain pending for Week 5.
+
+Completed:
+
+- Added Prometheus application metrics for HTTP request count/duration and RAG
+  pipeline stages; `/metrics` is scraped through a project `ServiceMonitor`.
+- Added OpenTelemetry SDK instrumentation for FastAPI and Prefect. FastAPI
+  creates the request span plus `rag.embed_query`, `rag.pgvector_search`,
+  `rag.build_prompt`, and `rag.llm_generate`; it returns the same trace ID in
+  the response header/body and structured log.
+- Installed the restricted single-node stack: kube-prometheus-stack (without
+  privileged node exporter), Loki, Tempo, Pyroscope, and OTel Collector.
+  Each has explicit resource limits, short retention, and persistent PVCs.
+- Kept all observability Services private. Grafana access is IAP tunnel plus
+  local `kubectl port-forward`; no new firewall rule or Envoy route was added.
+- Provisioned Prometheus, Loki, Tempo, and Pyroscope Grafana data sources and
+  a Git-managed `KubeRAG Overview` dashboard; verified via in-Pod Grafana API
+  (`docs/evidence/OBS-012/`).
+- Captured FastAPI four-signal evidence on 2026-07-31:
+  `docs/evidence/OBS-001`–`OBS-014/` (PromQL, Loki structured metadata,
+  Tempo span tree, Pyroscope render, correlation, no-Alloy, retention/PVC).
+- Fixed short-lived Prefect OTLP drop by force-flushing exporters in
+  `shutdown_ingestion_telemetry()`; rebuilt/imported `kuberag-ingestion:local`
+  and restarted `prefect-worker`.
+- Verified Prefect flow `0161776d-6e44-41c5-a9ac-64088949778c` Completed with
+  Loki `service_name=kuberag-ingestion`, Tempo spans `ingestion.fetch` /
+  `ingestion.upsert`, and Prometheus `kuberag_ingestion_*`
+  (`docs/evidence/OBS-004/gcp-ingestion-metrics.txt`,
+  `OBS-005/gcp-loki-ingestion-log.txt`,
+  `OBS-008/gcp-tempo-ingestion-spans.txt`).
+
+Still required for the roadmap acceptance set:
+
+- Optional: add Envoy Prometheus scrape to close `OBS-001`.
+- Alertmanager/Slack lifecycle is verified; keep the test-only rule deleted
+  and retain its redacted `ALT-008` evidence.
+- Run the separately confirmed k6 scenarios/correlation window (`PERF-*`,
+  close `NET-006`).
+
+- Week 2 data/ingestion quality gate is complete on the temporary GCP
+  single-node path.
+- Added `PostgresRetriever`, which combines an `EmbeddingProvider` with a
+  typed `VectorSearchStore`. `PostgresVectorStore` joins `chunks` to
+  `documents`, orders by pgvector cosine distance, and preserves the VnExpress
+  title/URL/source needed by the later API and frontend. Unit tests use fakes;
+  a separately-invoked GCP database integration test inserts and removes only
+  synthetic fixture data. Local unit/type/lint verification and the GCP
+  pgvector integration test passed (`docs/evidence/RAG-002/`). The adapter is
+  not deployed or wired to a generator yet.
+- Deployed and verified llama.cpp with the pinned Qwen2.5-1.5B-Instruct GGUF
+  `Q4_K_M` model in the `rag` namespace. The internal `ClusterIP` service
+  passed `/health`, `/v1/models`, and an OpenAI-compatible chat completion via
+  a temporary local tunnel (`docs/evidence/RAG-004/`).
+- Added the real FastAPI composition root, a Chainguard-based API image, and
+  restricted GCP Kustomize resources with a separate 2 GiB E5 cache PVC. The
+  1.6 GiB image was imported through IAP and the Deployment is `1/1 Running`.
+  An authenticated real query returned a generated answer, source URLs,
+  request/trace IDs, and timing fields (`docs/evidence/RAG-006/`). The first
+  cold request took 22.9s while the warm path took 8.07s; generation on the
+  CPU-only Qwen Pod is the dominant latency.
+- Added a React/Vite source-card UI with loading, error, shared-rate-limit,
+  request/trace ID, timing, dark-mode, and optional VnExpress RSS thumbnail
+  states. The API now exposes the document metadata image URL as
+  `sources[].thumbnail_url`; neither the image binary nor its URL is sent to
+  the generation prompt.
+- Built the frontend as a non-root Nginx image, imported it into the GCP k3s
+  container runtime, and deployed `kuberag-web` with restricted Pod Security
+  settings. Envoy now routes `/` to the frontend and `/api/` to FastAPI; the
+  smoke route moved to `/hostname` to prevent it from taking precedence over
+  the UI.
+- Changed only the GCP API overlay to explicit `PUBLIC_DEMO_MODE=true` with
+  browser bearer authentication disabled. Envoy still owns the shared 10
+  requests/minute limit. This is a constrained demo configuration, not the
+  production authentication design.
+- Increased the Envoy API route request timeout to 60 seconds (backend 55
+  seconds), while FastAPI retains its 45-second bound. A real request through
+  the Envoy data plane returned an answer and three source records with
+  thumbnail URLs.
 
 ## Not Done Yet
 
 The following required scopes are not implemented yet:
 
-- Application routes from `/` to React and `/api/` to FastAPI.
-- Envoy Gateway rate limiting and the `429` load test.
-- PostgreSQL/pgvector and CloudNativePG.
-- Alembic migrations and database schema.
-- Prefect ingestion flows for VnExpress RSS and NVD API.
-- Embedding model integration.
-- llama.cpp self-hosted generation client/deployment.
-- React/Vite frontend.
-- Full OpenTelemetry, Prometheus, Loki, Tempo, Pyroscope, Grafana dashboards, and alerts.
-- k6 load and rate-limit tests.
+- Remaining runtime alert evidence from the k6 rate-limit spike (`ALT-007`).
+- Runtime k6 load/rate-limit reports and dashboard correlation (`PERF-*`).
+- Optional Envoy Prometheus scrape to finish `OBS-001`.
 - Chainguard image hardening for all custom images.
 - Semgrep, Trivy, SBOM, Cosign signing/verification.
 - Runtime evidence for the remaining platform phases.
 
 ## Recommended Next Phase
 
-Start the week-2 data layer on the verified GCP single-node cluster.
+The user-facing demo path and Week 4 observability evidence path are deployed.
+Continue with Week 5 operational controls:
 
-Suggested scope:
-
-- Install CloudNativePG and create one temporary PostgreSQL instance with PVC.
-- Enable the `vector` extension and add Alembic migrations for documents,
-  chunks, and ingestion runs.
-- Verify basic vector insert/query and PostgreSQL restart/persistence evidence.
-- Keep Prefect ingestion and application routes pending until the database
-  checkpoint passes.
+- Restore IAP tunnel, complete the 30-minute observability stability gate, then
+  run the k6 rate-limit scenario to verify `ALT-007`.
+- Run k6 load/rate-limit only after that gate and capture `PERF-*` evidence.
+- Replace temporary public-demo API access with a reviewed user/gateway
+  authentication design before any broader deployment.
 
 Relevant acceptance groups:
 
-- `DB-001`, `DB-003` through `DB-007`, and `DB-010` for the temporary
-  single-instance PostgreSQL/pgvector path.
+- `ING-001`–`ING-010` are Pass for the current offline/GCP evidence split.
+- Next focus: runtime evidence for `RAG-005`–`RAG-009`, then frontend/routes.
 
 ## Coordination Notes
 

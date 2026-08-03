@@ -1,0 +1,25 @@
+Command executed on 2026-07-31 after an in-cluster RAG request
+(request_id=2d826983-5a81-4f62-8460-de2222608aab, trace_id=99825f49fcc95cb18d0a6405b02dde03):
+
+    LogQL (Loki structured metadata from OTLP):
+      {service_name="kuberag-rag-api"} | request_id="2d826983-5a81-4f62-8460-de2222608aab"
+      {service_name="kuberag-rag-api"} | trace_id="99825f49fcc95cb18d0a6405b02dde03"
+
+Relevant output:
+
+    loki_status=success
+    middleware_stream_labels_include=
+      service_name=kuberag-rag-api
+      scope_name=app.core.middleware
+      request_id=2d826983-5a81-4f62-8460-de2222608aab
+      trace_id=99825f49fcc95cb18d0a6405b02dde03
+      method=POST
+      route=/api/v1/query
+      status_code=200
+      duration_ms=22771.9
+    body_line=request_completed
+    related_embedder_log_also_carried_trace_id=99825f49fcc95cb18d0a6405b02dde03
+
+Meaning: FastAPI structured logs reach Loki through the OpenTelemetry
+Collector. Fields are stored as Loki structured metadata (not only the short
+body line), so queries use `| request_id=` / `| trace_id=` filters.

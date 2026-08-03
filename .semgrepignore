@@ -1,0 +1,4 @@
+# Deliberately insecure PSS-negative fixture. It is applied only by
+# gcp-unsafe-check/k3s-unsafe-check, where admission must reject it; it is not
+# part of any Kustomize overlay or deployable workload.
+deploy/kustomize/examples/unsafe-root-pod.yaml

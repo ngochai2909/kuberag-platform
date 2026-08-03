@@ -1,0 +1,99 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: kuberag-e5-smoke
+  namespace: prefect
+  labels:
+    app.kubernetes.io/name: kuberag-e5-smoke
+    app.kubernetes.io/part-of: kuberag
+spec:
+  backoffLimit: 1
+  ttlSecondsAfterFinished: 86400
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: kuberag-e5-smoke
+        app.kubernetes.io/part-of: kuberag
+    spec:
+      restartPolicy: Never
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532
+        runAsGroup: 65532
+        fsGroup: 65532
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: smoke
+          image: kuberag-ingestion:local
+          imagePullPolicy: Never
+          args:
+            - /app/.venv/bin/python
+            - -c
+            - |
+              import os
+              import resource
+              import time
+              from ingestion.runtime_env import build_embedder
+
+              os.environ["KUBERAG_EMBEDDING_MODE"] = "e5"
+              started = time.perf_counter()
+              embedder = build_embedder("e5")
+              load_ms = (time.perf_counter() - started) * 1000
+              batch = [
+                  "Tin tức kinh tế Việt Nam hôm nay",
+                  "Robot hỗ trợ vận hành kho hàng tự động",
+                  "Hướng dẫn triển khai Kubernetes trên máy ảo GCP",
+              ]
+              embed_started = time.perf_counter()
+              vectors = embedder.embed_documents(batch, batch_size=8)
+              query = embedder.embed_query("Kubernetes trên GCP")
+              embed_ms = (time.perf_counter() - embed_started) * 1000
+              max_rss_kb = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
+              print(
+                  f"ok model_id={embedder.model_id} dims={embedder.dimensions} "
+                  f"docs={len(vectors)} query_dims={len(query)} "
+                  f"load_ms={load_ms:.0f} embed_ms={embed_ms:.0f} "
+                  f"max_rss_kb={max_rss_kb}",
+                  flush=True,
+              )
+          env:
+            - name: KUBERAG_EMBEDDING_MODE
+              value: e5
+            - name: KUBERAG_EMBEDDING_CACHE
+              value: /models
+            - name: KUBERAG_EMBEDDING_LOCAL_ONLY
+              value: "true"
+            - name: HF_HOME
+              value: /models/hf
+            - name: TRANSFORMERS_CACHE
+              value: /models/hf
+            - name: SENTENCE_TRANSFORMERS_HOME
+              value: /models
+            - name: HOME
+              value: /tmp
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+          resources:
+            requests:
+              cpu: 500m
+              memory: 1Gi
+            limits:
+              cpu: "2"
+              memory: 3Gi
+          volumeMounts:
+            - name: models
+              mountPath: /models
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: models
+          persistentVolumeClaim:
+            claimName: kuberag-embedding-models
+        - name: tmp
+          emptyDir: {}

@@ -38,6 +38,7 @@ class FakeRagService:
                     url="https://example.com/source",
                     source="fixture",
                     score=0.91,
+                    thumbnail_url="https://example.com/source-thumbnail.jpg",
                 ),
             ),
             request_id=request_id,

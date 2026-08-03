@@ -1,0 +1,93 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: prefect-server
+  namespace: prefect
+  labels:
+    app.kubernetes.io/name: prefect-server
+    app.kubernetes.io/part-of: kuberag
+spec:
+  replicas: 1
+  # Avoid two scheduler processes briefly running during a rollout.
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: prefect-server
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: prefect-server
+        app.kubernetes.io/part-of: kuberag
+    spec:
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532
+        runAsGroup: 65532
+        fsGroup: 65532
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: server
+          image: kuberag-ingestion:local
+          imagePullPolicy: Never
+          args:
+            - /app/.venv/bin/prefect
+            - server
+            - start
+            - --ui
+            - --host
+            - 0.0.0.0
+            - --port
+            - "4200"
+          ports:
+            - name: api
+              containerPort: 4200
+          env:
+            - name: PREFECT_HOME
+              value: /tmp/prefect-home
+            - name: PREFECT_API_DATABASE_CONNECTION_URL
+              valueFrom:
+                secretKeyRef:
+                  name: prefect-server-db
+                  key: uri
+            - name: PREFECT_SERVER_API_HOST
+              value: 0.0.0.0
+            - name: PREFECT_UI_API_URL
+              value: /api
+            # The container root filesystem is read-only; Prefect unpacks its
+            # bundled UI assets into this writable emptyDir at startup.
+            - name: PREFECT_UI_STATIC_DIRECTORY
+              value: /tmp/prefect-ui
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+          resources:
+            requests:
+              cpu: 100m
+              memory: 512Mi
+            limits:
+              cpu: "1"
+              memory: 1Gi
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+          readinessProbe:
+            httpGet:
+              path: /api/health
+              port: api
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /api/health
+              port: api
+            initialDelaySeconds: 30
+            periodSeconds: 20
+      volumes:
+        - name: tmp
+          emptyDir: {}

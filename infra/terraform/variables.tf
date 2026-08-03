@@ -14,6 +14,28 @@ variable "region" {
   default     = "asia-southeast1"
 }
 
+variable "artifact_registry_repository_id" {
+  description = "Artifact Registry Docker repository ID for immutable KubeRAG release images."
+  type        = string
+  default     = "kuberag"
+
+  validation {
+    condition     = can(regex("^[a-z][a-z0-9-]{0,62}$", var.artifact_registry_repository_id))
+    error_message = "artifact_registry_repository_id must be lowercase letters, digits, or hyphens."
+  }
+}
+
+variable "github_repository" {
+  description = "Exact GitHub owner/repository allowed to federate as the release writer."
+  type        = string
+  default     = "ngochai2909/kuberag-platform"
+
+  validation {
+    condition     = can(regex("^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$", var.github_repository))
+    error_message = "github_repository must be in OWNER/REPOSITORY form."
+  }
+}
+
 variable "zone" {
   description = "Google Cloud zone for the VM and persistent disk."
   type        = string

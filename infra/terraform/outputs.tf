@@ -38,6 +38,21 @@ output "gateway_url" {
   value       = "http://${google_compute_address.kuberag.address}:${var.gateway_port}"
 }
 
+output "artifact_registry_repository" {
+  description = "Regional Docker repository for immutable KubeRAG release images."
+  value       = "${var.region}-docker.pkg.dev/${var.project_id}/${google_artifact_registry_repository.kuberag.repository_id}"
+}
+
+output "github_actions_workload_identity_provider" {
+  description = "Set this as GitHub repository variable GCP_WIF_PROVIDER after apply."
+  value       = google_iam_workload_identity_pool_provider.github.name
+}
+
+output "github_actions_artifact_writer_service_account" {
+  description = "Set this as GitHub repository variable GCP_ARTIFACT_WRITER_SA after apply."
+  value       = google_service_account.github_release.email
+}
+
 output "data_disk_device_name" {
   description = "Stable device name that Ansible will format and mount before k3s data workloads use it."
   value       = google_compute_instance.kuberag.attached_disk[0].device_name

@@ -1,0 +1,148 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: kuberag-rag-api
+  namespace: rag
+  labels:
+    app.kubernetes.io/name: kuberag-rag-api
+    app.kubernetes.io/part-of: kuberag
+spec:
+  replicas: 1
+  # The embedding cache PVC is RWO; do not overlap two Pods during a rollout.
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: kuberag-rag-api
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: kuberag-rag-api
+        app.kubernetes.io/part-of: kuberag
+    spec:
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532
+        runAsGroup: 65532
+        fsGroup: 65532
+        seccompProfile:
+          type: RuntimeDefault
+      initContainers:
+        - name: embedding-cache
+          image: kuberag-rag-api:local
+          imagePullPolicy: Never
+          command:
+            - /app/.venv/bin/python
+            - -c
+            - |
+              import os
+              from sentence_transformers import SentenceTransformer
+
+              model_id = "intfloat/multilingual-e5-small"
+              cache = os.environ["KUBERAG_EMBEDDING_CACHE"]
+              print(f"ensuring {model_id} in {cache}", flush=True)
+              SentenceTransformer(model_id, cache_folder=cache)
+              print("embedding cache ready", flush=True)
+          env:
+            - name: KUBERAG_EMBEDDING_CACHE
+              value: /models
+            - name: HF_HOME
+              value: /models/hf
+            - name: TRANSFORMERS_CACHE
+              value: /models/hf
+            - name: SENTENCE_TRANSFORMERS_HOME
+              value: /models
+            - name: HOME
+              value: /tmp
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+          resources:
+            requests:
+              cpu: 500m
+              memory: 1Gi
+            limits:
+              cpu: "2"
+              memory: 3Gi
+          volumeMounts:
+            - name: embedding-models
+              mountPath: /models
+            - name: tmp
+              mountPath: /tmp
+      containers:
+        - name: api
+          image: kuberag-rag-api:local
+          imagePullPolicy: Never
+          ports:
+            - name: http
+              containerPort: 8000
+          env:
+            - name: APP_ENV
+              value: production
+            - name: DOCS_ENABLED
+              value: "false"
+            - name: API_AUTH_ENABLED
+              value: "true"
+            - name: APP_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: kuberag-rag-api-auth
+                  key: api-key
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: kuberag-rag-db
+                  key: uri
+            - name: RAG_RUNTIME_ENABLED
+              value: "true"
+            - name: RAG_EMBEDDING_CACHE
+              value: /models
+            - name: RAG_EMBEDDING_LOCAL_ONLY
+              value: "true"
+            - name: LLAMA_CPP_BASE_URL
+              value: http://kuberag-llm.rag.svc.cluster.local:8080
+            - name: LLAMA_CPP_MODEL
+              value: kuberag-qwen2.5-1.5b
+            - name: HOME
+              value: /tmp
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+          resources:
+            requests:
+              cpu: "1"
+              memory: 2Gi
+            limits:
+              cpu: "2"
+              memory: 4Gi
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+            - name: embedding-models
+              mountPath: /models
+              readOnly: true
+          readinessProbe:
+            httpGet:
+              path: /health/ready
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /health/live
+              port: http
+            initialDelaySeconds: 20
+            periodSeconds: 20
+      volumes:
+        - name: tmp
+          emptyDir: {}
+        - name: embedding-models
+          persistentVolumeClaim:
+            claimName: kuberag-rag-embedding-models

@@ -1,0 +1,42 @@
+[
+  {
+    "name": "Alertmanager",
+    "type": "alertmanager",
+    "uid": "alertmanager",
+    "access": "proxy",
+    "url": "http://kuberag-monitoring-kube-pr-alertmanager.observability:9093/",
+    "isDefault": false
+  },
+  {
+    "name": "Loki",
+    "type": "loki",
+    "uid": "loki",
+    "access": "proxy",
+    "url": "http://kuberag-loki.observability.svc.cluster.local:3100",
+    "isDefault": false
+  },
+  {
+    "name": "Prometheus",
+    "type": "prometheus",
+    "uid": "prometheus",
+    "access": "proxy",
+    "url": "http://kuberag-monitoring-kube-pr-prometheus.observability:9090/",
+    "isDefault": true
+  },
+  {
+    "name": "Pyroscope",
+    "type": "grafana-pyroscope-datasource",
+    "uid": "pyroscope",
+    "access": "proxy",
+    "url": "http://kuberag-pyroscope.observability.svc.cluster.local:4040",
+    "isDefault": false
+  },
+  {
+    "name": "Tempo",
+    "type": "tempo",
+    "uid": "tempo",
+    "access": "proxy",
+    "url": "http://kuberag-tempo.observability.svc.cluster.local:3200",
+    "isDefault": false
+  }
+]

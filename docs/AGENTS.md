@@ -136,7 +136,7 @@ working under `docs/` must preserve the teaching workflow defined in the root
 ## Testing rules
 
 - Unit tests must be deterministic and must not call live external services.
-- Use fixtures for VnExpress/NVD and mocks/fakes for database, embedding and llama.cpp in unit tests.
+- Use fixtures for VnExpress and mocks/fakes for database, embedding and llama.cpp in unit tests.
 - Add integration tests for real boundaries where required: PostgreSQL/pgvector, HTTP API, Envoy and telemetry.
 - Every bug fix needs a regression test when practical.
 - Run the narrowest relevant tests while iterating, then all relevant checks before handoff.

@@ -1,0 +1,13 @@
+Command executed on 2026-07-30 (read-only through IAP):
+
+    prom=$(sudo k3s kubectl -n observability get svc \
+      kuberag-monitoring-kube-pr-prometheus -o jsonpath="{.spec.clusterIP}")
+    curl --silent --get --data-urlencode 'query=up{job="kuberag-rag-api"}' \
+      "http://$prom:9090/api/v1/query"
+
+Relevant output:
+
+    prometheus_status=success
+    rag_api_up=1
+
+Meaning: the project ServiceMonitor reaches the FastAPI `/metrics` endpoint.

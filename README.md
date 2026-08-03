@@ -4,7 +4,15 @@ KubeRAG is a cloud-native RAG platform monorepo. The target platform uses FastAP
 
 The current infrastructure target is a **temporary single-node k3s environment** for local development and constrained demo work. The final target remains the original cluster shape: **1 k3s server/control-plane node and 2 k3s worker nodes** on GCP Compute Engine.
 
-Current repository state: **phase 2 RAG API skeleton**. The FastAPI backend lives in `apps/rag-api`, exposes the KubeRAG query contract, and no longer depends on LangGraph, LangChain, OpenAI SDKs, or an external LLM API. PostgreSQL/pgvector retrieval and llama.cpp generation providers are intentionally not implemented yet.
+Current application state: **week 3 user-facing demo deployed on the temporary
+GCP single-node cluster**. The GCP checkpoint has CloudNativePG/pgvector, a live
+Prefect VnExpress flow using `multilingual-e5-small`, a running internal
+llama.cpp Pod serving `Qwen2.5-1.5B-Instruct` GGUF `Q4_K_M`, and a running
+FastAPI RAG API. A real request has completed the deterministic E5 ->
+pgvector -> prompt -> llama.cpp flow on GCP. Envoy exposes the browser UI at
+`/` and the temporary demo API at `/api/`; PostgreSQL, E5, and llama.cpp remain
+internal services. The UI displays returned VnExpress source titles, links,
+and RSS thumbnail URLs when available.
 
 For an accurate deployed-versus-prepared summary, start with
 [`docs/PROJECT_STATUS.md`](docs/PROJECT_STATUS.md). It records the verified
@@ -20,12 +28,32 @@ safe checkpoint.
 - Terraform for infrastructure validation
 - Ansible for local k3s host configuration
 - kubectl after k3s install; Helm before installing platform charts
+- Node.js 24 and npm 11 for the React/Vite frontend
+
+## Frontend Workspace
+
+The frontend starts in `mock` mode by default for local UI development. Install
+and run it locally:
+
+```bash
+make frontend-install
+make frontend-dev
+```
+
+Open the local Vite URL printed by the second command, normally
+`http://127.0.0.1:5173`. The page provides a RAG chat workflow with mock
+answers, sources, latency, request ID, trace ID, loading, and error states.
+`apps/frontend/.env.example` documents the mode switch. The GCP overlay builds
+the same UI in `real` mode against same-origin `/api/v1`; it is allowed only by
+the explicitly declared temporary `PUBLIC_DEMO_MODE` configuration.
 
 Validated local platform versions:
 
 - k3s `v1.35.5+k3s1`
 - Helm `v4.2.2`
 - Envoy Gateway Helm chart `v1.8.3`
+- CloudNativePG chart `0.29.0` / operator `1.30.0`
+- PostgreSQL `18.4` / pgvector `0.8.5`
 
 ## Quick Start
 
@@ -37,7 +65,10 @@ make run
 
 Open `http://localhost:8000/docs` in development.
 
-During phase 2, `/health/live` is healthy when the process is running. `/health/ready` returns `503` unless a `RagService` implementation is injected by tests or a future provider wiring phase. This is expected because real PostgreSQL/pgvector and llama.cpp providers are not part of this phase.
+During local development, `/health/live` is healthy when the process is
+running. `/health/ready` returns `503` unless `RAG_RUNTIME_ENABLED=true` with a
+database URI and the cluster-only E5/llama.cpp dependencies available. This is
+intentional: laptop tests inject a fake service and never download models.
 
 The public API contract is:
 
@@ -111,7 +142,7 @@ tunnel instead of exposing another public administration port. See
 `docs/runbooks/gcp-k3s-foundation.md` for the operating sequence and
 `docs/runbooks/gcp-cost-control.md` for stop/start/destroy operations.
 
-After the tunnel is open, the next GCP foundation commands are:
+After the tunnel is open, common GCP status and ingestion commands are:
 
 ```bash
 make gcp-envoy-install
@@ -119,29 +150,111 @@ make gcp-foundation-apply
 make gcp-foundation-status
 make gcp-foundation-smoke
 make gcp-unsafe-check
+make gcp-prefect-status
+make gcp-ingest-run
+make gcp-llama-status
+make gcp-rag-routing-status
+make gcp-frontend-status
 ```
 
-The GCP overlay renders successfully in local validation, but these commands
-have not yet been run against the GCP cluster. Runtime Envoy and HTTP routing
-evidence is captured only after the controller and manifests are deployed.
+Prefect Server stores its deployment/schedule/run metadata in the separate
+`prefect` database on the existing CloudNativePG cluster. This is separate from
+the `kuberag` database that stores crawled documents and vectors. The setup and
+recovery steps are documented in `docs/runbooks/prefect-postgresql.md`.
+
+`make gcp-ingest-run` triggers the registered
+`kuberag-daily-ingest/daily` deployment and waits for its terminal state. It
+fetches live VnExpress data, embeds with the model cached on the cluster
+PVC, and upserts into CloudNativePG. It changes persistent database state.
+
+For day-to-day terminal operation, K9s navigation, RAG/llama.cpp checks, logs,
+resource metrics, and a clear read-only versus mutating command split, see
+[`docs/runbooks/README.md`](docs/runbooks/README.md).
+
+## GCP Observability
+
+The temporary GCP cluster now runs a private, persistent observability stack in
+the `observability` namespace: Prometheus, Grafana, Loki, Tempo, Pyroscope, and
+the OpenTelemetry (OTel) Collector. These workloads are `ClusterIP` only; they
+are not exposed through the public Envoy listener or a GCP firewall rule.
+
+```text
+FastAPI / Prefect -> OTel Collector -> Loki (logs) and Tempo (traces)
+FastAPI / Prefect -> Prometheus scrape -> Prometheus (metrics)
+FastAPI -> Pyroscope (CPU profiles)
+Grafana -> Prometheus, Loki, Tempo, Pyroscope
+```
+
+Grafana is reached temporarily through the existing IAP-backed Kubernetes API
+tunnel, not by publishing an additional port:
+
+```bash
+# Terminal A: keep the Kubernetes API tunnel open.
+make gcp-k3s-tunnel
+
+# Terminal B: expose Grafana only at this laptop's loopback address.
+make gcp-observability-grafana-port-forward
+```
+
+Open `http://127.0.0.1:3000`. Retrieve the locally generated Grafana username
+and password from the Kubernetes Secret only when logging in; never commit or
+paste them into a ticket:
+
+```bash
+ssh kuberag-gcp 'sudo k3s kubectl -n observability get secret kuberag-grafana-admin -o jsonpath="{.data.admin-user}" | base64 -d; echo'
+ssh kuberag-gcp 'sudo k3s kubectl -n observability get secret kuberag-grafana-admin -o jsonpath="{.data.admin-password}" | base64 -d; echo'
+```
+
+The provisioned `KubeRAG Overview` dashboard covers API request rate, p95
+latency, response statuses including `429`, RAG stage duration, Pod memory, and
+restart counts. See [`docs/runbooks/observability.md`](docs/runbooks/observability.md)
+for verification commands, trace/log correlation, resource limits, retention,
+and common failures.
+
+`make gcp-llama-status` is read-only and shows the internal llama.cpp
+Deployment, Service, model PVC, and Pod. The Service is `ClusterIP`: only
+in-cluster workloads such as the future FastAPI Pod can call it. It is not an
+internet-facing model API.
+
+The deployed API uses a 2 GiB E5 cache PVC and a CNPG database Secret. Its
+GCP demo overlay runs in explicitly declared public-demo mode, so the browser
+can call the API without exposing a bearer token. Envoy still applies the
+shared 10-request-per-minute rate limit. This is suitable only for the
+temporary demo, not multi-user production authentication. Its current status
+is read-only:
+
+```bash
+make gcp-rag-api-status
+```
+
+The API routing overlay is deliberately separate from the foundation. Once it
+has been rendered and reviewed, `make gcp-rag-routing-apply` exposes `/api/`
+through the existing Envoy listener on port `8080`; PostgreSQL and llama.cpp
+remain internal ClusterIP services. The route applies Envoy local rate limiting
+at 10 requests per minute. See `docs/runbooks/README.md` for the status and
+smoke commands.
+
+The deployed browser demo is served by Envoy at
+`http://VM_EXTERNAL_IP:8080/`. It is a public-demo endpoint within the
+firewall's administrator CIDRs, without production user authentication or TLS.
+Run `make gcp-frontend-status` to verify its Deployment, Service, and route.
 
 ## Monorepo Layout
 
 ```text
 apps/
-  rag-api/          FastAPI RAG API skeleton
-  ingestion/        Placeholder for Prefect ingestion flows
-  frontend/         Placeholder for React/Vite UI
+  rag-api/          FastAPI contract, retrieval, llama.cpp client, composition
+  ingestion/        Adapters, Prefect flows, e5 embedding, Alembic, upsert
+  frontend/         React/Vite browser UI and non-root Nginx runtime image
 infra/
   terraform/        GCP network, firewall, VM, disk, IP, and outputs
   ansible/          Local and GCP single-node k3s host configuration
 deploy/
-  helm/             Placeholder for project-owned Helm assets
-  kustomize/        Placeholder for Kubernetes workload bases and overlays
+  helm/             Project-owned Helm values/assets
+  kustomize/        Kubernetes workload bases and environment overlays
 observability/
-  collector/        Placeholder for OpenTelemetry Collector config
-  dashboards/       Placeholder for Grafana dashboards
-  alerts/           Placeholder for alerting config
+  dashboards/       Provisioned KubeRAG Grafana dashboard ConfigMaps
+  servicemonitors/  Prometheus scrape definitions for project workloads
 tests/
   k6/               Placeholder for load and rate-limit tests
 docs/
@@ -151,9 +264,15 @@ docs/
 
 ## Phase Boundaries
 
-Phase 2 only replaces the legacy agent backend with typed RAG API interfaces and a deterministic skeleton. It does not implement PostgreSQL, pgvector, ingestion, llama.cpp HTTP calls, Envoy Gateway, frontend, observability, supply-chain scanning, or Kubernetes manifests.
-
-The current implementation phase is the single-node foundation: local automation for one node, Ansible k3s setup, namespace and Pod Security `restricted` validation, and then a minimal Envoy Gateway route. PostgreSQL/pgvector and ingestion come after that foundation is verified.
+The current boundary has verified the single-node foundation,
+PostgreSQL/pgvector persistence, ingestion through real E5, a deployed
+FastAPI-to-llama.cpp RAG request, and React source-card UI through Envoy.
+The private observability stack is deployed. Alertmanager/Slack, controlled
+k6, and supply-chain artifacts are defined in Git but must run at their
+separate GCP checkpoints; see [`alerting.md`](docs/runbooks/alerting.md),
+[`performance-testing.md`](docs/runbooks/performance-testing.md), and
+[`release-images.md`](docs/runbooks/release-images.md). No runtime alert, k6,
+or Artifact Registry evidence is claimed until those commands pass.
 
 The single-node target is temporary. The 3-node GCP topology and PostgreSQL primary/replica placement must be restored before final acceptance.
 

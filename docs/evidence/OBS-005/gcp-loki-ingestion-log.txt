@@ -1,0 +1,18 @@
+Command executed on 2026-07-31 after flow_run_id=0161776d-6e44-41c5-a9ac-64088949778c:
+
+    LogQL:
+      {service_name="kuberag-ingestion"}
+    Label API:
+      /loki/api/v1/label/service_name/values
+
+Relevant output:
+
+    service_name_values_include=["kuberag-ingestion","kuberag-rag-api"]
+    loki_status=success
+    streams>=3
+    sample_scopes=["prefect.flow_runs","prefect.task_runs"]
+    sample_lines_include="Finished in state Completed()"
+
+Meaning: the Prefect ingestion process emits OTLP logs through the Collector
+into Loki under service_name=kuberag-ingestion after the short-lived flow
+process force-flushes exporters on exit.

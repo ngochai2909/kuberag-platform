@@ -1,6 +1,6 @@
 # KubeRAG Project Status
 
-Last updated: 2026-07-28
+Last updated: 2026-07-31
 
 This page is the quickest starting point for a contributor, reviewer, or
 operator joining the project. It separates what is running now from what is
@@ -11,9 +11,34 @@ service.
 
 The temporary single-node infrastructure foundation is verified on both the
 local machine and the GCP VM, including Envoy Gateway smoke routing on GCP.
-The FastAPI RAG API is still a provider-independent skeleton; real
-PostgreSQL/pgvector retrieval, ingestion, llama.cpp generation, and the React
-frontend have not started.
+The GCP cluster now runs one CloudNativePG-managed PostgreSQL 18.4 instance,
+pgvector 0.8.5, the initial Alembic schema, and a separate PostgreSQL metadata
+database for Prefect. The required demo source is VnExpress RSS only. The
+FastAPI now has a provider-independent PostgreSQL retrieval adapter with local
+unit/type/lint verification and a passing controlled GCP pgvector integration
+test. The internal llama.cpp generation runtime is now deployed and verified.
+FastAPI composition is deployed with a separate E5 cache PVC and has completed
+a real RAG request through pgvector and llama.cpp. Envoy now routes `/api/` to
+FastAPI and enforces a local rate limit. The React/Vite frontend is deployed at
+`/`, calls the same-origin API, and renders VnExpress source cards with RSS
+thumbnails when present. The GCP overlay explicitly enables a temporary public
+demo mode; it is not production authentication.
+
+The Week 4 observability stack is deployed on the GCP checkpoint with runtime
+evidence under `docs/evidence/OBS-*`. Grafana, Prometheus, Loki, Tempo,
+Pyroscope, and an OpenTelemetry Collector run only as internal `ClusterIP`
+services in `observability`. A FastAPI request produced Prometheus metrics, a
+structured Loki log (queryable by `request_id` / `trace_id` metadata), a Tempo
+trace with `embed_query`, `pgvector_search`, `build_prompt`, and `llm_generate`
+spans, and a Pyroscope CPU profile. A Prefect ingest run
+(`flow_run_id=0161776d-6e44-41c5-a9ac-64088949778c`) produced Loki logs under
+`service_name=kuberag-ingestion`, Tempo spans `ingestion.fetch` /
+`ingestion.upsert`, and Prometheus metrics `kuberag_ingestion_*` after a
+short-lived-process OTLP flush fix. Grafana data sources and the
+`KubeRAG Overview` dashboard are provisioned from Git and verified via the
+in-Pod Grafana API. Alertmanager/Slack has been verified through a test-only
+Firing→Resolved lifecycle; k6 runtime evidence and supply-chain CI execution
+remain pending. Envoy is a Prometheus scrape target (OBS-001 closed).
 
 The final intended topology remains one k3s server and two worker nodes. The
 current one-node setup is a deliberately temporary, lower-cost checkpoint.
@@ -29,7 +54,13 @@ current one-node setup is a deliberately temporary, lower-cost checkpoint.
 | Envoy Gateway controller | Installed and verified | Installed and verified | Chart `v1.8.3` in `gateway-system`. |
 | Smoke route | Verified end-to-end | Verified end-to-end via public `:8080` | `curl` returns the smoke Pod hostname. |
 | PSS restricted | Verified | Verified | Unsafe privileged/root Pods are rejected. |
-| Application workloads | Not deployed | Not deployed | No PostgreSQL, Prefect, frontend, real RAG API provider, or llama.cpp workload is running. |
+| PostgreSQL/pgvector | Not deployed | Verified single instance | PVC 20 GiB is Bound; `vector` is enabled; Alembic schema and sample similarity query pass. |
+| Source adapters | Offline fixtures/unit tests | Live VnExpress scheduled | Demo source is VnExpress RSS only. |
+| Prefect flow | Offline skeleton tested | Deployed and verified | Daily `0 3 * * *` UTC is registered (10:00 Vietnam); Prefect metadata uses PostgreSQL database `prefect`, separate from RAG data. |
+| llama.cpp | Not deployed | Verified running | Internal `ClusterIP` Service loads Qwen2.5-1.5B GGUF from a 5 GiB PVC; it is not public. |
+| RAG API | Skeleton only | Verified through Envoy | Restricted FastAPI Deployment has E5 cache PVC, CNPG Secret, llama.cpp Service dependency, and a 45 s application timeout. The GCP demo route is public without bearer auth, but Envoy applies a shared 10 requests/minute limit. |
+| Frontend | Local Vite development available | Deployed through Envoy `/` | Non-root Nginx serves the built React/Vite SPA; it calls `/api/v1` and shows source title, URL, and optional RSS thumbnail. |
+| Observability | Manifests prepared only | Deployed with OBS evidence | Prometheus, Grafana, Loki, Tempo, Pyroscope, and OTel Collector are private `ClusterIP` workloads; FastAPI + Prefect telemetry evidence under `docs/evidence/OBS-*`; Grafana via IAP port-forward / in-Pod API. |
 
 ## Verified GCP Foundation
 
@@ -68,26 +99,53 @@ firewall CIDRs when the operator egress changes.
 | `K8S-001` to `K8S-005` | Pass local + GCP | Node, PSS, safe smoke workload, and unsafe rejection verified on both clusters. |
 | `NET-001` | Pass local + GCP | Envoy GatewayClass/Gateway/HTTPRoute accepted; smoke hostname returned. |
 | `NET-004` | Pass local + GCP | Traefik absent from kube-system on both clusters. |
+| `DB-001`, `DB-003`–`DB-007` | Pass GCP | CNPG, PVC, pgvector, migration/re-run, and vector query evidence captured. |
+| `DB-010` | Pass GCP | Marker checksum/count survived controlled Pod recreate; PVC remained Bound. |
+| `ING-001`, `ING-003`, `ING-004` | Pass offline | VnExpress fixtures, contract, timeout/retry/backoff unit evidence. |
+| `ING-002` | Removed | NVD fully removed from code, fixtures, and demo corpus. |
+| `ING-005` | Pass GCP | Daily `0 3 * * *` UTC (10:00 Vietnam) is registered on `kuberag-daily-ingest/daily`; evidence: `docs/evidence/ING-005/gcp-prefect-schedule-1000-vietnam.txt`. |
+| `ING-006` | Pass GCP | Live VnExpress flow completed through real e5 into CloudNativePG. |
+| `ING-007` | Pass GCP | Stable rerun skipped unchanged records; counts unchanged and SQL duplicate checks returned zero. |
+| `ING-008` | Pass GCP | Completed run lifecycle, counters, and duration persisted in `ingestion_runs`. |
+| `ING-009` | Pass offline | Sentence-aware chunk size/overlap boundary tests captured. |
+| `ING-010` | Pass GCP smoke | `multilingual-e5-small` on PVC; batch smoke ~10s / ~1 GiB RSS; worker mode `e5`. |
+| Prefect metadata persistence | Pass GCP | Separate CNPG role/database `prefect`; flow completed after migration with no SQLite lock log match. |
+| `RAG-002` | Pass GCP integration | `PostgresRetriever` query vector retrieves the nearest fixture chunk through pgvector with its source fields; evidence: `docs/evidence/RAG-002/`. |
+| `RAG-004` | Pass GCP runtime | llama.cpp reports healthy, exposes Qwen model alias, and completed a chat-completion request through a temporary local tunnel; evidence: `docs/evidence/RAG-004/`. |
+| `RAG-005` | Pass GCP runtime | API composition calls only in-cluster E5/pgvector/llama.cpp; no external LLM API or OpenAI SDK is used. |
+| `RAG-006` | Pass GCP runtime | API query through Envoy returned answer, VnExpress sources/URLs, optional thumbnail URLs, request ID, trace ID, and timings; evidence: `docs/evidence/RAG-006/`. |
+| `NET-003`, `NET-005` | Pass GCP runtime | Envoy accepted `/api/` to FastAPI and the local `BackendTrafficPolicy` rate-limit policy. The temporary GCP demo is intentionally unauthenticated. |
+| `WEB-001` | Pass GCP runtime | `kuberag-web` is Ready; its Service and accepted `/` HTTPRoute return the React SPA from the Envoy data plane. |
+| `NET-006` | Partial | Controlled curl burst produced `429` after 10 requests; evidence: `docs/evidence/NET-006/gcp-rate-limit-429.txt`. Required k6 rate-limit evidence remains pending. |
+| `OBS-001` | Partial | Kubernetes + FastAPI/`kube-state-metrics` targets scrape (`docs/evidence/OBS-001/`). Envoy Gateway is not yet a Prometheus `up` job/ServiceMonitor target. |
+| `OBS-002`–`OBS-004` | Pass GCP runtime | PromQL RPS/p50/p95/p99/status codes, Pod memory/restarts, RAG stage metrics, and ingestion `kuberag_ingestion_*` metrics captured under `docs/evidence/OBS-002`–`OBS-004/`. |
+| `OBS-005`–`OBS-007` | Pass GCP runtime | FastAPI and Prefect OTLP logs in Loki; required fields present as structured metadata; sample review shows no raw prompt/document/secret (`docs/evidence/OBS-005`–`OBS-007/`). |
+| `OBS-008`–`OBS-010` | Pass GCP runtime | Tempo RAG span tree, ingestion fetch/upsert spans, and response↔Loki↔Tempo `trace_id` correlation (`docs/evidence/OBS-008`–`OBS-010/`). |
+| `OBS-011`–`OBS-014` | Pass GCP runtime | Pyroscope CPU profile, Git-provisioned Grafana datasources/dashboard (API evidence), no Alloy inventory, retention/PVC/limits match single-node budget (`docs/evidence/OBS-011`–`OBS-014/`). |
 
 ## Immediate Next Checkpoint
 
-Start the data layer on the verified GCP single-node cluster:
+Week 2 ingestion is complete on the GCP single-node checkpoint. The live
+VnExpress Prefect flow uses real `intfloat/multilingual-e5-small`, writes
+384-dimensional vectors to CloudNativePG, persists run counters, and skips
+unchanged input on rerun.
 
-1. Install CloudNativePG and create one temporary PostgreSQL instance with PVC.
-2. Enable `vector`, add Alembic migrations, and verify basic vector query.
-3. Keep Prefect ingestion and application routes pending until persistence and
-   restart checks pass.
+Next checkpoint:
 
-See `docs/ROADMAP.md` week 2 and `docs/runbooks/gcp-k3s-foundation.md`.
+1. Add an Envoy Prometheus scrape target to close `OBS-001` fully (optional
+   narrow follow-up) or accept the documented gap until Week 5 networking polish.
+2. Restore IAP tunnel and pass the 30-minute observability stability gate.
+3. Run the separately confirmed k6 scenarios and capture evidence (`PERF-*`,
+   close `NET-006` and `ALT-007`).
+
+See `docs/ROADMAP.md` week 2 and `docs/data-model.md`.
 
 ## Major Work Still Ahead
 
-- PostgreSQL/pgvector through CloudNativePG, schema migrations, and persistence tests.
-- Prefect ingestion for VnExpress RSS and NVD API, including fixtures and idempotency.
-- Embeddings, llama.cpp generation, and the real deterministic RAG path.
-- React/Vite frontend and Envoy routing for `/` and `/api/`.
-- OpenTelemetry, Prometheus, Loki, Tempo, Pyroscope, Grafana, alerts, and dashboards.
-- Gateway rate limiting, k6 load tests, Chainguard images, scanning, SBOMs, and signing.
+- Alert rules/contact point and alert lifecycle test (`ALT-*`).
+- k6 load/rate-limit tests (`PERF-*`) and full `NET-006` k6 evidence.
+- Optional Envoy Prometheus scrape to finish `OBS-001`.
+- Chainguard image hardening, scanning, SBOMs, and signing.
 - Restoration of the final 1 server + 2 worker topology and PostgreSQL replication/failover evidence.
 
 ## Useful References

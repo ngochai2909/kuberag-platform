@@ -1,0 +1,23 @@
+# Apply only during the separately approved alert lifecycle checkpoint, then
+# delete it after Slack has received both Firing and Resolved. It is not in
+# observability/kustomization.yaml and cannot affect normal reconciliation.
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: kuberag-alert-lifecycle-test
+  namespace: observability
+  labels:
+    app.kubernetes.io/part-of: kuberag
+spec:
+  groups:
+    - name: kuberag.alert-lifecycle-test
+      rules:
+        - alert: KubeRagAlertLifecycleTest
+          expr: vector(1)
+          for: 30s
+          labels:
+            severity: info
+            alert_receiver: slack
+            test_only: "true"
+          annotations:
+            summary: "KubeRAG test-only alert lifecycle verification"

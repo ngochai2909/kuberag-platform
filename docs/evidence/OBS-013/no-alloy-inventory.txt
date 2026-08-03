@@ -1,0 +1,16 @@
+Command executed on 2026-07-31:
+
+    kubectl get deploy,sts,ds -A -o name | grep -i alloy || echo alloy_resources=0
+    helm list -A | grep -i alloy || echo alloy_helm=0
+
+Relevant output:
+
+    alloy_resources=0
+    alloy_helm=0
+
+    helm releases in observability:
+      kuberag-monitoring, kuberag-loki, kuberag-tempo, kuberag-pyroscope, kuberag-otel
+
+Meaning: Grafana Alloy (or a duplicate host-agent with the same role) is not
+installed. OTel Collector, Prometheus scrape, and the Pyroscope SDK cover the
+required telemetry paths.

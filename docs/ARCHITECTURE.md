@@ -19,7 +19,7 @@ flowchart TB
     User["Người dùng"] --> Gateway["Envoy Gateway"]
     Gateway --> Web["React UI"]
     Gateway --> API["FastAPI RAG API"]
-    Sources["VnExpress và NVD"] --> Prefect["Prefect ingestion"]
+    Sources["VnExpress RSS"] --> Prefect["Prefect ingestion"]
     Prefect --> PG["PostgreSQL + pgvector"]
     API --> PG
     API --> LLM["llama.cpp"]
@@ -187,7 +187,6 @@ flowchart LR
 ```mermaid
 erDiagram
     DOCUMENTS ||--o{ CHUNKS : contains
-    INGESTION_RUNS ||--o{ DOCUMENTS : creates_or_updates
     DOCUMENTS {
         uuid id PK
         text source
@@ -195,8 +194,11 @@ erDiagram
         text title
         text url
         timestamptz published_at
+        text content
         text checksum
         jsonb metadata
+        timestamptz created_at
+        timestamptz updated_at
     }
     CHUNKS {
         uuid id PK
@@ -205,13 +207,23 @@ erDiagram
         text content
         vector embedding
         jsonb metadata
+        timestamptz created_at
+        timestamptz updated_at
     }
     INGESTION_RUNS {
         uuid id PK
+        uuid prefect_flow_run_id
         text flow_name
+        text source_scope
         text status
-        int processed_count
+        timestamptz watermark_from
+        timestamptz watermark_to
+        int fetched_count
+        int inserted_count
+        int updated_count
+        int skipped_count
         int failed_count
+        text error_summary
         timestamptz started_at
         timestamptz finished_at
     }
@@ -256,7 +268,7 @@ Request:
 
 ```json
 {
-  "question": "Các CVE mới liên quan đến Kubernetes là gì?",
+  "question": "Các tin công nghệ mới liên quan đến AI là gì?",
   "top_k": 5
 }
 ```
@@ -269,8 +281,8 @@ Response:
   "sources": [
     {
       "title": "...",
-      "url": "https://...",
-      "source": "nvd",
+      "url": "https://vnexpress.net/...",
+      "source": "vnexpress",
       "score": 0.82
     }
   ],
@@ -348,11 +360,11 @@ Pyroscope SDK instrument trực tiếp FastAPI. Không dùng privileged/eBPF/hos
 
 ```mermaid
 flowchart LR
-    Metrics["Prometheus metrics"] --> Alert["Grafana Alerting"]
-    Alert --> Telegram["Telegram contact point"]
+    Metrics["Prometheus metrics"] --> Alert["Alertmanager"]
+    Alert --> Slack["Slack incoming webhook"]
 ```
 
-Alert tối thiểu: high latency/error, high memory/restart, ingestion failure, PostgreSQL unavailable/lag và `429` spike. Token/chat ID nằm trong Secret.
+Alert tối thiểu: high latency/error, high memory/restart, ingestion failure, PostgreSQL unavailable/lag và `429` spike. Slack webhook nằm trong Kubernetes Secret; Grafana chỉ hiển thị trạng thái alert.
 
 ## 10. Security architecture
 
@@ -390,7 +402,7 @@ Mục tiêu ban đầu, cần đo và hiệu chỉnh:
 | PostgreSQL 1 instance | 0.8–1.5 GiB | Giới hạn shared buffers phù hợp; 2 instance ở mốc 3-node |
 | Observability | 3–5 GiB | Single-binary, retention ngắn, volume nhỏ |
 | Prefect + apps | 1–2 GiB | Một replica mỗi service |
-| Embedding + llama.cpp | 1.5–3 GiB | Ưu tiên Qwen 0.5B Q4, batch nhỏ, không chạy song song quá mức |
+| Embedding + llama.cpp | 3–6 GiB | Baseline `Qwen2.5-1.5B-Instruct` GGUF `Q4_K_M`; embedding batch nhỏ, một generation request tại một thời điểm |
 
 Quy tắc:
 
@@ -398,6 +410,9 @@ Quy tắc:
 - Loki/Tempo/Pyroscope retention ngắn, volume nhỏ.
 - k6 ưu tiên chạy từ laptop/runner ngoài cluster để không cạnh tranh workload.
 - Trên máy 16 GiB, giải phóng RAM trước khi chạy full stack; nếu dùng GCP có thể resize tạm VM lên 16 GiB rồi hạ xuống.
+- Khi quay lại 1 server + 2 worker, `llama.cpp` phải được schedule vào worker
+  ứng dụng. Worker đó cần đủ RAM cho model, KV cache và FastAPI/ingestion; RAM
+  của worker khác không thể được dùng chung cho một Pod model.
 
 ## 12. Failure modes và hành vi kỳ vọng
 

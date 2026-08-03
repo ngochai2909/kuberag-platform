@@ -1,0 +1,11 @@
+DB-006: Alembic migration rerun is a successful no-op.
+Captured on 2026-07-28. No upgrade revision ran on the second invocation.
+
+$ make gcp-db-migrate
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+
+$ make gcp-db-current
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+20260728_0001 (head)

@@ -174,6 +174,50 @@ WHERE extname = 'vector';
 Cần thấy đúng một dòng `vector`. Manifest và trạng thái resource không thay thế
 bằng chứng SQL cho DB-004.
 
+## Alembic migration và vector integration
+
+Migration được sở hữu bởi ingestion data layer tại
+`apps/ingestion/migrations`. Revision đầu tạo `documents`, `chunks`,
+`ingestion_runs`, các foreign key/unique/check constraints và cột
+`chunks.embedding` kiểu `vector` chưa cố định dimension. HNSW/IVFFlat chưa
+được tạo cho tới khi embedding model, dimension và distance metric được pin.
+
+Render SQL offline trước khi kết nối database:
+
+```bash
+make migration-sql
+```
+
+Để chạy migration trên GCP, máy local phải SSH được qua alias `kuberag-gcp`.
+Target dưới đây mở một tunnel tạm tới Service `kuberag-pg-rw`, đọc URI từ
+Secret vào biến môi trường của đúng process và đóng tunnel khi lệnh kết thúc:
+
+```bash
+make gcp-db-migrate
+make gcp-db-current
+```
+
+Script không ghi URI/password ra file hoặc stdout. Không thêm `set -x`, không
+echo `DATABASE_URL`, và không lưu URI lấy từ Secret vào `.env`.
+
+`alembic upgrade head` lần đầu phải tạo schema từ database rỗng. Chạy lần hai
+phải thành công như no-op để chứng minh DB-006:
+
+```bash
+make gcp-db-migrate
+make gcp-db-migrate
+```
+
+Sau migration, chạy integration test synthetic trong transaction rồi rollback:
+
+```bash
+make gcp-db-vector-test
+```
+
+Test thêm một document và hai vector 3 chiều, truy vấn cosine distance, xác nhận
+chunk gần nhất rồi rollback. Vector 3 chiều chỉ là fixture DB-007; schema vẫn
+dùng `vector` không cố định dimension và chưa quyết định embedding model.
+
 ## Generated Secret
 
 CNPG tạo Secret ứng dụng `kuberag-pg-app`, chứa username/password và connection
@@ -212,8 +256,8 @@ tồn tại. Kubeconfig cũng là dữ liệu nhạy cảm và không được c
 
 - Không xóa `Cluster/kuberag-pg`, PVC, PersistentVolume, namespace `data`, CNPG
   CRD hoặc GCP disk. Không thêm target delete/uninstall cho data layer.
-- Xóa Pod có chủ đích là một persistence test ở checkpoint sau, không phải cách
-  sửa lỗi mặc định; phải ghi checksum/count trước và sau.
+- Xóa Pod có chủ đích là persistence test `DB-010` (đã Pass trên GCP), không
+  phải cách sửa lỗi mặc định; phải ghi checksum/count trước và sau.
 - Replica không phải backup. Mốc single-node hiện chưa có cả replica lẫn
   backup/restore; mất disk có thể mất toàn bộ dữ liệu.
 - PostgreSQL và operator không được public qua firewall/Gateway. Chỉ workload

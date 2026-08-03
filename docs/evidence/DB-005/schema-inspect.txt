@@ -1,0 +1,102 @@
+DB-005: Initial Alembic schema verification on GCP PostgreSQL.
+Captured on 2026-07-28 after revision 20260728_0001.
+
+
+
+  version_num  
+---------------
+ 20260728_0001
+(1 row)
+
+   table_name    
+-----------------
+ alembic_version
+ chunks
+ documents
+ ingestion_runs
+(4 rows)
+
+    relation    |                conname                 |                                                                 definition                                                                  
+----------------+----------------------------------------+---------------------------------------------------------------------------------------------------------------------------------------------
+ chunks         | chunks_chunk_index_not_null            | NOT NULL chunk_index
+ chunks         | chunks_content_not_null                | NOT NULL content
+ chunks         | chunks_created_at_not_null             | NOT NULL created_at
+ chunks         | chunks_document_id_fkey                | FOREIGN KEY (document_id) REFERENCES documents(id) ON DELETE CASCADE
+ chunks         | chunks_document_id_not_null            | NOT NULL document_id
+ chunks         | chunks_id_not_null                     | NOT NULL id
+ chunks         | chunks_metadata_not_null               | NOT NULL metadata
+ chunks         | chunks_pkey                            | PRIMARY KEY (id)
+ chunks         | chunks_updated_at_not_null             | NOT NULL updated_at
+ chunks         | ck_chunks_chunk_index_nonnegative      | CHECK ((chunk_index >= 0))
+ chunks         | uq_chunks_document_id_chunk_index      | UNIQUE (document_id, chunk_index)
+ documents      | ck_documents_checksum_sha256_length    | CHECK ((char_length((checksum)::text) = 64))
+ documents      | documents_checksum_not_null            | NOT NULL checksum
+ documents      | documents_content_not_null             | NOT NULL content
+ documents      | documents_created_at_not_null          | NOT NULL created_at
+ documents      | documents_external_id_not_null         | NOT NULL external_id
+ documents      | documents_id_not_null                  | NOT NULL id
+ documents      | documents_metadata_not_null            | NOT NULL metadata
+ documents      | documents_pkey                         | PRIMARY KEY (id)
+ documents      | documents_source_not_null              | NOT NULL source
+ documents      | documents_title_not_null               | NOT NULL title
+ documents      | documents_updated_at_not_null          | NOT NULL updated_at
+ documents      | documents_url_not_null                 | NOT NULL url
+ documents      | uq_documents_source_external_id        | UNIQUE (source, external_id)
+ ingestion_runs | ck_ingestion_runs_counts_nonnegative   | CHECK (((fetched_count >= 0) AND (inserted_count >= 0) AND (updated_count >= 0) AND (skipped_count >= 0) AND (failed_count >= 0)))
+ ingestion_runs | ck_ingestion_runs_status               | CHECK (((status)::text = ANY ((ARRAY['running'::character varying, 'completed'::character varying, 'failed'::character varying])::text[])))
+ ingestion_runs | ingestion_runs_failed_count_not_null   | NOT NULL failed_count
+ ingestion_runs | ingestion_runs_fetched_count_not_null  | NOT NULL fetched_count
+ ingestion_runs | ingestion_runs_flow_name_not_null      | NOT NULL flow_name
+ ingestion_runs | ingestion_runs_id_not_null             | NOT NULL id
+ ingestion_runs | ingestion_runs_inserted_count_not_null | NOT NULL inserted_count
+ ingestion_runs | ingestion_runs_pkey                    | PRIMARY KEY (id)
+ ingestion_runs | ingestion_runs_skipped_count_not_null  | NOT NULL skipped_count
+ ingestion_runs | ingestion_runs_source_scope_not_null   | NOT NULL source_scope
+ ingestion_runs | ingestion_runs_started_at_not_null     | NOT NULL started_at
+ ingestion_runs | ingestion_runs_status_not_null         | NOT NULL status
+ ingestion_runs | ingestion_runs_updated_count_not_null  | NOT NULL updated_count
+(37 rows)
+
+   table_name   |     column_name     |        data_type         |  udt_name   | is_nullable 
+----------------+---------------------+--------------------------+-------------+-------------
+ chunks         | id                  | uuid                     | uuid        | NO
+ chunks         | document_id         | uuid                     | uuid        | NO
+ chunks         | chunk_index         | integer                  | int4        | NO
+ chunks         | content             | text                     | text        | NO
+ chunks         | embedding           | USER-DEFINED             | vector      | YES
+ chunks         | metadata            | jsonb                    | jsonb       | NO
+ chunks         | created_at          | timestamp with time zone | timestamptz | NO
+ chunks         | updated_at          | timestamp with time zone | timestamptz | NO
+ documents      | id                  | uuid                     | uuid        | NO
+ documents      | source              | text                     | text        | NO
+ documents      | external_id         | text                     | text        | NO
+ documents      | title               | text                     | text        | NO
+ documents      | url                 | text                     | text        | NO
+ documents      | published_at        | timestamp with time zone | timestamptz | YES
+ documents      | content             | text                     | text        | NO
+ documents      | checksum            | character varying        | varchar     | NO
+ documents      | metadata            | jsonb                    | jsonb       | NO
+ documents      | created_at          | timestamp with time zone | timestamptz | NO
+ documents      | updated_at          | timestamp with time zone | timestamptz | NO
+ ingestion_runs | id                  | uuid                     | uuid        | NO
+ ingestion_runs | prefect_flow_run_id | uuid                     | uuid        | YES
+ ingestion_runs | flow_name           | text                     | text        | NO
+ ingestion_runs | source_scope        | text                     | text        | NO
+ ingestion_runs | status              | character varying        | varchar     | NO
+ ingestion_runs | watermark_from      | timestamp with time zone | timestamptz | YES
+ ingestion_runs | watermark_to        | timestamp with time zone | timestamptz | YES
+ ingestion_runs | fetched_count       | integer                  | int4        | NO
+ ingestion_runs | inserted_count      | integer                  | int4        | NO
+ ingestion_runs | updated_count       | integer                  | int4        | NO
+ ingestion_runs | skipped_count       | integer                  | int4        | NO
+ ingestion_runs | failed_count        | integer                  | int4        | NO
+ ingestion_runs | error_summary       | text                     | text        | YES
+ ingestion_runs | started_at          | timestamp with time zone | timestamptz | NO
+ ingestion_runs | finished_at         | timestamp with time zone | timestamptz | YES
+(34 rows)
+
+ rolled_back_db007_fixture_rows 
+--------------------------------
+                              0
+(1 row)
+

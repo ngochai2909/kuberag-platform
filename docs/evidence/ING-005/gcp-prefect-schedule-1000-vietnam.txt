@@ -1,0 +1,31 @@
+# ING-005: Prefect daily schedule updated to 10:00 Vietnam
+
+Date: 2026-07-30
+
+The versioned ingestion source declares:
+
+```text
+cron=0 3 * * *
+timezone=UTC
+```
+
+`03:00 UTC` is `10:00` in `Asia/Ho_Chi_Minh` (Vietnam, UTC+7).
+
+After rebuilding and importing `kuberag-ingestion:local`, the following command
+was executed:
+
+```bash
+make gcp-prefect-bootstrap
+```
+
+Relevant Bootstrap Job output:
+
+```text
+Successfully created/updated all deployments!
+kuberag-daily-ingest/daily | applied
+flow=kuberag-daily-ingest deployment=daily
+schedule={'flow_name': 'kuberag-daily-ingest', 'cron': '0 3 * * *', 'timezone': 'UTC'}
+```
+
+The completed bootstrap Job registered the new schedule only; it did not run
+the VnExpress ingestion flow.

@@ -1,0 +1,43 @@
+# Envoy Gateway's controller-managed LoadBalancer Service exposes only the
+# public listener (8080). This additional ClusterIP Service exposes the named
+# data-plane metrics port (19001) only inside the cluster for Prometheus.
+apiVersion: v1
+kind: Service
+metadata:
+  name: kuberag-envoy-metrics
+  namespace: gateway-system
+  labels:
+    app.kubernetes.io/name: kuberag-envoy-metrics
+    app.kubernetes.io/part-of: kuberag
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/component: proxy
+    app.kubernetes.io/managed-by: envoy-gateway
+    app.kubernetes.io/name: envoy
+    gateway.envoyproxy.io/owning-gateway-name: kuberag
+    gateway.envoyproxy.io/owning-gateway-namespace: rag
+  ports:
+    - name: metrics
+      port: 19001
+      targetPort: metrics
+      protocol: TCP
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: kuberag-envoy-gateway
+  namespace: observability
+  labels:
+    app.kubernetes.io/part-of: kuberag
+spec:
+  namespaceSelector:
+    matchNames:
+      - gateway-system
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: kuberag-envoy-metrics
+  endpoints:
+    - port: metrics
+      path: /stats/prometheus
+      interval: 15s

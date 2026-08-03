@@ -38,9 +38,26 @@ class Settings(BaseSettings):
 
     api_auth_enabled: bool = False
     app_api_key: SecretStr | None = None
+    public_demo_mode: bool = False
+
+    otel_enabled: bool = False
+    otel_service_name: str = "kuberag-rag-api"
+    otel_exporter_otlp_endpoint: str = "kuberag-otel-collector.observability.svc.cluster.local:4317"
+    otel_export_timeout_seconds: float = Field(default=2.0, gt=0, le=30)
+    pyroscope_enabled: bool = False
+    pyroscope_server_address: str = "http://kuberag-pyroscope.observability.svc.cluster.local:4040"
 
     rag_timeout_seconds: float = Field(default=45.0, gt=0, le=600)
     rag_max_context_chars: int = Field(default=12000, ge=1000, le=100000)
+    rag_runtime_enabled: bool = False
+    database_url: SecretStr | None = None
+    rag_embedding_cache: str = "/models"
+    rag_embedding_local_only: bool = True
+    rag_database_connect_timeout_seconds: int = Field(default=5, ge=1, le=60)
+    llama_cpp_base_url: str = "http://kuberag-llm.rag.svc.cluster.local:8080"
+    llama_cpp_model: str = "kuberag-qwen2.5-1.5b"
+    llama_cpp_max_tokens: int = Field(default=256, ge=1, le=1024)
+    llama_cpp_temperature: float = Field(default=0.2, ge=0, le=2)
 
     @property
     def cors_origin_list(self) -> list[str]:
@@ -57,8 +74,18 @@ class Settings(BaseSettings):
             if len(self.app_api_key.get_secret_value()) < 32:
                 raise ValueError("APP_API_KEY must contain at least 32 characters")
 
-        if self.app_env is Environment.PRODUCTION and not self.api_auth_enabled:
-            raise ValueError("API authentication must be enabled in production")
+        if (
+            self.app_env is Environment.PRODUCTION
+            and not self.api_auth_enabled
+            and not self.public_demo_mode
+        ):
+            raise ValueError(
+                "API authentication must be enabled in production unless "
+                "PUBLIC_DEMO_MODE is enabled"
+            )
+
+        if self.rag_runtime_enabled and self.database_url is None:
+            raise ValueError("DATABASE_URL is required when RAG_RUNTIME_ENABLED is true")
 
         return self
 

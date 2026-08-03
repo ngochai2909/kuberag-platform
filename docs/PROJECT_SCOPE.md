@@ -14,7 +14,7 @@
 
 Xây dựng một nền tảng có khả năng:
 
-1. Thu thập dữ liệu mới hằng ngày từ hai nguồn độc lập.
+1. Thu thập dữ liệu mới hằng ngày từ nguồn VnExpress RSS.
 2. Chuẩn hóa, chống trùng, chia đoạn, tạo embedding và lưu dữ liệu.
 3. Truy xuất các đoạn liên quan bằng vector search.
 4. Sinh câu trả lời qua LLM self-hosted và trả kèm nguồn.
@@ -37,7 +37,7 @@ Chất lượng nội dung do LLM sinh ra **không phải tiêu chí đánh giá
 - Điều phối ingestion bằng Prefect với schedule, retry, timeout và idempotency.
 - Chạy FastAPI RAG API, React/Vite UI và llama.cpp self-hosted.
 - Dùng Prometheus, Loki, Tempo, Pyroscope và Grafana cho observability.
-- Gửi alert qua Telegram.
+- Gửi alert qua Slack.
 - Chứng minh RPS, latency, CPU, RAM, error rate và `429` trong k6 test.
 - Bảo vệ software supply chain bằng Chainguard, Semgrep, Trivy, SBOM và Cosign.
 
@@ -73,7 +73,7 @@ Chất lượng nội dung do LLM sinh ra **không phải tiêu chí đánh giá
 
 ### 5.2. Data ingestion
 
-- Hai nguồn dữ liệu: VnExpress RSS và NVD CVE API.
+- Một nguồn dữ liệu bắt buộc: VnExpress RSS (khoa-học-công-nghệ).
 - Có fixture/sample data để test offline và dự phòng khi nguồn lỗi.
 - Prefect flow hằng ngày: `fetch → normalize → deduplicate → chunk → embed → upsert`.
 - Có retry, timeout, exponential backoff, watermark và trạng thái ingestion run.
@@ -110,7 +110,7 @@ Chất lượng nội dung do LLM sinh ra **không phải tiêu chí đánh giá
 - Pyroscope Python SDK gửi profiles trực tiếp tới Pyroscope.
 - Grafana provision data sources, dashboard và alert rules từ Git.
 - Dashboard hiển thị RPS, percentiles latency, status codes, `429`, CPU, RAM, restart, ingestion và PostgreSQL health.
-- Telegram nhận ít nhất một alert được kích hoạt bởi workload/test thật.
+- Slack nhận ít nhất một alert được kích hoạt bởi workload/test thật.
 - Không cài Grafana Alloy nếu không xuất hiện yêu cầu kỹ thuật mới được phê duyệt.
 
 ### 5.6. Performance và security
@@ -179,10 +179,10 @@ Optional phải nằm trên branch/PR riêng và có thể loại khỏi release
 ## 9. Giả định
 
 - GCP project, billing, quota và quyền tạo VM đã sẵn sàng.
-- Các nguồn VnExpress/NVD cho phép truy cập trong phạm vi demo; fixture là phương án dự phòng.
+- Nguồn VnExpress cho phép truy cập trong phạm vi demo; fixture là phương án dự phòng.
 - Chất lượng câu trả lời không được chấm; model nhỏ là đủ.
 - Tải mục tiêu dùng để quan sát hành vi, không nhằm chứng minh quy mô production.
-- Telegram là kênh alert chính.
+- Slack là kênh alert chính.
 
 ## 10. Deliverables
 
@@ -190,9 +190,9 @@ Optional phải nằm trên branch/PR riêng và có thể loại khỏi release
 - Ba custom image: `kuberag-api`, `kuberag-web`, `kuberag-ingestion`.
 - Terraform/Ansible dựng được hạ tầng và k3s.
 - Helm/Kustomize triển khai được platform và applications.
-- PostgreSQL/pgvector single-instance tạm thời và dữ liệu hai nguồn; primary-replica được khôi phục ở mốc 3-node.
+- PostgreSQL/pgvector single-instance tạm thời và dữ liệu VnExpress; primary-replica được khôi phục ở mốc 3-node.
 - RAG API, frontend và self-hosted LLM hoạt động end-to-end.
-- Grafana dashboard, Telegram alert và k6 report.
+- Grafana dashboard, Slack alert và k6 report.
 - Semgrep/Trivy reports, SBOM và Cosign verification output.
 - Runbooks, evidence, demo script và final release tag.
 
@@ -208,4 +208,3 @@ Dự án thành công khi một reviewer có thể dùng repository và tài li�
 6. Chứng minh rate limit trả `429` ở Gateway.
 7. Chứng minh PostgreSQL persistence/restart ở mốc tạm thời; replication/failover ở mốc 3-node.
 8. Chứng minh source/image đã scan, image có SBOM và chữ ký hợp lệ.
-

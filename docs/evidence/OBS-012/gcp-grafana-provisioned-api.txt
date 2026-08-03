@@ -1,0 +1,22 @@
+Command executed on 2026-07-31 via in-Pod Grafana API
+(admin credentials read only inside the Grafana container env; not printed):
+
+    GET /api/datasources
+    GET /api/search?query=KubeRAG
+    GET /api/dashboards/uid/kuberag-overview
+
+Git sources:
+  observability/dashboards/kuberag-overview.yaml
+  deploy/helm/observability/kube-prometheus-stack-values.yaml (additionalDataSources)
+
+Relevant output:
+
+    datasources=[('Alertmanager', 'alertmanager', 'alertmanager'), ('Loki', 'loki', 'loki'), ('Prometheus', 'prometheus', 'prometheus'), ('Pyroscope', 'grafana-pyroscope-datasource', 'pyroscope'), ('Tempo', 'tempo', 'tempo')]
+    dashboard_search_title=KubeRAG Overview
+    dashboard_uid=kuberag-overview
+    dashboard_tags=['kuberag', 'provisioned']
+    panel_titles=['RAG API request rate', 'RAG API p95 latency', 'API status codes including 429', 'RAG pipeline stages', 'Application memory by Pod', 'Pod restart count']
+
+Meaning: Prometheus, Loki, Tempo, and Pyroscope data sources plus the
+KubeRAG Overview dashboard are provisioned from Git and visible in the live
+Grafana instance without manual UI creation.

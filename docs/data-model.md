@@ -5,22 +5,18 @@ an Alembic migration or a deployed PostgreSQL schema.
 
 ## Purpose And Scope
 
-KubeRAG ingests two required source types: VnExpress RSS and the NVD CVE API.
-Their raw formats differ, so source adapters must normalize both into one
-document contract before PostgreSQL, chunking, and embedding are involved.
+KubeRAG's required demo source is VnExpress RSS. The VnExpress adapter
+normalizes feed/article data into one `SourceDocument` contract before
+PostgreSQL, chunking, and embedding are involved.
 
 ```text
-VnExpress RSS / NVD API
+VnExpress RSS
 -> source adapter
 -> SourceDocument
 -> documents
 -> chunks + embeddings
 -> RAG retrieval and source links
 ```
-
-The initial implementation starts with VnExpress. NVD-specific metadata is
-deferred until its API sample is inspected, but it must conform to the same
-`SourceDocument` contract.
 
 ## VnExpress Source Decision
 
@@ -72,23 +68,65 @@ For VnExpress, map the RSS/article data as follows:
 | RSS `pubDate` | `published_at` | Parse as a timezone-aware timestamp. |
 | Article body | `text` | Extract readable text, normalize whitespace, and exclude navigation, images, scripts, and captions unless intentionally retained later. |
 | RSS HTML `description` | `metadata.summary` | Strip HTML before storage; do not use it as the normal full-text corpus. |
-| RSS `enclosure.url` | `metadata.image_url` | Optional display metadata only; images are not embedded in this phase. |
+| RSS `enclosure.url` | `metadata.image_url` | Optional display metadata. RAG API may return it as `sources[].thumbnail_url`; the browser loads it for the source card. Images are never embedded or passed to the LLM in this phase. |
 | Feed URL | `metadata.feed_url` | Records which configured feed discovered the article. |
 | Extractor revision | `metadata.extraction_version` | Allows a future extractor change to be traced. |
 
 The checksum is calculated from the normalized title and full text, not the raw
 RSS XML. This detects an edited article even when its URL remains unchanged.
 
+## Chunking Decision
+
+Chunking happens after adapters produce `SourceDocument` and before embedding.
+It does not load an embedding or generation model.
+
+Strategy: `sentence-overlap-v1`
+
+1. Prefer sentence boundaries (`.`, `!`, `?`, `…`).
+2. Pack whole sentences until the character budget is reached.
+3. Overlap adjacent chunks by approximately `overlap_chars` so retrieval keeps
+   local context across boundaries.
+4. Hard-split on words, then characters, only when one sentence exceeds the
+   budget.
+5. Prefix each chunk with the document title so retrieved snippets remain
+   attributable during query time.
+
+Default config for the first milestone:
+
+```text
+max_chars = 800
+overlap_chars = 150
+include_title = true
+```
+
+Sizing is character-based for now. Planned embedding model is
+`intfloat/multilingual-e5-small` at **384 dimensions**. The Alembic column
+remains unbounded `vector` until a follow-up migration pins `vector(384)` after
+the real provider is deployed on the cluster.
+
+## Embedding Provider Decision
+
+Ingestion and later RAG query embedding call an `EmbeddingProvider` interface:
+
+```text
+embed_documents(texts, batch_size) -> list[vector]
+embed_query(text) -> vector
+```
+
+- Offline/unit tests use `FakeEmbeddingProvider` (hashing, 384-dim, no download).
+- Production will use `multilingual-e5-small` inside the ingestion workload on
+  k3s; laptop pytest must not download that model.
+
 ## Logical Database Model
 
 ### `documents`
 
-One row represents one source article or CVE record.
+One row represents one source article.
 
 | Field | Purpose |
 |---|---|
 | `id` | Internal UUID primary key. |
-| `source` | Source identifier such as `vnexpress` or `nvd`. |
+| `source` | Source identifier such as `vnexpress`. |
 | `external_id` | Stable identity supplied or derived by the source. |
 | `title` | Human-readable source title. |
 | `url` | Canonical URL returned to the user as a clickable source. |
@@ -200,10 +238,9 @@ one displayed source entry.
 
 ## Decisions Still Pending
 
-- Inspect an NVD API sample and define its `external_id` and metadata mapping.
-- Pin the embedding model and its vector dimension.
-- Choose chunking strategy, chunk size, overlap, and tokenizer behavior.
-- Choose pgvector index type and create it only after a representative corpus
-  and query behavior are measured.
+- Optionally refine chunk budgets with the pinned E5 tokenizer once the real
+  provider runs on the cluster.
+- Alembic follow-up to pin `vector(384)` and choose HNSW/IVFFlat after measuring
+  a representative corpus.
 - Decide whether source-specific per-record error history requires a future
   `ingestion_errors` table. It is not needed for the first milestone.

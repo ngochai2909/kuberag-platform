@@ -1,0 +1,12 @@
+Command executed on 2026-07-31:
+
+    GET /api/traces/99825f49fcc95cb18d0a6405b02dde03
+
+Relevant output:
+
+    required_spans_present=True
+    spans=['rag.embed_query', 'rag.pgvector_search', 'rag.build_prompt', 'rag.llm_generate', 'http.request']
+
+Meaning: the deterministic RAG stage spans are present:
+http.request, rag.embed_query, rag.pgvector_search, rag.build_prompt,
+rag.llm_generate.

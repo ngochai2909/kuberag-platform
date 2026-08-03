@@ -1,0 +1,16 @@
+Command executed on 2026-07-31 after flow_run_id=0161776d-6e44-41c5-a9ac-64088949778c:
+
+    GET /api/search?tags=service.name=kuberag-ingestion
+    GET /api/traces/3730b27f4af72ece2f1b3e32847b6fe6
+    GET /api/traces/e90d1971e8970d625bd6901ab1d84bc9
+
+Relevant output:
+
+    traces_found=2
+    fetch_trace_id=3730b27f4af72ece2f1b3e32847b6fe6
+    fetch_spans=["ingestion.fetch","fetch-vnexpress-8ce"]
+    upsert_trace_id=e90d1971e8970d625bd6901ab1d84bc9
+    upsert_spans=["ingestion.upsert","upsert-documents-26e"]
+
+Meaning: ingestion custom spans reach Tempo through the OTel Collector for the
+live Prefect flow run.

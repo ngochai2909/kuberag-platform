@@ -1,0 +1,48 @@
+ING-008: Pass for persisted live GCP ingestion run lifecycle and counters.
+Captured on 2026-07-29 against the temporary single-node GCP k3s cluster.
+
+$ SELECT ... FROM ingestion_runs ORDER BY started_at DESC LIMIT 3;
+
+run 1:
+  id: fbdd6769-7a60-43f3-b03a-c9b41f3a7604
+  flow_name: kuberag-daily-ingest
+  source_scope: vnexpress,nvd
+  status: completed
+  fetched_count: 80
+  inserted_count: 80
+  updated_count: 0
+  skipped_count: 0
+  failed_count: 0
+  duration_seconds: 50.205
+  started_at: 2026-07-29 03:26:00.318438+00
+  finished_at: 2026-07-29 03:26:50.523783+00
+
+run 2:
+  id: f8c5a940-0f1b-4c57-9e99-df3c46576b26
+  flow_name: kuberag-daily-ingest
+  source_scope: vnexpress,nvd
+  status: completed
+  fetched_count: 80
+  inserted_count: 1
+  updated_count: 0
+  skipped_count: 79
+  failed_count: 0
+  duration_seconds: 10.587
+  started_at: 2026-07-29 03:28:07.110586+00
+  finished_at: 2026-07-29 03:28:17.697737+00
+
+run 3:
+  id: 731775bd-ce07-4c1c-9cd5-dbdc035f2ed5
+  flow_name: kuberag-daily-ingest
+  source_scope: vnexpress,nvd
+  status: completed
+  fetched_count: 80
+  inserted_count: 0
+  updated_count: 0
+  skipped_count: 80
+  failed_count: 0
+  duration_seconds: 0.082
+  started_at: 2026-07-29 03:29:17.841912+00
+  finished_at: 2026-07-29 03:29:17.924321+00
+
+All records survived worker process exit and were queried from CloudNativePG.

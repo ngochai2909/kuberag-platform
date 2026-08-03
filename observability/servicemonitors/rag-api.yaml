@@ -1,0 +1,18 @@
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: kuberag-rag-api
+  namespace: observability
+  labels:
+    app.kubernetes.io/part-of: kuberag
+spec:
+  namespaceSelector:
+    matchNames:
+      - rag
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: kuberag-rag-api
+  endpoints:
+    - port: http
+      path: /metrics
+      interval: 15s

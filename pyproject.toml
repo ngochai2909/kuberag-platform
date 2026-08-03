@@ -9,15 +9,34 @@ description = "KubeRAG cloud-native RAG platform monorepo"
 readme = "README.md"
 requires-python = ">=3.12,<3.14"
 dependencies = [
+    "alembic>=1.18.5",
     "fastapi>=0.116,<1.0",
+    "httpx>=0.28,<1.0",
+    "pgvector>=0.5.0",
+    "prefect>=3.0,<4.0",
+    "psycopg[binary]>=3.3.4",
     "pydantic>=2.10,<3.0",
     "pydantic-settings>=2.7,<3.0",
+    "prometheus-client>=0.23,<1.0",
+    "opentelemetry-api>=1.35,<2.0",
+    "opentelemetry-sdk>=1.35,<2.0",
+    "opentelemetry-exporter-otlp-proto-grpc>=1.35,<2.0",
+    "pyroscope-io>=1.1,<2.0",
+    "sqlalchemy>=2.0.51",
+    "tzdata>=2026.3",
     "uvicorn[standard]>=0.34,<1.0",
+]
+
+[project.optional-dependencies]
+embedding = [
+    # Cluster/VM only. Laptop pytest must not pull or download this stack.
+    # Torch is pinned to the CPU wheel index (see [tool.uv.sources]).
+    "sentence-transformers>=3.0,<6.0",
+    "torch>=2.2,<3.0",
 ]
 
 [dependency-groups]
 dev = [
-    "httpx>=0.28,<1.0",
     "mypy>=1.15,<2.0",
     "pytest>=8.3,<10.0",
     "pytest-asyncio>=0.24,<2.0",
@@ -25,17 +44,33 @@ dev = [
     "ruff>=0.12,<1.0",
 ]
 
+[[tool.uv.index]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+explicit = true
+
+[tool.uv.sources]
+torch = { index = "pytorch-cpu" }
+
 [tool.hatch.build.targets.wheel]
-packages = ["apps/rag-api/src/app"]
+packages = ["apps/rag-api/src/app", "apps/ingestion/src/ingestion"]
 
 [tool.pytest.ini_options]
-addopts = "-ra --strict-config --strict-markers --cov=app --cov-report=term-missing"
+addopts = "-ra --strict-config --strict-markers --cov=app --cov=ingestion --cov-report=term-missing"
 asyncio_mode = "auto"
-testpaths = ["apps/rag-api/tests"]
+testpaths = ["apps/rag-api/tests", "apps/ingestion/tests"]
+pythonpath = ["apps/rag-api/src", "apps/ingestion/src", "apps/ingestion/tests/unit"]
+markers = [
+    "db_integration: requires a real PostgreSQL/pgvector database",
+]
 
 [tool.coverage.run]
 branch = true
-source = ["app"]
+source = ["app", "ingestion"]
+omit = [
+    # Exercised by DATABASE_URL-backed integration tests, not offline make check.
+    "apps/ingestion/src/ingestion/postgres_store.py",
+]
 
 [tool.coverage.report]
 exclude_also = [
@@ -49,13 +84,19 @@ show_missing = true
 [tool.ruff]
 target-version = "py312"
 line-length = 100
-src = ["apps/rag-api/src", "apps/rag-api/tests"]
+src = [
+    "apps/rag-api/src",
+    "apps/rag-api/tests",
+    "apps/ingestion/src",
+    "apps/ingestion/tests",
+]
 
 [tool.ruff.lint]
 select = ["ASYNC", "B", "C4", "E", "F", "I", "N", "PT", "RUF", "SIM", "UP", "W"]
 
 [tool.ruff.lint.per-file-ignores]
 "apps/rag-api/tests/**/*.py" = ["S101"]
+"apps/ingestion/tests/**/*.py" = ["S101"]
 
 [tool.ruff.format]
 quote-style = "double"
@@ -63,7 +104,9 @@ indent-style = "space"
 
 [tool.mypy]
 python_version = "3.12"
-mypy_path = ["apps/rag-api/src"]
+mypy_path = ["apps/rag-api/src", "apps/ingestion/src", "apps/ingestion/tests/unit"]
+files = ["apps/rag-api/src", "apps/rag-api/tests", "apps/ingestion/src", "apps/ingestion/tests"]
+explicit_package_bases = true
 check_untyped_defs = true
 disallow_any_generics = true
 disallow_incomplete_defs = true
@@ -75,3 +118,7 @@ warn_redundant_casts = true
 warn_return_any = true
 warn_unused_ignores = true
 plugins = ["pydantic.mypy"]
+
+[[tool.mypy.overrides]]
+module = ["alembic.*", "pgvector.*", "prefect.*"]
+ignore_missing_imports = true

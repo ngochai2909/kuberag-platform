@@ -1,0 +1,14 @@
+Command executed on 2026-07-30 after a real internal RAG request and an OTel
+batch-export delay:
+
+    GET /api/traces/92b3e424628994caa207da1a9055d31e
+
+Relevant output:
+
+    tempo_trace_found=True
+    spans=['http.request', 'rag.embed_query', 'rag.pgvector_search',
+           'rag.build_prompt', 'rag.llm_generate']
+
+Meaning: the trace passed through OTel Collector to Tempo and includes the
+required deterministic RAG stage spans. The request reads existing data and
+uses the deployed llama.cpp service; it does not crawl or upsert documents.

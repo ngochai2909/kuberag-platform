@@ -26,6 +26,7 @@ class FakeRetriever:
                 source="fixture",
                 content="KubeRAG runs a deterministic RAG flow.",
                 score=0.9,
+                thumbnail_url="https://example.com/doc-1.jpg",
             )
         ]
         self.error = error
@@ -78,6 +79,7 @@ async def test_rag_pipeline_retrieves_builds_prompt_and_generates() -> None:
     assert reply.trace_id == "a" * 32
     assert reply.sources[0].title == "Doc 1"
     assert reply.sources[0].score == 0.9
+    assert reply.sources[0].thumbnail_url == "https://example.com/doc-1.jpg"
     assert reply.retrieval_ms >= 0
     assert reply.generation_ms >= 0
     assert reply.total_ms >= 0

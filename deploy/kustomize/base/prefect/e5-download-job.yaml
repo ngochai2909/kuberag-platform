@@ -1,0 +1,92 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: kuberag-e5-download
+  namespace: prefect
+  labels:
+    app.kubernetes.io/name: kuberag-e5-download
+    app.kubernetes.io/part-of: kuberag
+spec:
+  backoffLimit: 2
+  ttlSecondsAfterFinished: 86400
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: kuberag-e5-download
+        app.kubernetes.io/part-of: kuberag
+    spec:
+      restartPolicy: Never
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532
+        runAsGroup: 65532
+        fsGroup: 65532
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: download
+          image: kuberag-ingestion:local
+          imagePullPolicy: Never
+          args:
+            - /app/.venv/bin/python
+            - -c
+            - |
+              import os
+              import time
+              from sentence_transformers import SentenceTransformer
+
+              model_id = os.environ.get(
+                  "KUBERAG_EMBEDDING_MODEL_ID", "intfloat/multilingual-e5-small"
+              )
+              cache = os.environ["KUBERAG_EMBEDDING_CACHE"]
+              started = time.perf_counter()
+              print(f"downloading {model_id} into {cache}", flush=True)
+              model = SentenceTransformer(model_id, cache_folder=cache)
+              vector = model.encode(
+                  ["query: kuberag e5 smoke"],
+                  normalize_embeddings=True,
+                  show_progress_bar=False,
+              )[0]
+              elapsed_ms = (time.perf_counter() - started) * 1000
+              print(
+                  f"ok dims={len(vector)} elapsed_ms={elapsed_ms:.0f} model_id={model_id}",
+                  flush=True,
+              )
+          env:
+            - name: KUBERAG_EMBEDDING_CACHE
+              value: /models
+            - name: KUBERAG_EMBEDDING_MODEL_ID
+              value: intfloat/multilingual-e5-small
+            - name: HF_HOME
+              value: /models/hf
+            - name: TRANSFORMERS_CACHE
+              value: /models/hf
+            - name: SENTENCE_TRANSFORMERS_HOME
+              value: /models
+            - name: HOME
+              value: /tmp
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+          resources:
+            requests:
+              cpu: 500m
+              memory: 1Gi
+            limits:
+              cpu: "2"
+              memory: 3Gi
+          volumeMounts:
+            - name: models
+              mountPath: /models
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: models
+          persistentVolumeClaim:
+            claimName: kuberag-embedding-models
+        - name: tmp
+          emptyDir: {}

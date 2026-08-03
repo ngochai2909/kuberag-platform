@@ -1,0 +1,17 @@
+Command executed on 2026-07-31:
+
+    LogQL:
+      {service_name="kuberag-rag-api"} | request_id="2d826983-5a81-4f62-8460-de2222608aab"
+
+    And matching Pod stdout JSON (same logger, redacted sample):
+
+{"timestamp":"2026-07-31T02:41:30.485219+00:00","level":"INFO","logger":"app.core.middleware","message":"request_completed","request_id":"2d826983-5a81-4f62-8460-de2222608aab","trace_id":"99825f49fcc95cb18d0a6405b02dde03","method":"POST","route":"/api/v1/query","status_code":200,"duration_ms":22771.9}
+
+Relevant Loki structured metadata fields present:
+
+    service_name, scope_name/event(message=request_completed),
+    request_id, trace_id, method, route, status_code, duration_ms
+
+Meaning: the required log fields for OBS-006 are present for the correlated
+request. No question text, document body, or secret value appears in these
+fields.

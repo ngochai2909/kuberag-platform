@@ -1,0 +1,8 @@
+NVD full removal (2026-07-29)
+
+1. Live DB: deleted documents WHERE source='nvd' (chunks cascaded).
+2. Prefect deployment parameters: sources=["vnexpress"] only.
+3. Repository: deleted NvdAdapter, NVD fixtures/tests, and all NVD
+   wiring from the daily ingest flow. ING-002 marked Removed.
+
+Only source remaining: VnExpress RSS.
