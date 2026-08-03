@@ -28,6 +28,46 @@ spec:
         fsGroup: 65532
         seccompProfile:
           type: RuntimeDefault
+      initContainers:
+        # Reinstalling server and worker together creates them in parallel.
+        # Wait for the same HTTP health endpoint as the server readiness probe
+        # before the Prefect client attempts to read its work pool.
+        - name: wait-for-prefect-server
+          image: kuberag-ingestion:local
+          imagePullPolicy: Never
+          command:
+            - /app/.venv/bin/python
+            - -c
+            - |
+              import sys
+              import time
+              from urllib.error import URLError
+              from urllib.request import urlopen
+
+              health_url = "http://prefect-server.prefect.svc.cluster.local:4200/api/health"
+              for attempt in range(60):
+                  try:
+                      with urlopen(health_url, timeout=2) as response:
+                          if 200 <= response.status < 300:
+                              print("Prefect server is healthy", flush=True)
+                              sys.exit(0)
+                  except (OSError, URLError):
+                      pass
+                  time.sleep(2)
+              raise SystemExit("Prefect server did not become healthy within 120 seconds")
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+          resources:
+            requests:
+              cpu: 25m
+              memory: 64Mi
+            limits:
+              cpu: 100m
+              memory: 128Mi
       containers:
         - name: worker
           image: kuberag-ingestion:local
