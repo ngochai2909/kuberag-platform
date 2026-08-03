@@ -47,6 +47,12 @@ metrics were:
 
 The notification counter is aggregate, so it demonstrates successful
 Alertmanager-to-Slack delivery without asserting a per-message Slack UI
-screenshot. The alert remains expected to resolve once the rule's 30-minute
-timestamp window expires; no metric, database row, Pod, or alert was manually
-deleted to force resolution.
+screenshot.
+
+## Natural resolution
+
+After the rule's 30-minute timestamp window elapsed, Prometheus returned no
+active alerts and Alertmanager returned an empty active-alert list. The Slack
+notification total had increased from `10` to `12`; all Slack notification
+failure series remained `0`. No metric, database row, Pod, or alert was
+manually deleted to force the resolution.

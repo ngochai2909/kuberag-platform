@@ -6,6 +6,6 @@ See the shared runtime evidence at
 The controlled Prefect failure produced `KubeRagIngestionFailed` in
 Prometheus and an active Alertmanager alert with receiver `slack`. The Slack
 delivery failure counters were zero at the post-notification snapshot. The
-alert is intentionally allowed to resolve naturally after its 30-minute
-lookback window.
-
+alert then resolved naturally after its 30-minute lookback window; the
+Alertmanager active-alert list was empty and Slack delivery failures remained
+zero.
