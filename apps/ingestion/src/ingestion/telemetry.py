@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import logging
 import os
+import time
 
 from opentelemetry import metrics, trace
 from opentelemetry._logs import set_logger_provider
@@ -30,6 +31,10 @@ _meter = metrics.get_meter("kuberag.ingestion")
 _run_counter = _meter.create_counter("kuberag.ingestion.runs")
 _document_counter = _meter.create_counter("kuberag.ingestion.documents")
 _duration_histogram = _meter.create_histogram("kuberag.ingestion.duration")
+_last_failure_timestamp_gauge = _meter.create_gauge(
+    "kuberag.ingestion.last_failure_timestamp",
+    unit="s",
+)
 _trace_provider: TracerProvider | None = None
 _meter_provider: MeterProvider | None = None
 _log_provider: LoggerProvider | None = None
@@ -39,6 +44,7 @@ def configure_ingestion_telemetry() -> None:
     """Enable OTLP only in the cluster deployment; local tests remain offline."""
 
     global _configured, _tracer, _meter, _run_counter, _document_counter, _duration_histogram
+    global _last_failure_timestamp_gauge
     global _trace_provider, _meter_provider, _log_provider
     if _configured or not _enabled("KUBERAG_OTEL_ENABLED"):
         return
@@ -75,6 +81,10 @@ def configure_ingestion_telemetry() -> None:
     _run_counter = _meter.create_counter("kuberag.ingestion.runs")
     _document_counter = _meter.create_counter("kuberag.ingestion.documents")
     _duration_histogram = _meter.create_histogram("kuberag.ingestion.duration")
+    _last_failure_timestamp_gauge = _meter.create_gauge(
+        "kuberag.ingestion.last_failure_timestamp",
+        unit="s",
+    )
 
     _log_provider = LoggerProvider(resource=resource)
     _log_provider.add_log_record_processor(
@@ -123,6 +133,11 @@ def record_flow_result(*, status: str, document_count: int, duration_seconds: fl
     _run_counter.add(1, attributes)
     _document_counter.add(document_count, attributes)
     _duration_histogram.record(duration_seconds, attributes)
+    if status == "failed":
+        # A short-lived process first exports its counter at one, so PromQL
+        # increase() cannot observe a 0 -> 1 transition. Keep a timestamp gauge
+        # for an alert that reliably expires after its lookback window.
+        _last_failure_timestamp_gauge.set(time.time(), attributes)
 
 
 def log_event(event: str, **attributes: object) -> None:

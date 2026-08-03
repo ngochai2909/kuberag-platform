@@ -84,7 +84,7 @@ Lưu timestamp/ảnh Slack đã che tên workspace và URL ở
 | `KubeRagApiHighP95Latency` | p95 API >45 giây trong 5 phút | RAG stage duration, llama.cpp CPU/RAM |
 | `KubeRagWorkloadHighMemory` | API/worker >85% memory limit | `kubectl top pods -n rag,prefect`; không tăng limit mù quáng |
 | `KubeRagWorkloadRestarted` | API hoặc worker restart trong 15 phút | `kubectl logs --previous`, events |
-| `KubeRagIngestionFailed` | Metric ingestion `failed` trong 30 phút | Prefect run/log, không rerun mù quáng vì có thể upsert |
+| `KubeRagIngestionFailed` | Timestamp failure ingestion trong 30 phút | Prefect run/log, không rerun mù quáng vì có thể upsert |
 | `KubeRagPostgresNotReady` | PostgreSQL không Ready quá 2 phút | CNPG Cluster/Pod/PVC; không xóa Pod/PVC để sửa |
 | `KubeRagEnvoyRateLimitSpike` | Ít nhất 5 response `429` trong 5 phút | Envoy status/rate-limit metrics, k6 rate-limit report |
 
@@ -96,9 +96,11 @@ unavailable, không phải bằng chứng HA hay backup.
 `make gcp-release-ingestion-failure-test` là Job test-only, cố ý gọi flow
 Prefect với `http://127.0.0.1:1` bên trong **chính Pod Job**. Địa chỉ đó không
 phải VnExpress, không ra Internet và không ghi tài liệu/chunk/embedding: lỗi
-xảy ra trước bước upsert. Flow vẫn gửi log, trace và metric
-`kuberag_ingestion_runs_total{status="failed"}` qua OTel Collector, do đó rule
-`KubeRagIngestionFailed` có thể Firing và gửi Slack.
+xảy ra trước bước upsert. Flow vẫn gửi log, trace, counter
+`kuberag_ingestion_runs_total{status="failed"}` và gauge
+`kuberag_ingestion_last_failure_timestamp_seconds` qua OTel Collector. Rule
+`KubeRagIngestionFailed` so sánh gauge này với thời điểm hiện tại, nên Firing
+ngay cả khi process ngắn hạn chỉ export counter lần đầu ở giá trị `1`.
 
 Lệnh này tạo một Job `Failed`, một Prefect flow run `Failed` và một Slack alert;
 nó thay đổi cluster nhưng không tạo VM/disk/firewall. Chỉ chạy sau khi image

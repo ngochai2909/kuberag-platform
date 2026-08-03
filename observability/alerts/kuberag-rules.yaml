@@ -79,7 +79,8 @@ spec:
     - name: kuberag.ingestion-and-data
       rules:
         - alert: KubeRagIngestionFailed
-          expr: increase(kuberag_ingestion_runs_total{status="failed"}[30m]) > 0
+          expr: |
+            time() - kuberag_ingestion_last_failure_timestamp_seconds{status="failed"} < 1800
           for: 0m
           labels:
             severity: warning
