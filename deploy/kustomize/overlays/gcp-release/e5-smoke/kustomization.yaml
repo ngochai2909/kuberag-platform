@@ -5,7 +5,7 @@ resources:
 images:
   - name: kuberag-ingestion
     newName: asia-southeast1-docker.pkg.dev/kube-rag-platform/kuberag/kuberag-ingestion
-    digest: sha256:c574d4befc49d1ffe66f7c7f05e5555933136d6630a3f9a3601d566ce7f306ff
+    digest: sha256:5d42fbc2c72c7f62de36d6bcfee39b035c24c36b7266955cc52024a888df2658
 patches:
   - target:
       group: batch
