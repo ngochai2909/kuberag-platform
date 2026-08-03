@@ -26,6 +26,16 @@ resource "google_project_service" "artifact_registry" {
   disable_on_destroy = false
 }
 
+# GitHub Actions exchanges its OIDC identity for short-lived credentials of the
+# Artifact Registry writer service account. Docker's gcloud credential helper
+# requires this API for that impersonation step.
+resource "google_project_service" "iam_credentials" {
+  project = var.project_id
+  service = "iamcredentials.googleapis.com"
+
+  disable_on_destroy = false
+}
+
 # Regional immutable registry for the three KubeRAG custom images.
 resource "google_artifact_registry_repository" "kuberag" {
   location      = var.region
