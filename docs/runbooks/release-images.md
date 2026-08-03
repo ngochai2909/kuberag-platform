@@ -62,3 +62,45 @@ mới được apply cluster. Không tạo digest giả hoặc dùng Git SHA tag
 Base Python Chainguard trong hai Dockerfile đã pin digest ngày 2026-08-01;
 frontend đã pin Node/Nginx. Pin giảm thay đổi bất ngờ nhưng cần review/refresh
 định kỳ để nhận security fixes.
+
+## Release hiện tại: `24a106b`
+
+Workflow thành công của commit `24a106b06c73de55f6dcfc472367e655b2d4917f`
+đã quét, tạo SBOM và ký ba digest dưới đây. Release overlay tại
+`deploy/kustomize/overlays/gcp-release/` là bản ghi Git của đúng release này.
+
+| Workload | Immutable image |
+| --- | --- |
+| RAG API (gồm init container) | `asia-southeast1-docker.pkg.dev/kube-rag-platform/kuberag/kuberag-api@sha256:41d5e6b962d4d2d320a8723898a2c05f995734131422be40ee63e5c3d7589dd5` |
+| Prefect server, worker và Job | `asia-southeast1-docker.pkg.dev/kube-rag-platform/kuberag/kuberag-ingestion@sha256:046e3751b3d56b173a6d04eeb4d0e67a494b9c7340d1c35ba74ef274b59a0984` |
+| Frontend | `asia-southeast1-docker.pkg.dev/kube-rag-platform/kuberag/kuberag-web@sha256:ff429d39e6ec6d97e3cd0ef28e72c0047098f57d1bbd7e6dced324b54f932f7c` |
+
+Các base manifest vẫn dùng `*:local` và `imagePullPolicy: Never` cho phát
+triển local. Release overlay thay cả image bằng digest và policy bằng
+`IfNotPresent`: kubelet sẽ pull image đúng digest lần đầu từ Artifact Registry
+bằng node service account có quyền reader, sau đó có thể dùng cache. Vì digest
+không thay đổi nội dung, cache không làm Pod chạy image khác release.
+
+### Checkpoint rollout
+
+```bash
+# Chỉ render tại máy local; không đổi Kubernetes.
+make gcp-release-render
+
+# Thay đổi cluster: rollout bốn Deployment dài hạn, không tự chạy Prefect Job.
+make gcp-release-apply
+
+# Chỉ đọc: Ready state và image thực tế trong Pod template.
+make gcp-release-status
+```
+
+Chỉ chạy `gcp-release-apply` sau khi release-manifest PR đã được review và có
+xác nhận ngay trước rollout. Nếu rollout lỗi, đổi ba digest trong một PR mới về
+release đã biết là tốt rồi apply lại; không đổi tag hay import image local để
+rollback.
+
+Các Job có side effect được tách khỏi rollout: dùng
+`make gcp-release-prefect-bootstrap`, `make gcp-release-e5-download`,
+`make gcp-release-e5-smoke` hoặc `make gcp-release-ingest-run` khi chủ động
+muốn chạy đúng Job đó. `gcp-release-ingest-run` có thể fetch/upsert dữ liệu nên
+cần checkpoint xác nhận riêng.
