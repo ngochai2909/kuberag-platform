@@ -155,7 +155,7 @@
 
     - name: Install the Artifact Registry kubelet credential provider
       ansible.builtin.copy:
-        src: gcp-artifact-registry-credential-provider
+        src: ../files/gcp-artifact-registry-credential-provider
         dest: "{{ gcp_image_credential_provider_dir }}/gcp-artifact-registry-credential-provider"
         owner: root
         group: root
