@@ -1,7 +1,21 @@
 # Temporary single-node observability budget. All services remain ClusterIP and
 # are accessed by an IAP-backed kubectl port-forward, not Envoy/public firewall.
 alertmanager:
-  enabled: false
+  # Alertmanager reads the Slack webhook from a separately mounted Secret. No
+  # webhook URL is stored in Helm values or Git.
+  enabled: true
+  alertmanagerSpec:
+    configSecret: kuberag-alertmanager-config
+    secrets:
+      - kuberag-slack-webhook
+    replicas: 1
+    resources:
+      requests:
+        cpu: 50m
+        memory: 96Mi
+      limits:
+        cpu: 200m
+        memory: 192Mi
 
 defaultRules:
   create: false
@@ -105,6 +119,9 @@ prometheus:
     serviceMonitorSelectorNilUsesHelmValues: false
     serviceMonitorSelector: {}
     serviceMonitorNamespaceSelector: {}
+    ruleSelectorNilUsesHelmValues: false
+    ruleSelector: {}
+    ruleNamespaceSelector: {}
     podMonitorSelectorNilUsesHelmValues: false
     podMonitorSelector: {}
     podMonitorNamespaceSelector: {}

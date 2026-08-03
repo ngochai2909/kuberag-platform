@@ -9,14 +9,13 @@ permissions:
   contents: read
 
 jobs:
-  quality:
+  python-quality:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     strategy:
       fail-fast: false
       matrix:
         python-version: ["3.12", "3.13"]
-
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v6
@@ -28,10 +27,135 @@ jobs:
       - name: Install dependencies
         run: uv sync --frozen --group dev
       - name: Ruff lint
-        run: uv run ruff check apps/rag-api/src apps/rag-api/tests
+        run: uv run ruff check apps/rag-api/src apps/rag-api/tests apps/ingestion/src apps/ingestion/tests
       - name: Ruff format
-        run: uv run ruff format --check apps/rag-api/src apps/rag-api/tests
+        run: uv run ruff format --check apps/rag-api/src apps/rag-api/tests apps/ingestion/src apps/ingestion/tests
       - name: Type check
-        run: uv run mypy apps/rag-api/src apps/rag-api/tests
+        run: uv run mypy apps/rag-api/src apps/rag-api/tests apps/ingestion/src apps/ingestion/tests
       - name: Test
         run: uv run pytest
+
+  frontend-quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: apps/frontend/package-lock.json
+      - name: Install locked frontend dependencies
+        run: npm --prefix apps/frontend ci
+      - name: Type check frontend
+        run: npm --prefix apps/frontend run typecheck
+      - name: Build frontend
+        run: npm --prefix apps/frontend run build
+
+  security:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - name: Semgrep source scan
+        run: |
+          pipx install semgrep
+          semgrep scan --config p/default --error apps deploy infra observability scripts
+      - name: Trivy filesystem, configuration, and secret scan
+        uses: aquasecurity/trivy-action@0.32.0
+        with:
+          scan-type: fs
+          scanners: vuln,secret,misconfig
+          severity: HIGH,CRITICAL
+          exit-code: "1"
+          ignore-unfixed: true
+
+  release-images:
+    # Pull requests never get cloud credentials or push images. The exact
+    # GitHub OIDC provider also enforces main in Terraform.
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: [python-quality, frontend-quality, security]
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      REGISTRY: asia-southeast1-docker.pkg.dev
+      REPOSITORY: ${{ vars.GCP_PROJECT_ID }}/kuberag
+      TAG: ${{ github.sha }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Authenticate to Google Cloud through GitHub OIDC
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ vars.GCP_WIF_PROVIDER }}
+          service_account: ${{ vars.GCP_ARTIFACT_WRITER_SA }}
+      - name: Configure Docker for Artifact Registry
+        run: gcloud auth configure-docker "$REGISTRY" --quiet
+      - name: Build and push RAG API
+        id: rag_api
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: apps/rag-api/Dockerfile
+          push: true
+          tags: ${{ env.REGISTRY }}/${{ env.REPOSITORY }}/kuberag-api:${{ env.TAG }}
+      - name: Build and push ingestion
+        id: ingestion
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: apps/ingestion/Dockerfile
+          push: true
+          tags: ${{ env.REGISTRY }}/${{ env.REPOSITORY }}/kuberag-ingestion:${{ env.TAG }}
+      - name: Build and push frontend
+        id: frontend
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: apps/frontend/Dockerfile
+          push: true
+          tags: ${{ env.REGISTRY }}/${{ env.REPOSITORY }}/kuberag-web:${{ env.TAG }}
+      - uses: aquasecurity/setup-trivy@v0.2.0
+      - name: Scan pushed images and produce CycloneDX SBOMs
+        run: |
+          mkdir -p artifacts
+          for image in \
+            "$REGISTRY/$REPOSITORY/kuberag-api@${{ steps.rag_api.outputs.digest }}" \
+            "$REGISTRY/$REPOSITORY/kuberag-ingestion@${{ steps.ingestion.outputs.digest }}" \
+            "$REGISTRY/$REPOSITORY/kuberag-web@${{ steps.frontend.outputs.digest }}"; do
+            trivy image --exit-code 1 --ignore-unfixed --severity HIGH,CRITICAL "$image"
+            name=$(echo "$image" | sed 's|.*/||; s|@.*||')
+            trivy image --format cyclonedx --output "artifacts/${name}.cdx.json" "$image"
+          done
+      - uses: sigstore/cosign-installer@v3.8.0
+      - name: Keylessly sign and verify immutable image digests
+        run: |
+          for image in \
+            "$REGISTRY/$REPOSITORY/kuberag-api@${{ steps.rag_api.outputs.digest }}" \
+            "$REGISTRY/$REPOSITORY/kuberag-ingestion@${{ steps.ingestion.outputs.digest }}" \
+            "$REGISTRY/$REPOSITORY/kuberag-web@${{ steps.frontend.outputs.digest }}"; do
+            cosign sign --yes "$image"
+            cosign verify \
+              --certificate-identity-regexp="https://github.com/${{ github.repository }}/.github/workflows/ci.yml@refs/heads/main" \
+              --certificate-oidc-issuer="https://token.actions.githubusercontent.com" \
+              "$image"
+          done
+      - name: Publish release image digests
+        run: |
+          {
+            echo "## Immutable release images"
+            echo "- kuberag-api: \`$REGISTRY/$REPOSITORY/kuberag-api@${{ steps.rag_api.outputs.digest }}\`"
+            echo "- kuberag-ingestion: \`$REGISTRY/$REPOSITORY/kuberag-ingestion@${{ steps.ingestion.outputs.digest }}\`"
+            echo "- kuberag-web: \`$REGISTRY/$REPOSITORY/kuberag-web@${{ steps.frontend.outputs.digest }}\`"
+          } >> "$GITHUB_STEP_SUMMARY"
+      - name: Upload SBOMs
+        uses: actions/upload-artifact@v4
+        with:
+          name: kuberag-cyclonedx-sboms-${{ github.sha }}
+          path: artifacts/*.cdx.json
+          if-no-files-found: error

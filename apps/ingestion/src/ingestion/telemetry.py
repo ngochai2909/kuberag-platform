@@ -30,12 +30,16 @@ _meter = metrics.get_meter("kuberag.ingestion")
 _run_counter = _meter.create_counter("kuberag.ingestion.runs")
 _document_counter = _meter.create_counter("kuberag.ingestion.documents")
 _duration_histogram = _meter.create_histogram("kuberag.ingestion.duration")
+_trace_provider: TracerProvider | None = None
+_meter_provider: MeterProvider | None = None
+_log_provider: LoggerProvider | None = None
 
 
 def configure_ingestion_telemetry() -> None:
     """Enable OTLP only in the cluster deployment; local tests remain offline."""
 
     global _configured, _tracer, _meter, _run_counter, _document_counter, _duration_histogram
+    global _trace_provider, _meter_provider, _log_provider
     if _configured or not _enabled("KUBERAG_OTEL_ENABLED"):
         return
 
@@ -49,32 +53,65 @@ def configure_ingestion_telemetry() -> None:
             "deployment.environment.name": os.environ.get("APP_ENV", "production"),
         }
     )
-    trace_provider = TracerProvider(resource=resource)
-    trace_provider.add_span_processor(
-        BatchSpanProcessor(OTLPSpanExporter(endpoint=endpoint, insecure=True, timeout=2))
+    _trace_provider = TracerProvider(resource=resource)
+    # Prefect flow processes exit quickly; keep the batch delay short so spans
+    # are usually exported before shutdown_ingestion_telemetry() runs.
+    _trace_provider.add_span_processor(
+        BatchSpanProcessor(
+            OTLPSpanExporter(endpoint=endpoint, insecure=True, timeout=2),
+            schedule_delay_millis=500,
+        )
     )
-    trace.set_tracer_provider(trace_provider)
+    trace.set_tracer_provider(_trace_provider)
     _tracer = trace.get_tracer("kuberag.ingestion")
 
     metric_reader = PeriodicExportingMetricReader(
         OTLPMetricExporter(endpoint=endpoint, insecure=True, timeout=2),
-        export_interval_millis=5_000,
+        export_interval_millis=1_000,
     )
-    meter_provider = MeterProvider(resource=resource, metric_readers=[metric_reader])
-    metrics.set_meter_provider(meter_provider)
+    _meter_provider = MeterProvider(resource=resource, metric_readers=[metric_reader])
+    metrics.set_meter_provider(_meter_provider)
     _meter = metrics.get_meter("kuberag.ingestion")
     _run_counter = _meter.create_counter("kuberag.ingestion.runs")
     _document_counter = _meter.create_counter("kuberag.ingestion.documents")
     _duration_histogram = _meter.create_histogram("kuberag.ingestion.duration")
 
-    log_provider = LoggerProvider(resource=resource)
-    log_provider.add_log_record_processor(
-        BatchLogRecordProcessor(OTLPLogExporter(endpoint=endpoint, insecure=True, timeout=2))
+    _log_provider = LoggerProvider(resource=resource)
+    _log_provider.add_log_record_processor(
+        BatchLogRecordProcessor(
+            OTLPLogExporter(endpoint=endpoint, insecure=True, timeout=2),
+            schedule_delay_millis=500,
+        )
     )
-    set_logger_provider(log_provider)
+    set_logger_provider(_log_provider)
     root_logger = logging.getLogger()
-    root_logger.addHandler(LoggingHandler(level=logging.INFO, logger_provider=log_provider))
+    root_logger.addHandler(LoggingHandler(level=logging.INFO, logger_provider=_log_provider))
     _configured = True
+
+
+def shutdown_ingestion_telemetry() -> None:
+    """Force-flush OTLP exporters so short-lived Prefect processes do not drop signals."""
+
+    global _configured, _trace_provider, _meter_provider, _log_provider
+    if not _configured:
+        return
+
+    for provider in (_trace_provider, _meter_provider, _log_provider):
+        if provider is None:
+            continue
+        try:
+            provider.force_flush(timeout_millis=5_000)
+        except Exception:
+            _logger.warning("ingestion_telemetry_force_flush_failed", exc_info=True)
+        try:
+            provider.shutdown()
+        except Exception:
+            _logger.warning("ingestion_telemetry_shutdown_failed", exc_info=True)
+
+    _trace_provider = None
+    _meter_provider = None
+    _log_provider = None
+    _configured = False
 
 
 def get_tracer() -> trace.Tracer:

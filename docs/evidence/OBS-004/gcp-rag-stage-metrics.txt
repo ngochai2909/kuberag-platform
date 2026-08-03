@@ -1,0 +1,14 @@
+Command executed on 2026-07-31 after the same RAG request:
+
+    PromQL:
+      sum by (stage) (kuberag_rag_stage_duration_seconds_count)
+      sum by (stage) (kuberag_rag_stage_duration_seconds_sum)
+
+Relevant output:
+
+    stage_counts=[('retrieval', '1'), ('prompt', '1'), ('generation', '1')]
+    stage_sum_seconds=[('retrieval', '18.36449'), ('prompt', '0.00043'), ('generation', '4.36021')]
+
+Meaning: retrieval, prompt, and generation stage metrics are scraped from
+FastAPI `/metrics`. Ingestion metrics are captured after the Prefect flow
+checkpoint.

@@ -1,0 +1,114 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: kuberag-platform-alerts
+  namespace: observability
+  labels:
+    app.kubernetes.io/part-of: kuberag
+spec:
+  groups:
+    - name: kuberag.api
+      rules:
+        - alert: KubeRagApiHigh5xxRate
+          expr: |
+            (
+              sum(increase(kuberag_api_requests_total{status_code=~"5.."}[5m]))
+              /
+              sum(increase(kuberag_api_requests_total[5m]))
+            ) > 0.05
+            and sum(increase(kuberag_api_requests_total[5m])) >= 5
+          for: 5m
+          labels:
+            severity: warning
+            alert_receiver: slack
+          annotations:
+            summary: "KubeRAG API 5xx rate is above 5%"
+            runbook_url: "https://github.com/ngochai2909/kuberag-platform/blob/main/docs/runbooks/alerting.md"
+        - alert: KubeRagApiHighP95Latency
+          expr: |
+            histogram_quantile(0.95,
+              sum by (le) (rate(kuberag_api_request_duration_seconds_bucket[5m]))
+            ) > 45
+          for: 5m
+          labels:
+            severity: warning
+            alert_receiver: slack
+          annotations:
+            summary: "KubeRAG API p95 latency is above 45 seconds"
+            runbook_url: "https://github.com/ngochai2909/kuberag-platform/blob/main/docs/runbooks/alerting.md"
+    - name: kuberag.workloads
+      rules:
+        - alert: KubeRagWorkloadHighMemory
+          expr: |
+            (
+              sum by (namespace, pod, container) (
+                container_memory_working_set_bytes{
+                  namespace=~"rag|prefect",
+                  container=~"api|worker"
+                }
+              )
+              /
+              sum by (namespace, pod, container) (
+                kube_pod_container_resource_limits{
+                  namespace=~"rag|prefect",
+                  container=~"api|worker",
+                  resource="memory",
+                  unit="byte"
+                }
+              )
+            ) > 0.85
+          for: 5m
+          labels:
+            severity: warning
+            alert_receiver: slack
+          annotations:
+            summary: "KubeRAG workload memory is above 85% of its limit"
+            runbook_url: "https://github.com/ngochai2909/kuberag-platform/blob/main/docs/runbooks/alerting.md"
+        - alert: KubeRagWorkloadRestarted
+          expr: |
+            increase(kube_pod_container_status_restarts_total{
+              namespace=~"rag|prefect", container=~"api|worker"
+            }[15m]) > 0
+          for: 0m
+          labels:
+            severity: warning
+            alert_receiver: slack
+          annotations:
+            summary: "KubeRAG API or Prefect worker restarted"
+            runbook_url: "https://github.com/ngochai2909/kuberag-platform/blob/main/docs/runbooks/alerting.md"
+    - name: kuberag.ingestion-and-data
+      rules:
+        - alert: KubeRagIngestionFailed
+          expr: increase(kuberag_ingestion_runs_total{status="failed"}[30m]) > 0
+          for: 0m
+          labels:
+            severity: warning
+            alert_receiver: slack
+          annotations:
+            summary: "A KubeRAG ingestion run failed in the last 30 minutes"
+            runbook_url: "https://github.com/ngochai2909/kuberag-platform/blob/main/docs/runbooks/alerting.md"
+        - alert: KubeRagPostgresNotReady
+          expr: |
+            min by (namespace, pod) (
+              kube_pod_status_ready{
+                namespace="data", pod=~"kuberag-pg-.*", condition="true"
+              }
+            ) == 0
+          for: 2m
+          labels:
+            severity: critical
+            alert_receiver: slack
+          annotations:
+            summary: "KubeRAG PostgreSQL Pod has not been Ready for two minutes"
+            runbook_url: "https://github.com/ngochai2909/kuberag-platform/blob/main/docs/runbooks/alerting.md"
+    - name: kuberag.gateway
+      rules:
+        - alert: KubeRagEnvoyRateLimitSpike
+          expr: increase(envoy_http_local_rate_limit_rate_limited[5m]) >= 5
+          for: 0m
+          labels:
+            severity: warning
+            alert_receiver: slack
+          annotations:
+            summary: "Envoy returned at least five rate-limited responses in five minutes"
+            runbook_url: "https://github.com/ngochai2909/kuberag-platform/blob/main/docs/runbooks/alerting.md"

@@ -1,0 +1,33 @@
+Command executed on 2026-07-31 (read-only):
+
+    PromQL:
+      sum by (pod) (container_memory_working_set_bytes{namespace=~"rag|prefect|data",container!=""})
+      sum by (namespace, pod) (kube_pod_container_status_restarts_total{namespace=~"rag|prefect|data"})
+    kubectl top pods -n rag
+    kubectl top pods -n observability
+
+Relevant output:
+
+    working_set_bytes_sample=[('kuberag-llm-6fb5998655-v6rmm', '1374928896'), ('cloudnative-pg-c94cdb459-78kcx', '48553984'), ('kuberag-pg-1', '123478016'), ('prefect-server-6d846d7f4b-5tndf', '195350528'), ('kuberag-pss-smoke-59bc599cd9-z92l4', '10858496'), ('kuberag-web-6995b57c68-dpkrz', '7229440'), ('prefect-worker-76dd864dd9-j9sxs', '88551424'), ('kuberag-rag-api-5c9d8c7487-5z8p6', '994684928')]
+    restart_totals_sample=[('rag/kuberag-pss-smoke-59bc599cd9-z92l4', '1'), ('data/cloudnative-pg-c94cdb459-78kcx', '1'), ('prefect/prefect-server-6d846d7f4b-5tndf', '2'), ('rag/kuberag-llm-6fb5998655-v6rmm', '1'), ('data/kuberag-pg-1', '1'), ('rag/kuberag-web-6995b57c68-dpkrz', '0'), ('prefect/prefect-worker-76dd864dd9-j9sxs', '0'), ('rag/kuberag-rag-api-5c9d8c7487-5z8p6', '0')]
+
+    kubectl_top_rag:
+NAME                                 CPU(cores)   MEMORY(bytes)   
+kuberag-llm-6fb5998655-v6rmm         1m           1311Mi          
+kuberag-pss-smoke-59bc599cd9-z92l4   1m           10Mi            
+kuberag-rag-api-5c9d8c7487-5z8p6     19m          948Mi           
+kuberag-web-6995b57c68-dpkrz         1m           6Mi
+
+    kubectl_top_observability:
+NAME                                                     CPU(cores)   MEMORY(bytes)   
+kuberag-loki-0                                           11m          161Mi           
+kuberag-monitoring-grafana-7f68b75df6-26cgv              14m          319Mi           
+kuberag-monitoring-kube-pr-operator-59b457ccf5-cf852     5m           23Mi            
+kuberag-monitoring-kube-state-metrics-6866ddb94b-vxt2d   2m           20Mi            
+kuberag-otel-collector-647ff6499d-cqm9j                  2m           42Mi            
+kuberag-pyroscope-0                                      7m           86Mi            
+kuberag-tempo-0                                          7m           589Mi           
+prometheus-kuberag-monitoring-kube-pr-prometheus-0       25m          339Mi
+
+Meaning: Pod memory and restart series are available to the Grafana overview
+panels "Application memory by Pod" and "Pod restart count".

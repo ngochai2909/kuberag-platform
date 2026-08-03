@@ -1,6 +1,6 @@
 # KubeRAG Project Status
 
-Last updated: 2026-07-30
+Last updated: 2026-07-31
 
 This page is the quickest starting point for a contributor, reviewer, or
 operator joining the project. It separates what is running now from what is
@@ -24,16 +24,21 @@ FastAPI and enforces a local rate limit. The React/Vite frontend is deployed at
 thumbnails when present. The GCP overlay explicitly enables a temporary public
 demo mode; it is not production authentication.
 
-The Week 4 observability stack is now deployed on the GCP checkpoint. Grafana,
-Prometheus, Loki, Tempo, Pyroscope, and an OpenTelemetry Collector run only as
-internal `ClusterIP` services in `observability`. A FastAPI request has produced
-Prometheus metrics, a structured Loki log, a Tempo trace with `embed_query`,
-`pgvector_search`, `build_prompt`, and `llm_generate` spans, and a Pyroscope CPU
-profile. The new Prefect worker image carries the same OTLP configuration and
-will emit its ingestion telemetry on the next scheduled or explicitly approved
-flow run. Grafana has provisioned data sources and the `KubeRAG Overview`
-dashboard from Git. Alerts, a Grafana walkthrough screenshot, and k6 evidence
-are deliberately still pending.
+The Week 4 observability stack is deployed on the GCP checkpoint with runtime
+evidence under `docs/evidence/OBS-*`. Grafana, Prometheus, Loki, Tempo,
+Pyroscope, and an OpenTelemetry Collector run only as internal `ClusterIP`
+services in `observability`. A FastAPI request produced Prometheus metrics, a
+structured Loki log (queryable by `request_id` / `trace_id` metadata), a Tempo
+trace with `embed_query`, `pgvector_search`, `build_prompt`, and `llm_generate`
+spans, and a Pyroscope CPU profile. A Prefect ingest run
+(`flow_run_id=0161776d-6e44-41c5-a9ac-64088949778c`) produced Loki logs under
+`service_name=kuberag-ingestion`, Tempo spans `ingestion.fetch` /
+`ingestion.upsert`, and Prometheus metrics `kuberag_ingestion_*` after a
+short-lived-process OTLP flush fix. Grafana data sources and the
+`KubeRAG Overview` dashboard are provisioned from Git and verified via the
+in-Pod Grafana API. Alertmanager/Slack has been verified through a test-only
+Firing→Resolved lifecycle; k6 runtime evidence and supply-chain CI execution
+remain pending. Envoy is a Prometheus scrape target (OBS-001 closed).
 
 The final intended topology remains one k3s server and two worker nodes. The
 current one-node setup is a deliberately temporary, lower-cost checkpoint.
@@ -55,7 +60,7 @@ current one-node setup is a deliberately temporary, lower-cost checkpoint.
 | llama.cpp | Not deployed | Verified running | Internal `ClusterIP` Service loads Qwen2.5-1.5B GGUF from a 5 GiB PVC; it is not public. |
 | RAG API | Skeleton only | Verified through Envoy | Restricted FastAPI Deployment has E5 cache PVC, CNPG Secret, llama.cpp Service dependency, and a 45 s application timeout. The GCP demo route is public without bearer auth, but Envoy applies a shared 10 requests/minute limit. |
 | Frontend | Local Vite development available | Deployed through Envoy `/` | Non-root Nginx serves the built React/Vite SPA; it calls `/api/v1` and shows source title, URL, and optional RSS thumbnail. |
-| Observability | Manifests prepared only | Deployed and runtime-checked | Prometheus, Grafana, Loki, Tempo, Pyroscope, and OTel Collector are private `ClusterIP` workloads; Grafana is reached through IAP port-forward only. |
+| Observability | Manifests prepared only | Deployed with OBS evidence | Prometheus, Grafana, Loki, Tempo, Pyroscope, and OTel Collector are private `ClusterIP` workloads; FastAPI + Prefect telemetry evidence under `docs/evidence/OBS-*`; Grafana via IAP port-forward / in-Pod API. |
 
 ## Verified GCP Foundation
 
@@ -112,7 +117,11 @@ firewall CIDRs when the operator egress changes.
 | `NET-003`, `NET-005` | Pass GCP runtime | Envoy accepted `/api/` to FastAPI and the local `BackendTrafficPolicy` rate-limit policy. The temporary GCP demo is intentionally unauthenticated. |
 | `WEB-001` | Pass GCP runtime | `kuberag-web` is Ready; its Service and accepted `/` HTTPRoute return the React SPA from the Envoy data plane. |
 | `NET-006` | Partial | Controlled curl burst produced `429` after 10 requests; evidence: `docs/evidence/NET-006/gcp-rate-limit-429.txt`. Required k6 rate-limit evidence remains pending. |
-| `OBS-001`–`OBS-014` | In progress | Stack, private storage/limits, provisioned data sources/dashboard, API metrics/log/trace/profile paths, and no-Alloy design are deployed. Runtime evidence capture, Grafana review, Prefect flow telemetry, and alert rules remain pending. |
+| `OBS-001` | Partial | Kubernetes + FastAPI/`kube-state-metrics` targets scrape (`docs/evidence/OBS-001/`). Envoy Gateway is not yet a Prometheus `up` job/ServiceMonitor target. |
+| `OBS-002`–`OBS-004` | Pass GCP runtime | PromQL RPS/p50/p95/p99/status codes, Pod memory/restarts, RAG stage metrics, and ingestion `kuberag_ingestion_*` metrics captured under `docs/evidence/OBS-002`–`OBS-004/`. |
+| `OBS-005`–`OBS-007` | Pass GCP runtime | FastAPI and Prefect OTLP logs in Loki; required fields present as structured metadata; sample review shows no raw prompt/document/secret (`docs/evidence/OBS-005`–`OBS-007/`). |
+| `OBS-008`–`OBS-010` | Pass GCP runtime | Tempo RAG span tree, ingestion fetch/upsert spans, and response↔Loki↔Tempo `trace_id` correlation (`docs/evidence/OBS-008`–`OBS-010/`). |
+| `OBS-011`–`OBS-014` | Pass GCP runtime | Pyroscope CPU profile, Git-provisioned Grafana datasources/dashboard (API evidence), no Alloy inventory, retention/PVC/limits match single-node budget (`docs/evidence/OBS-011`–`OBS-014/`). |
 
 ## Immediate Next Checkpoint
 
@@ -123,16 +132,19 @@ unchanged input on rerun.
 
 Next checkpoint:
 
-1. Capture Grafana screenshots and command evidence for the deployed four
-   signals, including the next Prefect flow run.
-2. Add a k6 rate-limit scenario and load-test evidence.
-3. Provision alert rules/contact point and test an alert lifecycle.
+1. Add an Envoy Prometheus scrape target to close `OBS-001` fully (optional
+   narrow follow-up) or accept the documented gap until Week 5 networking polish.
+2. Restore IAP tunnel and pass the 30-minute observability stability gate.
+3. Run the separately confirmed k6 scenarios and capture evidence (`PERF-*`,
+   close `NET-006` and `ALT-007`).
 
 See `docs/ROADMAP.md` week 2 and `docs/data-model.md`.
 
 ## Major Work Still Ahead
 
-- Alert rules/contact point, Grafana evidence walkthrough, and k6 load/rate-limit tests.
+- Alert rules/contact point and alert lifecycle test (`ALT-*`).
+- k6 load/rate-limit tests (`PERF-*`) and full `NET-006` k6 evidence.
+- Optional Envoy Prometheus scrape to finish `OBS-001`.
 - Chainguard image hardening, scanning, SBOMs, and signing.
 - Restoration of the final 1 server + 2 worker topology and PostgreSQL replication/failover evidence.
 

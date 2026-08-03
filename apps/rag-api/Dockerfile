@@ -2,8 +2,10 @@
 # The API imports the shared E5 provider, so it needs the embedding extra and
 # the ingestion package even though the HTTP application lives under rag-api.
 ARG UV_VERSION=0.11.15
-ARG PYTHON_DEV_IMAGE=cgr.dev/chainguard/python:latest-dev
-ARG PYTHON_RUNTIME_IMAGE=cgr.dev/chainguard/python:latest
+# Pinned after manifest inspection on 2026-08-01. Refresh deliberately through
+# review; never use a mutable Chainguard :latest tag in a release build.
+ARG PYTHON_DEV_IMAGE=cgr.dev/chainguard/python@sha256:df9869a05f74ef57bd9fb8d9185f91cd3d93e70d7a89860795525d8c2ddebc50
+ARG PYTHON_RUNTIME_IMAGE=cgr.dev/chainguard/python@sha256:231d4a76e8521327dbb3c23094b2c41151501845d2656da3c1a0610981c496c5
 ARG PYTHON_VERSION=3.13
 
 FROM ghcr.io/astral-sh/uv:${UV_VERSION} AS uv

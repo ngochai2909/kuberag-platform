@@ -16,6 +16,115 @@ resource "google_project_service" "iap" {
   disable_on_destroy = false
 }
 
+# Artifact Registry must be enabled before Terraform can create the regional
+# Docker repository. Keeping this API activation in state makes a clean apply
+# reproducible without a manual Console step.
+resource "google_project_service" "artifact_registry" {
+  project = var.project_id
+  service = "artifactregistry.googleapis.com"
+
+  disable_on_destroy = false
+}
+
+# Regional immutable registry for the three KubeRAG custom images.
+resource "google_artifact_registry_repository" "kuberag" {
+  location      = var.region
+  repository_id = var.artifact_registry_repository_id
+  description   = "Immutable KubeRAG release images"
+  format        = "DOCKER"
+
+  depends_on = [google_project_service.artifact_registry]
+
+  docker_config {
+    immutable_tags = true
+  }
+
+  # CI runs Trivy image scans. Do not inherit Artifact Registry/Container
+  # Analysis automatic vulnerability scanning, which can add paid scope.
+  vulnerability_scanning_config {
+    enablement_config = "DISABLED"
+  }
+
+  cleanup_policies {
+    id     = "keep-two-newest-release-versions"
+    action = "KEEP"
+    most_recent_versions {
+      keep_count = 2
+    }
+  }
+
+  cleanup_policies {
+    id     = "delete-old-tagged-versions"
+    action = "DELETE"
+    condition {
+      tag_state  = "TAGGED"
+      older_than = "604800s"
+    }
+  }
+
+  cleanup_policies {
+    id     = "delete-untagged-after-seven-days"
+    action = "DELETE"
+    condition {
+      tag_state  = "UNTAGGED"
+      older_than = "604800s"
+    }
+  }
+}
+
+resource "google_service_account" "node" {
+  # Google caps account_id at 30 characters while name_prefix permits 32.
+  account_id   = "${substr(var.name_prefix, 0, 25)}-node"
+  display_name = "KubeRAG single-node Artifact Registry reader"
+}
+
+resource "google_project_iam_member" "node_artifact_registry_reader" {
+  project = var.project_id
+  role    = "roles/artifactregistry.reader"
+  member  = "serviceAccount:${google_service_account.node.email}"
+}
+
+# GitHub Actions uses OIDC federation, never a downloaded service-account key.
+resource "google_service_account" "github_release" {
+  account_id   = "${substr(var.name_prefix, 0, 15)}-github-release"
+  display_name = "KubeRAG GitHub Actions Artifact Registry writer"
+}
+
+resource "google_project_iam_member" "github_release_artifact_registry_writer" {
+  project = var.project_id
+  role    = "roles/artifactregistry.writer"
+  member  = "serviceAccount:${google_service_account.github_release.email}"
+}
+
+resource "google_iam_workload_identity_pool" "github" {
+  workload_identity_pool_id = "${var.name_prefix}-github"
+  display_name              = "KubeRAG GitHub Actions"
+  description               = "OIDC identities from the KubeRAG GitHub repository"
+}
+
+resource "google_iam_workload_identity_pool_provider" "github" {
+  workload_identity_pool_id          = google_iam_workload_identity_pool.github.workload_identity_pool_id
+  workload_identity_pool_provider_id = "github"
+  display_name                       = "GitHub Actions OIDC"
+
+  attribute_mapping = {
+    "google.subject"       = "assertion.sub"
+    "attribute.repository" = "assertion.repository"
+    "attribute.ref"        = "assertion.ref"
+  }
+  attribute_condition = "assertion.repository == '${var.github_repository}' && assertion.ref == 'refs/heads/main'"
+
+  oidc {
+    issuer_uri = "https://token.actions.githubusercontent.com"
+  }
+}
+
+resource "google_service_account_iam_member" "github_release_workload_identity_user" {
+  service_account_id = google_service_account.github_release.name
+  role               = "roles/iam.workloadIdentityUser"
+  member             = "principalSet://iam.googleapis.com/${google_iam_workload_identity_pool.github.name}/attribute.repository/${var.github_repository}"
+}
+
 resource "google_compute_network" "kuberag" {
   name                    = "${var.name_prefix}-vpc"
   auto_create_subnetworks = false
@@ -155,6 +264,13 @@ resource "google_compute_instance" "kuberag" {
     block-project-ssh-keys = "TRUE"
     enable-oslogin         = "FALSE"
     ssh-keys               = "${var.ssh_username}:${trimspace(var.ssh_public_key)}"
+  }
+
+  service_account {
+    email = google_service_account.node.email
+    # OAuth scope is required for the VM to use its narrowly scoped IAM role.
+    # Applying this may require a controlled VM stop/start.
+    scopes = ["https://www.googleapis.com/auth/cloud-platform"]
   }
 
   scheduling {

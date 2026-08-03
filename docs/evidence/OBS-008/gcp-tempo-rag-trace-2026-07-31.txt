@@ -1,0 +1,11 @@
+Command executed on 2026-07-31 after an in-cluster RAG request and OTLP export:
+
+    GET http://kuberag-tempo.observability.svc.cluster.local:3200/api/traces/99825f49fcc95cb18d0a6405b02dde03
+
+Relevant output:
+
+    tempo_trace_found=True
+    spans=['rag.embed_query', 'rag.pgvector_search', 'rag.build_prompt', 'rag.llm_generate', 'http.request']
+
+Meaning: the trace passed through OTel Collector to Tempo for the live request
+used in the 2026-07-31 evidence pack.

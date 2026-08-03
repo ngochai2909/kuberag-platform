@@ -1,0 +1,25 @@
+Configuration and runtime check on 2026-07-31.
+
+Git Helm values (single-node budget):
+  Prometheus retention: 3d / retentionSize 8GB / PVC 10Gi
+    (deploy/helm/observability/kube-prometheus-stack-values.yaml)
+  Loki retention_period: 72h / PVC 5Gi / memory limit 512Mi
+    (deploy/helm/observability/loki-values.yaml)
+  Tempo retention: 48h / PVC 5Gi / memory limit 768Mi
+    (deploy/helm/observability/tempo-values.yaml)
+  Pyroscope PVC 5Gi / Grafana PVC 2Gi
+    (deploy/helm/observability/pyroscope-values.yaml,
+     kube-prometheus-stack-values.yaml)
+
+Runtime PVC:
+
+NAME                                                                                                     STATUS   VOLUME                                     CAPACITY   ACCESS MODES   STORAGECLASS   VOLUMEATTRIBUTESCLASS   AGE   VOLUMEMODE
+data-kuberag-pyroscope-0                                                                                 Bound    pvc-a1bc8906-9deb-476b-ac4f-bec3786a1c41   5Gi        RWO            local-path     <unset>                 17h   Filesystem
+kuberag-monitoring-grafana                                                                               Bound    pvc-648b56e8-13f5-4a68-b0d1-c00f21aa94c8   2Gi        RWO            local-path     <unset>                 17h   Filesystem
+prometheus-kuberag-monitoring-kube-pr-prometheus-db-prometheus-kuberag-monitoring-kube-pr-prometheus-0   Bound    pvc-ff0ed95e-b1f8-4f03-bef0-70cda98f0b69   10Gi       RWO            local-path     <unset>                 17h   Filesystem
+storage-kuberag-loki-0                                                                                   Bound    pvc-746ddddc-bf4c-44dd-8e8c-67c6a99cc00f   5Gi        RWO            local-path     <unset>                 17h   Filesystem
+storage-kuberag-tempo-0                                                                                  Bound    pvc-8354b9c1-a90a-4b69-b93b-070d61e9d136   5Gi        RWO            local-path     <unset>                 17h   Filesystem
+
+Meaning: retention, PVC sizes, and memory limits match the constrained
+single-node observability budget documented in
+docs/runbooks/observability.md.

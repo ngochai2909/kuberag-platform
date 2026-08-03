@@ -1,0 +1,25 @@
+Command executed on 2026-07-31 after make gcp-ingest-run
+(flow_run_id=0161776d-6e44-41c5-a9ac-64088949778c, state=Completed) and OTLP flush from the Prefect worker:
+
+    PromQL (scraped from OTel Collector prometheus exporter :8889):
+      sum by (status) (kuberag_ingestion_runs_total)
+      sum by (status) (kuberag_ingestion_documents_total)
+      sum by (status) (kuberag_ingestion_duration_count)
+
+Relevant output:
+
+    kuberag_ingestion_runs_total{status="completed"}=1
+    kuberag_ingestion_documents_total{status="completed"}=60
+    kuberag_ingestion_duration_count{status="completed"}=1
+    kuberag_ingestion_duration_sum≈17.72s
+    metric_names=[
+      kuberag_ingestion_runs_total,
+      kuberag_ingestion_documents_total,
+      kuberag_ingestion_duration_bucket,
+      kuberag_ingestion_duration_count,
+      kuberag_ingestion_duration_sum
+    ]
+
+Meaning: ingestion metrics exported over OTLP are available in Prometheus for
+the completed Prefect flow. Combined with OBS-004 RAG stage metrics, retrieval,
+generation, and ingestion domain metrics are covered.

@@ -4,15 +4,13 @@
 # Build from the repository root:
 #   docker build -f apps/ingestion/Dockerfile -t kuberag-ingestion:local .
 #
-# Free Chainguard tags float on :latest / :latest-dev (currently CPython 3.14).
-# Versioned 3.12/3.13 tags need Chainguard enterprise, so the builder installs
-# managed CPython 3.13 via uv into /python and the runtime copies that
-# interpreter with the venv. Release overlays must pin by immutable digest
-# before production deploy (SEC-001).
+# The builder installs managed CPython 3.13 via uv into /python and the runtime
+# copies that interpreter with the venv. Both Chainguard base references are
+# pinned after manifest inspection on 2026-08-01.
 
 ARG UV_VERSION=0.11.15
-ARG PYTHON_DEV_IMAGE=cgr.dev/chainguard/python:latest-dev
-ARG PYTHON_RUNTIME_IMAGE=cgr.dev/chainguard/python:latest
+ARG PYTHON_DEV_IMAGE=cgr.dev/chainguard/python@sha256:df9869a05f74ef57bd9fb8d9185f91cd3d93e70d7a89860795525d8c2ddebc50
+ARG PYTHON_RUNTIME_IMAGE=cgr.dev/chainguard/python@sha256:231d4a76e8521327dbb3c23094b2c41151501845d2656da3c1a0610981c496c5
 ARG PYTHON_VERSION=3.13
 
 FROM ghcr.io/astral-sh/uv:${UV_VERSION} AS uv

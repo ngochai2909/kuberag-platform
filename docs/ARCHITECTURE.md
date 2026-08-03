@@ -360,11 +360,11 @@ Pyroscope SDK instrument trực tiếp FastAPI. Không dùng privileged/eBPF/hos
 
 ```mermaid
 flowchart LR
-    Metrics["Prometheus metrics"] --> Alert["Grafana Alerting"]
-    Alert --> Telegram["Telegram contact point"]
+    Metrics["Prometheus metrics"] --> Alert["Alertmanager"]
+    Alert --> Slack["Slack incoming webhook"]
 ```
 
-Alert tối thiểu: high latency/error, high memory/restart, ingestion failure, PostgreSQL unavailable/lag và `429` spike. Token/chat ID nằm trong Secret.
+Alert tối thiểu: high latency/error, high memory/restart, ingestion failure, PostgreSQL unavailable/lag và `429` spike. Slack webhook nằm trong Kubernetes Secret; Grafana chỉ hiển thị trạng thái alert.
 
 ## 10. Security architecture
 

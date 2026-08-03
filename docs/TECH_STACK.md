@@ -39,7 +39,7 @@
 | Traces | Tempo | Required | Lưu traces | Tích hợp Grafana/OTLP tốt |
 | Profiles | Pyroscope + Python SDK | Required | Continuous profiling | Chứng minh profile không cần privileged agent |
 | Dashboard | Grafana | Required | Dashboard/Explore/correlation | Một giao diện cho bốn signal |
-| Alerting | Grafana Alerting + Telegram | Required | Rule, contact point, notification | Dễ provision và demo trực quan |
+| Alerting | Prometheus Alertmanager + Slack | Required | Rule, route, notification | Rule được đánh giá gần metrics, webhook không vào Git |
 | Load test | k6 | Required | Load/stress/rate-limit tests | Scriptable, phù hợp CI và Prometheus dashboard |
 | Base image | Chainguard | Required | Secure runtime base | Đáp ứng loại image mentor cho phép |
 | SAST | Semgrep | Required | Scan source code | Rule-based, dễ chạy CI |

@@ -151,7 +151,7 @@ Feature complete, có tải quan sát được, alert thật và CI bảo mật 
 
 | Ngày | Công việc                                                                  | Kết quả                             |
 | ---- | -------------------------------------------------------------------------- | ----------------------------------- |
-| 1    | Grafana alert rules/contact point Telegram, synthetic failure              | Test notification và alert thật     |
+| 1    | Alertmanager rule/route Slack, synthetic failure                           | Test notification và alert thật     |
 | 2    | k6 load test, thresholds, dashboard evidence                               | RPS/latency/errors/CPU/RAM hiển thị |
 | 3    | k6 rate-limit scenario, `429` spike và alert                               | Gateway policy được chứng minh      |
 | 4    | Semgrep/Trivy, Dockerfile/manifests hardening, policy exception process    | Source/config scans pass            |
@@ -159,7 +159,7 @@ Feature complete, có tải quan sát được, alert thật và CI bảo mật 
 
 ### Quality gate
 
-- Telegram nhận alert tạo từ workload/test thật.
+- Slack nhận alert tạo từ workload/test thật.
 - k6 report và dashboard cùng time window.
 - Semgrep/Trivy pass theo policy hoặc exception có tài liệu.
 - Ba custom images dùng Chainguard, có SBOM và signature hợp lệ.

@@ -47,9 +47,12 @@ TEMPO_CHART_VERSION ?= 1.24.4
 PYROSCOPE_CHART_VERSION ?= 2.2.0
 OTEL_COLLECTOR_CHART_VERSION ?= 0.165.0
 GRAFANA_ADMIN_SECRET_SCRIPT ?= scripts/gcp-grafana-admin-secret.sh
+ALERTMANAGER_SLACK_SECRET_SCRIPT ?= scripts/gcp-alertmanager-slack-secret.sh
+K6_GATEWAY_URL ?=
+K6_SUMMARY_DIR ?= docs/evidence/PERF-001
 
 .PHONY: setup run test test-cov lint format format-check typecheck check lock clean frontend-install frontend-dev frontend-typecheck frontend-build docker-frontend-build gcp-frontend-image-import gcp-frontend-render gcp-frontend-apply gcp-frontend-status gcp-frontend-smoke infra-check k3s-install gcp-k3s-syntax gcp-k3s-install gcp-k3s-tunnel gcp-k3s-status gcp-envoy-install gcp-foundation-apply gcp-foundation-delete gcp-foundation-status gcp-foundation-smoke gcp-unsafe-check k3s-foundation-apply k3s-foundation-delete k3s-foundation-status k3s-foundation-smoke k3s-unsafe-check cnpg-render postgresql-render migration-sql gcp-cnpg-install gcp-postgresql-apply gcp-postgresql-status gcp-db-migrate gcp-db-current gcp-db-vector-test gcp-rag-retrieval-test gcp-llama-render gcp-llama-apply gcp-llama-status docker-ingestion-build docker-ingestion-smoke gcp-ingestion-image-import docker-rag-api-build docker-rag-api-smoke gcp-rag-api-image-import gcp-rag-db-secret gcp-rag-api-auth-secret gcp-rag-api-render gcp-rag-api-apply gcp-rag-api-status gcp-rag-routing-render gcp-rag-routing-apply gcp-rag-routing-status gcp-rag-routing-smoke gcp-rag-rate-limit-smoke gcp-prefect-db-secret gcp-prefect-role-secret gcp-prefect-server-db-secret gcp-prefect-apply gcp-prefect-bootstrap gcp-prefect-worker-apply gcp-prefect-worker-restart gcp-prefect-status gcp-e5-download gcp-e5-smoke gcp-ingest-run
-.PHONY: gcp-grafana-admin-secret gcp-observability-render gcp-observability-install gcp-observability-apply gcp-observability-status gcp-observability-grafana-port-forward
+.PHONY: gcp-grafana-admin-secret gcp-alertmanager-slack-secret gcp-observability-render gcp-observability-install gcp-observability-apply gcp-observability-status gcp-observability-grafana-port-forward gcp-alert-lifecycle-test gcp-alert-lifecycle-cleanup k6-load k6-rate-limit
 
 setup:
 	uv sync --group dev
@@ -138,6 +141,9 @@ gcp-k3s-status:
 gcp-grafana-admin-secret:
 	KUBECONFIG=$(GCP_KUBECONFIG) $(GRAFANA_ADMIN_SECRET_SCRIPT)
 
+gcp-alertmanager-slack-secret:
+	KUBECONFIG=$(GCP_KUBECONFIG) bash $(ALERTMANAGER_SLACK_SECRET_SCRIPT)
+
 gcp-observability-render:
 	helm template kuberag-monitoring prometheus-community/kube-prometheus-stack \
 		--version $(KUBE_PROMETHEUS_STACK_VERSION) \
@@ -203,6 +209,22 @@ gcp-observability-status:
 
 gcp-observability-grafana-port-forward:
 	KUBECONFIG=$(GCP_KUBECONFIG) kubectl -n $(OBSERVABILITY_NAMESPACE) port-forward service/kuberag-monitoring-grafana 3000:80
+
+gcp-alert-lifecycle-test:
+	KUBECONFIG=$(GCP_KUBECONFIG) kubectl apply -f observability/alerts/test-lifecycle.yaml
+
+gcp-alert-lifecycle-cleanup:
+	KUBECONFIG=$(GCP_KUBECONFIG) kubectl delete -f observability/alerts/test-lifecycle.yaml
+
+k6-load:
+	@test -n "$(K6_GATEWAY_URL)" || (echo "Set K6_GATEWAY_URL=http://VM_EXTERNAL_IP:8080" && exit 1)
+	@mkdir -p $(K6_SUMMARY_DIR)
+	KUBERAG_GATEWAY_URL=$(K6_GATEWAY_URL) k6 run --summary-export=$(K6_SUMMARY_DIR)/load-summary.json tests/k6/load.js
+
+k6-rate-limit:
+	@test -n "$(K6_GATEWAY_URL)" || (echo "Set K6_GATEWAY_URL=http://VM_EXTERNAL_IP:8080" && exit 1)
+	@mkdir -p $(K6_SUMMARY_DIR)
+	KUBERAG_GATEWAY_URL=$(K6_GATEWAY_URL) k6 run --summary-export=$(K6_SUMMARY_DIR)/rate-limit-summary.json tests/k6/rate-limit.js
 
 gcp-envoy-install:
 	KUBECONFIG=$(GCP_KUBECONFIG) helm upgrade --install envoy-gateway \

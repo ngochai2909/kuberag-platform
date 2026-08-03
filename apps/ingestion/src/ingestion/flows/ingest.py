@@ -28,6 +28,7 @@ from ingestion.telemetry import (
     get_tracer,
     log_event,
     record_flow_result,
+    shutdown_ingestion_telemetry,
 )
 from ingestion.upsert import start_ingestion_run
 
@@ -196,6 +197,9 @@ def daily_ingest_flow(
             duration_ms=round(duration_seconds * 1000, 2),
         )
         raise
+    finally:
+        # Short-lived Prefect processes must flush OTLP batches before exit.
+        shutdown_ingestion_telemetry()
 
 
 def flow_pipeline_steps() -> list[str]:

@@ -1,0 +1,13 @@
+Command executed on 2026-07-31 from the cluster network:
+
+    GET /pyroscope/render?query=process_cpu:cpu:nanoseconds:cpu:nanoseconds{service_name="kuberag-rag-api"}&from=now-30m
+
+Relevant output:
+
+    profile_render_status=200
+    profile_bytes=94239
+    profile_types_include=process_cpu:cpu:nanoseconds:cpu:nanoseconds
+
+Meaning: the direct, non-privileged Python Pyroscope SDK continues to upload
+CPU profiles for kuberag-rag-api. No eBPF, hostPath, privileged Pod, or
+Grafana Alloy agent is used.

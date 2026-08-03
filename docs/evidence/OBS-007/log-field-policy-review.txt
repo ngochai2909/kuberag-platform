@@ -1,0 +1,19 @@
+Review performed on 2026-07-31 against the correlated RAG request
+request_id=2d826983-5a81-4f62-8460-de2222608aab / trace_id=99825f49fcc95cb18d0a6405b02dde03.
+
+Sources reviewed:
+  - apps/rag-api/src/app/core/middleware.py (request_completed extras)
+  - apps/rag-api/src/app/core/logging.py (JsonFormatter)
+  - Loki stream labels for `| request_id="2d826983-5a81-4f62-8460-de2222608aab"`
+  - Pod stdout JSON line for the same request_id
+
+Observed logged fields:
+  timestamp, level, logger, message=request_completed,
+  request_id, trace_id, method, route, status_code, duration_ms
+
+Not present in the sample:
+  raw question/prompt text, retrieved document bodies, Authorization headers,
+  database URLs, API keys, stack traces
+
+Meaning: the request logging path follows the project policy of bounded
+structured fields without raw secret/prompt/document content.

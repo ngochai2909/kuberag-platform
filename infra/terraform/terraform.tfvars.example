@@ -20,3 +20,6 @@ machine_type      = "e2-custom-8-16384"
 boot_disk_size_gb = 30
 data_disk_size_gb = 150
 disk_type         = "pd-balanced"
+
+artifact_registry_repository_id = "kuberag"
+github_repository              = "ngochai2909/kuberag-platform"
