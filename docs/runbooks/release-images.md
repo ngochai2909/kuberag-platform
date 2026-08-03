@@ -104,3 +104,16 @@ Các Job có side effect được tách khỏi rollout: dùng
 `make gcp-release-e5-smoke` hoặc `make gcp-release-ingest-run` khi chủ động
 muốn chạy đúng Job đó. `gcp-release-ingest-run` có thể fetch/upsert dữ liệu nên
 cần checkpoint xác nhận riêng.
+
+## Private pull trên k3s Compute Engine
+
+Khác GKE, k3s tự quản lý không tự chuyển service account của VM thành registry
+credential. Playbook GCP cài kubelet credential provider tại node; provider chỉ
+match `asia-southeast1-docker.pkg.dev`, lấy access token ngắn hạn từ GCE metadata
+service và trả token trực tiếp cho kubelet. Token không được lưu vào Git, Secret
+Kubernetes hoặc disk. Provider phụ thuộc VM service account
+`kuberag-node` có `roles/artifactregistry.reader` và scope `cloud-platform`.
+
+Thay đổi provider restart k3s nên phải render/review Ansible, xác nhận riêng
+trước apply, rồi xác minh node `Ready` trước release rollout. Không dùng
+service-account key, `imagePullSecret` token dài hạn hay public Artifact Registry.

@@ -145,6 +145,32 @@
         group: root
         mode: "0750"
 
+    - name: Ensure the kubelet credential provider directory exists
+      ansible.builtin.file:
+        path: "{{ gcp_image_credential_provider_dir }}"
+        state: directory
+        owner: root
+        group: root
+        mode: "0755"
+
+    - name: Install the Artifact Registry kubelet credential provider
+      ansible.builtin.copy:
+        src: gcp-artifact-registry-credential-provider
+        dest: "{{ gcp_image_credential_provider_dir }}/gcp-artifact-registry-credential-provider"
+        owner: root
+        group: root
+        mode: "0755"
+      notify: Restart k3s
+
+    - name: Configure the Artifact Registry kubelet credential provider
+      ansible.builtin.template:
+        src: gcp-artifact-registry-credential-provider.yaml.j2
+        dest: "{{ gcp_image_credential_provider_dir }}/config.yaml"
+        owner: root
+        group: root
+        mode: "0644"
+      notify: Restart k3s
+
     - name: Configure k3s for the GCP network and data disk
       ansible.builtin.copy:
         dest: /etc/rancher/k3s/config.yaml
@@ -164,6 +190,9 @@
           {% for label in k3s_node_labels %}
             - "{{ label }}"
           {% endfor %}
+          kubelet-arg:
+            - "image-credential-provider-bin-dir={{ gcp_image_credential_provider_dir }}"
+            - "image-credential-provider-config={{ gcp_image_credential_provider_dir }}/config.yaml"
       notify: Restart k3s
 
     - name: Download the k3s installer
