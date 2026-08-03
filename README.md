@@ -267,12 +267,13 @@ docs/
 The current boundary has verified the single-node foundation,
 PostgreSQL/pgvector persistence, ingestion through real E5, a deployed
 FastAPI-to-llama.cpp RAG request, and React source-card UI through Envoy.
-The private observability stack is deployed. Alertmanager/Slack, controlled
-k6, and supply-chain artifacts are defined in Git but must run at their
-separate GCP checkpoints; see [`alerting.md`](docs/runbooks/alerting.md),
-[`performance-testing.md`](docs/runbooks/performance-testing.md), and
-[`release-images.md`](docs/runbooks/release-images.md). No runtime alert, k6,
-or Artifact Registry evidence is claimed until those commands pass.
+The private observability stack, Slack alert lifecycle, and Artifact Registry
+CI release path are verified. The current signed, immutable image release is
+recorded in [`release-images.md`](docs/runbooks/release-images.md); render it
+before its separately confirmed cluster rollout. Controlled k6 and the Slack
+browser-link improvement remain deferred; see
+[`performance-testing.md`](docs/runbooks/performance-testing.md) and
+[`alerting.md`](docs/runbooks/alerting.md).
 
 The single-node target is temporary. The 3-node GCP topology and PostgreSQL primary/replica placement must be restored before final acceptance.
 

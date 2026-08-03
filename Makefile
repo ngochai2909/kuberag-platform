@@ -12,10 +12,10 @@ POSTGRES_LOCAL_KUSTOMIZE ?= deploy/kustomize/overlays/local/postgresql
 POSTGRES_GCP_KUSTOMIZE ?= deploy/kustomize/overlays/gcp/postgresql
 PREFECT_GCP_KUSTOMIZE ?= deploy/kustomize/overlays/gcp/prefect
 PREFECT_WORKER_GCP_KUSTOMIZE ?= deploy/kustomize/overlays/gcp/prefect-worker
-PREFECT_BOOTSTRAP_JOB ?= deploy/kustomize/base/prefect/bootstrap-job.yaml
-E5_DOWNLOAD_JOB ?= deploy/kustomize/base/prefect/e5-download-job.yaml
-E5_SMOKE_JOB ?= deploy/kustomize/base/prefect/e5-smoke-job.yaml
-INGEST_RUN_JOB ?= deploy/kustomize/base/prefect/ingest-run-job.yaml
+PREFECT_BOOTSTRAP_JOB ?= deploy/kustomize/base/prefect/bootstrap/job.yaml
+E5_DOWNLOAD_JOB ?= deploy/kustomize/base/prefect/e5-download/job.yaml
+E5_SMOKE_JOB ?= deploy/kustomize/base/prefect/e5-smoke/job.yaml
+INGEST_RUN_JOB ?= deploy/kustomize/base/prefect/ingest-run/job.yaml
 ALEMBIC_CONFIG ?= apps/ingestion/alembic.ini
 DB_RUN_SCRIPT ?= scripts/gcp-db-run.sh
 DB_INTEGRATION_TEST ?= apps/ingestion/tests/integration/test_vector_query.py
@@ -24,6 +24,14 @@ LLAMA_GCP_KUSTOMIZE ?= deploy/kustomize/overlays/gcp/llama-cpp
 RAG_API_GCP_KUSTOMIZE ?= deploy/kustomize/overlays/gcp/rag-api
 FRONTEND_GCP_KUSTOMIZE ?= deploy/kustomize/overlays/gcp/frontend
 RAG_ROUTING_GCP_KUSTOMIZE ?= deploy/kustomize/overlays/gcp/rag-routing
+RELEASE_RAG_API_GCP_KUSTOMIZE ?= deploy/kustomize/overlays/gcp-release/rag-api
+RELEASE_FRONTEND_GCP_KUSTOMIZE ?= deploy/kustomize/overlays/gcp-release/frontend
+RELEASE_PREFECT_GCP_KUSTOMIZE ?= deploy/kustomize/overlays/gcp-release/prefect
+RELEASE_PREFECT_WORKER_GCP_KUSTOMIZE ?= deploy/kustomize/overlays/gcp-release/prefect-worker
+RELEASE_PREFECT_BOOTSTRAP_GCP_KUSTOMIZE ?= deploy/kustomize/overlays/gcp-release/prefect-bootstrap
+RELEASE_E5_DOWNLOAD_GCP_KUSTOMIZE ?= deploy/kustomize/overlays/gcp-release/e5-download
+RELEASE_E5_SMOKE_GCP_KUSTOMIZE ?= deploy/kustomize/overlays/gcp-release/e5-smoke
+RELEASE_INGEST_RUN_GCP_KUSTOMIZE ?= deploy/kustomize/overlays/gcp-release/ingest-run
 RAG_RATE_LIMIT_BURST ?= 11
 INGESTION_IMAGE ?= kuberag-ingestion:local
 RAG_API_IMAGE ?= kuberag-rag-api:local
@@ -52,7 +60,7 @@ K6_GATEWAY_URL ?=
 K6_SUMMARY_DIR ?= docs/evidence/PERF-001
 
 .PHONY: setup run test test-cov lint format format-check typecheck check lock clean frontend-install frontend-dev frontend-typecheck frontend-build docker-frontend-build gcp-frontend-image-import gcp-frontend-render gcp-frontend-apply gcp-frontend-status gcp-frontend-smoke infra-check k3s-install gcp-k3s-syntax gcp-k3s-install gcp-k3s-tunnel gcp-k3s-status gcp-envoy-install gcp-foundation-apply gcp-foundation-delete gcp-foundation-status gcp-foundation-smoke gcp-unsafe-check k3s-foundation-apply k3s-foundation-delete k3s-foundation-status k3s-foundation-smoke k3s-unsafe-check cnpg-render postgresql-render migration-sql gcp-cnpg-install gcp-postgresql-apply gcp-postgresql-status gcp-db-migrate gcp-db-current gcp-db-vector-test gcp-rag-retrieval-test gcp-llama-render gcp-llama-apply gcp-llama-status docker-ingestion-build docker-ingestion-smoke gcp-ingestion-image-import docker-rag-api-build docker-rag-api-smoke gcp-rag-api-image-import gcp-rag-db-secret gcp-rag-api-auth-secret gcp-rag-api-render gcp-rag-api-apply gcp-rag-api-status gcp-rag-routing-render gcp-rag-routing-apply gcp-rag-routing-status gcp-rag-routing-smoke gcp-rag-rate-limit-smoke gcp-prefect-db-secret gcp-prefect-role-secret gcp-prefect-server-db-secret gcp-prefect-apply gcp-prefect-bootstrap gcp-prefect-worker-apply gcp-prefect-worker-restart gcp-prefect-status gcp-e5-download gcp-e5-smoke gcp-ingest-run
-.PHONY: gcp-grafana-admin-secret gcp-alertmanager-slack-secret gcp-observability-render gcp-observability-install gcp-observability-apply gcp-observability-status gcp-observability-grafana-port-forward gcp-alert-lifecycle-test gcp-alert-lifecycle-cleanup k6-load k6-rate-limit
+.PHONY: gcp-grafana-admin-secret gcp-alertmanager-slack-secret gcp-observability-render gcp-observability-install gcp-observability-apply gcp-observability-status gcp-observability-grafana-port-forward gcp-alert-lifecycle-test gcp-alert-lifecycle-cleanup gcp-release-render gcp-release-apply gcp-release-status gcp-release-prefect-bootstrap gcp-release-e5-download gcp-release-e5-smoke gcp-release-ingest-run k6-load k6-rate-limit
 
 setup:
 	uv sync --group dev
@@ -320,6 +328,54 @@ gcp-rag-api-apply:
 gcp-rag-api-status:
 	KUBECONFIG=$(GCP_KUBECONFIG) kubectl -n rag get deployment/kuberag-rag-api service/kuberag-rag-api pvc/kuberag-rag-embedding-models
 	KUBECONFIG=$(GCP_KUBECONFIG) kubectl -n rag get pods -l app.kubernetes.io/name=kuberag-rag-api -o wide
+
+# The release overlays pin CI-produced image digests. Render before apply; the
+# apply target rolls out only long-running workloads and never starts a Job.
+gcp-release-render:
+	kubectl kustomize $(RELEASE_RAG_API_GCP_KUSTOMIZE)
+	kubectl kustomize $(RELEASE_FRONTEND_GCP_KUSTOMIZE)
+	kubectl kustomize $(RELEASE_PREFECT_GCP_KUSTOMIZE)
+	kubectl kustomize $(RELEASE_PREFECT_WORKER_GCP_KUSTOMIZE)
+
+gcp-release-apply:
+	KUBECONFIG=$(GCP_KUBECONFIG) kubectl apply -k $(RELEASE_RAG_API_GCP_KUSTOMIZE)
+	KUBECONFIG=$(GCP_KUBECONFIG) kubectl apply -k $(RELEASE_FRONTEND_GCP_KUSTOMIZE)
+	KUBECONFIG=$(GCP_KUBECONFIG) kubectl apply -k $(RELEASE_PREFECT_GCP_KUSTOMIZE)
+	KUBECONFIG=$(GCP_KUBECONFIG) kubectl apply -k $(RELEASE_PREFECT_WORKER_GCP_KUSTOMIZE)
+	KUBECONFIG=$(GCP_KUBECONFIG) kubectl -n rag rollout status deployment/kuberag-rag-api --timeout=300s
+	KUBECONFIG=$(GCP_KUBECONFIG) kubectl -n rag rollout status deployment/kuberag-web --timeout=300s
+	KUBECONFIG=$(GCP_KUBECONFIG) kubectl -n prefect rollout status deployment/prefect-server --timeout=300s
+	KUBECONFIG=$(GCP_KUBECONFIG) kubectl -n prefect rollout status deployment/prefect-worker --timeout=300s
+
+gcp-release-status:
+	KUBECONFIG=$(GCP_KUBECONFIG) kubectl -n rag get deployment/kuberag-rag-api,kuberag-web -o wide
+	KUBECONFIG=$(GCP_KUBECONFIG) kubectl -n prefect get deployment/prefect-server,prefect-worker -o wide
+	KUBECONFIG=$(GCP_KUBECONFIG) kubectl -n rag get deployment/kuberag-rag-api,kuberag-web -o jsonpath='{range .items[*]}{.metadata.name}{": "}{range .spec.template.spec.initContainers[*]}{.image}{" "}{end}{range .spec.template.spec.containers[*]}{.image}{" "}{end}{"\\n"}{end}'
+	KUBECONFIG=$(GCP_KUBECONFIG) kubectl -n prefect get deployment/prefect-server,prefect-worker -o jsonpath='{range .items[*]}{.metadata.name}{": "}{range .spec.template.spec.containers[*]}{.image}{" "}{end}{"\\n"}{end}'
+
+gcp-release-prefect-bootstrap:
+	KUBECONFIG=$(GCP_KUBECONFIG) kubectl -n prefect delete job/prefect-bootstrap --ignore-not-found
+	KUBECONFIG=$(GCP_KUBECONFIG) kubectl apply -k $(RELEASE_PREFECT_BOOTSTRAP_GCP_KUSTOMIZE)
+	KUBECONFIG=$(GCP_KUBECONFIG) kubectl -n prefect wait --for=condition=Complete job/prefect-bootstrap --timeout=300s
+	KUBECONFIG=$(GCP_KUBECONFIG) kubectl -n prefect logs job/prefect-bootstrap
+
+gcp-release-e5-download:
+	KUBECONFIG=$(GCP_KUBECONFIG) kubectl -n prefect delete job/kuberag-e5-download --ignore-not-found
+	KUBECONFIG=$(GCP_KUBECONFIG) kubectl apply -k $(RELEASE_E5_DOWNLOAD_GCP_KUSTOMIZE)
+	KUBECONFIG=$(GCP_KUBECONFIG) kubectl -n prefect wait --for=condition=Complete job/kuberag-e5-download --timeout=900s
+	KUBECONFIG=$(GCP_KUBECONFIG) kubectl -n prefect logs job/kuberag-e5-download
+
+gcp-release-e5-smoke:
+	KUBECONFIG=$(GCP_KUBECONFIG) kubectl -n prefect delete job/kuberag-e5-smoke --ignore-not-found
+	KUBECONFIG=$(GCP_KUBECONFIG) kubectl apply -k $(RELEASE_E5_SMOKE_GCP_KUSTOMIZE)
+	KUBECONFIG=$(GCP_KUBECONFIG) kubectl -n prefect wait --for=condition=Complete job/kuberag-e5-smoke --timeout=300s
+	KUBECONFIG=$(GCP_KUBECONFIG) kubectl -n prefect logs job/kuberag-e5-smoke
+
+gcp-release-ingest-run:
+	KUBECONFIG=$(GCP_KUBECONFIG) kubectl -n prefect delete job/kuberag-ingest-run --ignore-not-found
+	KUBECONFIG=$(GCP_KUBECONFIG) kubectl apply -k $(RELEASE_INGEST_RUN_GCP_KUSTOMIZE)
+	KUBECONFIG=$(GCP_KUBECONFIG) kubectl -n prefect wait --for=condition=Complete job/kuberag-ingest-run --timeout=3600s
+	KUBECONFIG=$(GCP_KUBECONFIG) kubectl -n prefect logs job/kuberag-ingest-run
 
 gcp-rag-routing-render:
 	kubectl kustomize $(RAG_ROUTING_GCP_KUSTOMIZE)

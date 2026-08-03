@@ -1,0 +1,22 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - ../../gcp/rag-api
+images:
+  - name: kuberag-rag-api
+    newName: asia-southeast1-docker.pkg.dev/kube-rag-platform/kuberag/kuberag-api
+    digest: sha256:41d5e6b962d4d2d320a8723898a2c05f995734131422be40ee63e5c3d7589dd5
+patches:
+  - target:
+      group: apps
+      version: v1
+      kind: Deployment
+      name: kuberag-rag-api
+      namespace: rag
+    patch: |-
+      - op: replace
+        path: /spec/template/spec/initContainers/0/imagePullPolicy
+        value: IfNotPresent
+      - op: replace
+        path: /spec/template/spec/containers/0/imagePullPolicy
+        value: IfNotPresent
