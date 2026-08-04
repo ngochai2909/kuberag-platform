@@ -141,6 +141,38 @@ variable "machine_type" {
   default     = "e2-custom-8-16384"
 }
 
+variable "observability_worker_machine_type" {
+  description = "Compute Engine machine type for the observability and PostgreSQL-replica worker."
+  type        = string
+  default     = "e2-custom-2-8192"
+}
+
+variable "application_worker_machine_type" {
+  description = "Compute Engine machine type for the RAG, ingestion, llama.cpp, and PostgreSQL worker."
+  type        = string
+  default     = "e2-custom-2-8192"
+}
+
+variable "worker_private_ips" {
+  description = "Stable private addresses for the two no-public-IP k3s workers in the KubeRAG subnet."
+  type = object({
+    observability = string
+    application   = string
+  })
+  default = {
+    observability = "10.42.0.3"
+    application   = "10.42.0.4"
+  }
+
+  validation {
+    condition = (
+      alltrue([for ip in values(var.worker_private_ips) : can(cidrhost("${ip}/32", 0))]) &&
+      var.worker_private_ips.observability != var.worker_private_ips.application
+    )
+    error_message = "worker_private_ips must contain two distinct IPv4 addresses."
+  }
+}
+
 variable "boot_disk_size_gb" {
   description = "Boot disk size in GiB."
   type        = number
@@ -152,6 +184,17 @@ variable "boot_disk_size_gb" {
   }
 }
 
+variable "worker_boot_disk_size_gb" {
+  description = "Boot disk size in GiB for each private k3s worker."
+  type        = number
+  default     = 30
+
+  validation {
+    condition     = var.worker_boot_disk_size_gb >= 20
+    error_message = "worker_boot_disk_size_gb must be at least 20 GiB."
+  }
+}
+
 variable "data_disk_size_gb" {
   description = "Persistent data disk size in GiB for models and Kubernetes persistent volumes."
   type        = number
@@ -160,6 +203,17 @@ variable "data_disk_size_gb" {
   validation {
     condition     = var.data_disk_size_gb >= 50
     error_message = "data_disk_size_gb must be at least 50 GiB."
+  }
+}
+
+variable "worker_data_disk_size_gb" {
+  description = "Persistent data disk size in GiB for each k3s worker's local-path volumes and model caches."
+  type        = number
+  default     = 50
+
+  validation {
+    condition     = var.worker_data_disk_size_gb >= 50
+    error_message = "worker_data_disk_size_gb must be at least 50 GiB."
   }
 }
 

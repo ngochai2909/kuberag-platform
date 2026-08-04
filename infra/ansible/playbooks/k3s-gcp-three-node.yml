@@ -1,0 +1,239 @@
+---
+- name: Read the existing k3s join token from the server
+  hosts: k3s_server
+  become: true
+  gather_facts: false
+
+  tasks:
+    - name: Read the k3s server node token without logging it
+      ansible.builtin.slurp:
+        src: /var/lib/kuberag/k3s/server/node-token
+      register: k3s_server_node_token
+      no_log: true
+
+    - name: Keep the decoded join token only in this Ansible run
+      ansible.builtin.set_fact:
+        kuberag_k3s_join_token: "{{ k3s_server_node_token.content | b64decode | trim }}"
+      no_log: true
+
+- name: Install and join private GCP k3s workers
+  hosts: k3s_workers
+  become: true
+  gather_facts: true
+
+  vars:
+    k3s_version: "v1.35.5+k3s1"
+    k3s_sha256: "267d18da7b3c837d82283f0588fb9031a8a6ff3c0dac772c260c40852ce515f6"
+    k3s_server_private_ip: "10.42.0.2"
+    k3s_data_mount_path: /var/lib/kuberag
+    k3s_data_dir: "{{ k3s_data_mount_path }}/k3s"
+    k3s_install_script_path: /tmp/kuberag-install-k3s.sh
+    k3s_install_url: https://get.k3s.io
+    k3s_binary_url: "https://github.com/k3s-io/k3s/releases/download/{{ k3s_version | replace('+', '%2B') }}/k3s"
+
+  handlers:
+    - name: Restart k3s agent
+      ansible.builtin.systemd:
+        name: k3s-agent
+        state: restarted
+        daemon_reload: true
+
+  tasks:
+    - name: Assert this playbook targets remote Debian workers
+      ansible.builtin.assert:
+        that:
+          - ansible_connection != "local"
+          - ansible_os_family == "Debian"
+          - k3s_node_role in ["observability", "application"]
+        fail_msg: "This playbook supports only the two declared remote GCP workers."
+
+    - name: Install OS prerequisites
+      ansible.builtin.apt:
+        name:
+          - ca-certificates
+          - curl
+          - e2fsprogs
+        state: present
+        update_cache: true
+
+    - name: Inspect the dedicated worker data disk
+      ansible.builtin.stat:
+        path: "{{ k3s_data_disk_device }}"
+        follow: true
+      register: worker_data_disk
+
+    - name: Assert the dedicated worker data disk exists
+      ansible.builtin.assert:
+        that:
+          - worker_data_disk.stat.exists
+          - worker_data_disk.stat.isblk
+        fail_msg: "Expected worker data disk {{ k3s_data_disk_device }} was not found."
+
+    - name: Detect the worker data disk filesystem
+      ansible.builtin.command:
+        argv:
+          - blkid
+          - -o
+          - value
+          - -s
+          - TYPE
+          - "{{ k3s_data_disk_device }}"
+      register: worker_data_disk_filesystem
+      changed_when: false
+      failed_when: worker_data_disk_filesystem.rc not in [0, 2]
+
+    - name: Refuse to overwrite an unexpected worker disk filesystem
+      ansible.builtin.assert:
+        that:
+          - worker_data_disk_filesystem.rc == 2 or worker_data_disk_filesystem.stdout == "ext4"
+        fail_msg: >-
+          Refusing to format {{ k3s_data_disk_device }} because it contains
+          {{ worker_data_disk_filesystem.stdout | default('an unknown filesystem') }}.
+
+    - name: Format an empty worker data disk as ext4
+      ansible.builtin.command:
+        argv:
+          - mkfs.ext4
+          - -F
+          - -L
+          - "kuberag-{{ k3s_node_role }}-data"
+          - "{{ k3s_data_disk_device }}"
+      when: worker_data_disk_filesystem.rc == 2
+      changed_when: true
+
+    - name: Read the worker data disk UUID
+      ansible.builtin.command:
+        argv:
+          - blkid
+          - -o
+          - value
+          - -s
+          - UUID
+          - "{{ k3s_data_disk_device }}"
+      register: worker_data_disk_uuid
+      changed_when: false
+
+    - name: Ensure the worker data mount point exists
+      ansible.builtin.file:
+        path: "{{ k3s_data_mount_path }}"
+        state: directory
+        owner: root
+        group: root
+        mode: "0755"
+
+    - name: Persist the worker data disk mount
+      ansible.builtin.lineinfile:
+        path: /etc/fstab
+        regexp: "^[^#]+\\s+{{ k3s_data_mount_path | regex_escape }}\\s+"
+        line: "UUID={{ worker_data_disk_uuid.stdout }} {{ k3s_data_mount_path }} ext4 defaults,nofail 0 2"
+        state: present
+        backup: true
+
+    - name: Mount the worker data disk
+      ansible.builtin.mount:
+        path: "{{ k3s_data_mount_path }}"
+        src: "UUID={{ worker_data_disk_uuid.stdout }}"
+        fstype: ext4
+        state: mounted
+
+    - name: Ensure the k3s data and configuration directories exist
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: directory
+        owner: root
+        group: root
+        mode: "0750"
+      loop:
+        - "{{ k3s_data_dir }}"
+        - /etc/rancher/k3s
+
+    - name: Configure the k3s agent without exposing its join token
+      ansible.builtin.copy:
+        dest: /etc/rancher/k3s/config.yaml
+        owner: root
+        group: root
+        mode: "0600"
+        content: |
+          server: "https://{{ k3s_server_private_ip }}:6443"
+          token: "{{ hostvars[groups['k3s_server'][0]].kuberag_k3s_join_token }}"
+          data-dir: "{{ k3s_data_dir }}"
+          node-name: "{{ inventory_hostname }}"
+          node-label:
+            - "kuberag.io/topology=three-node"
+            - "kuberag.io/role={{ k3s_node_role }}"
+      no_log: true
+      notify: Restart k3s agent
+
+    - name: Download the pinned k3s installer and binary
+      block:
+        - ansible.builtin.get_url:
+            url: "{{ k3s_install_url }}"
+            dest: "{{ k3s_install_script_path }}"
+            mode: "0755"
+        - ansible.builtin.get_url:
+            url: "{{ k3s_binary_url }}"
+            dest: /usr/local/bin/k3s
+            mode: "0755"
+            checksum: "sha256:{{ k3s_sha256 }}"
+          register: k3s_binary
+
+    - name: Check whether the k3s agent service is installed
+      ansible.builtin.stat:
+        path: /etc/systemd/system/k3s-agent.service
+      register: k3s_agent_service_unit
+
+    - name: Install the k3s agent service
+      ansible.builtin.command:
+        cmd: "/bin/sh {{ k3s_install_script_path }} agent"
+      environment:
+        INSTALL_K3S_VERSION: "{{ k3s_version }}"
+        INSTALL_K3S_SKIP_DOWNLOAD: "true"
+      when: k3s_binary.changed or not k3s_agent_service_unit.stat.exists
+      changed_when: true
+
+    - name: Ensure the k3s agent is enabled and running
+      ansible.builtin.systemd:
+        name: k3s-agent
+        enabled: true
+        state: started
+        daemon_reload: true
+
+    - name: Apply pending k3s agent configuration changes
+      ansible.builtin.meta: flush_handlers
+
+- name: Verify both workers joined and became Ready
+  hosts: k3s_server
+  become: true
+  gather_facts: false
+
+  vars:
+    expected_worker_nodes:
+      - kuberag-worker-observability
+      - kuberag-worker-application
+
+  tasks:
+    - name: Wait for each worker Ready condition
+      ansible.builtin.command:
+        argv:
+          - /usr/local/bin/k3s
+          - kubectl
+          - get
+          - node
+          - "{{ item }}"
+          - -o
+          - "jsonpath={.status.conditions[?(@.type=='Ready')].status}"
+      register: worker_ready
+      retries: 30
+      delay: 6
+      until: worker_ready.stdout == "True"
+      changed_when: false
+      loop: "{{ expected_worker_nodes }}"
+
+    - name: Show final three-node status
+      ansible.builtin.command: /usr/local/bin/k3s kubectl get nodes -o wide --show-labels
+      register: three_node_status
+      changed_when: false
+
+    - name: Display final three-node status
+      ansible.builtin.debug:
+        var: three_node_status.stdout_lines

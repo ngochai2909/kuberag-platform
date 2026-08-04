@@ -57,3 +57,15 @@ output "data_disk_device_name" {
   description = "Stable device name that Ansible will format and mount before k3s data workloads use it."
   value       = google_compute_instance.kuberag.attached_disk[0].device_name
 }
+
+output "workers" {
+  description = "Private-only worker nodes to join to the k3s server after Terraform apply."
+  value = {
+    for name, instance in google_compute_instance.worker : name => {
+      name        = instance.name
+      internal_ip = instance.network_interface[0].network_ip
+      data_disk   = google_compute_disk.worker_data[name].name
+      role        = local.worker_nodes[name].role
+    }
+  }
+}

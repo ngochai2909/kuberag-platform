@@ -1,0 +1,18 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - ../../gcp-release/prefect
+
+patches:
+  - target:
+      group: apps
+      version: v1
+      kind: Deployment
+      name: prefect-server
+      namespace: prefect
+    patch: |-
+      - op: add
+        path: /spec/template/spec/nodeSelector
+        value:
+          kuberag.io/role: application

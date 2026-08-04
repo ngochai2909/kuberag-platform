@@ -1,6 +1,7 @@
 KUBECONFIG ?= $(HOME)/.kube/kuberag-k3s.yaml
 KUSTOMIZE_LOCAL ?= deploy/kustomize/overlays/local
 GCP_ANSIBLE_INVENTORY ?= infra/ansible/inventory/gcp.ini
+GCP_THREE_NODE_ANSIBLE_INVENTORY ?= infra/ansible/inventory/gcp-three-node.ini
 GCP_KUBECONFIG ?= $(HOME)/.kube/kuberag-gcp.yaml
 GCP_KUSTOMIZE ?= deploy/kustomize/overlays/gcp
 ENVOY_GATEWAY_VERSION ?= v1.8.3
@@ -33,6 +34,13 @@ RELEASE_E5_DOWNLOAD_GCP_KUSTOMIZE ?= deploy/kustomize/overlays/gcp-release/e5-do
 RELEASE_E5_SMOKE_GCP_KUSTOMIZE ?= deploy/kustomize/overlays/gcp-release/e5-smoke
 RELEASE_INGEST_RUN_GCP_KUSTOMIZE ?= deploy/kustomize/overlays/gcp-release/ingest-run
 RELEASE_INGESTION_FAILURE_TEST_GCP_KUSTOMIZE ?= deploy/kustomize/overlays/gcp-release/ingestion-failure-test
+THREE_NODE_RAG_API_KUSTOMIZE ?= deploy/kustomize/overlays/gcp-three-node/rag-api
+THREE_NODE_FRONTEND_KUSTOMIZE ?= deploy/kustomize/overlays/gcp-three-node/frontend
+THREE_NODE_LLAMA_KUSTOMIZE ?= deploy/kustomize/overlays/gcp-three-node/llama-cpp
+THREE_NODE_PREFECT_KUSTOMIZE ?= deploy/kustomize/overlays/gcp-three-node/prefect
+THREE_NODE_PREFECT_WORKER_KUSTOMIZE ?= deploy/kustomize/overlays/gcp-three-node/prefect-worker
+THREE_NODE_POSTGRES_EXPAND_KUSTOMIZE ?= deploy/kustomize/overlays/gcp-three-node/postgresql-expand
+THREE_NODE_POSTGRES_FINAL_KUSTOMIZE ?= deploy/kustomize/overlays/gcp-three-node/postgresql-final
 RAG_RATE_LIMIT_BURST ?= 11
 INGESTION_IMAGE ?= kuberag-ingestion:local
 RAG_API_IMAGE ?= kuberag-rag-api:local
@@ -61,8 +69,8 @@ K6_GATEWAY_URL ?=
 K6_SUMMARY_DIR ?= docs/evidence/PERF-001
 K6_DOCKER_IMAGE ?= grafana/k6:2.1.0@sha256:65c920dc067d5e2e00befbf982af6ad6ad0117034e8b1c65817c7975c52d4669
 
-.PHONY: setup run test test-cov lint format format-check typecheck check lock clean frontend-install frontend-dev frontend-typecheck frontend-build docker-frontend-build gcp-frontend-image-import gcp-frontend-render gcp-frontend-apply gcp-frontend-status gcp-frontend-smoke infra-check k3s-install gcp-k3s-syntax gcp-k3s-install gcp-k3s-tunnel gcp-k3s-status gcp-envoy-install gcp-foundation-apply gcp-foundation-delete gcp-foundation-status gcp-foundation-smoke gcp-unsafe-check k3s-foundation-apply k3s-foundation-delete k3s-foundation-status k3s-foundation-smoke k3s-unsafe-check cnpg-render postgresql-render migration-sql gcp-cnpg-install gcp-postgresql-apply gcp-postgresql-status gcp-db-migrate gcp-db-current gcp-db-vector-test gcp-rag-retrieval-test gcp-llama-render gcp-llama-apply gcp-llama-status docker-ingestion-build docker-ingestion-smoke gcp-ingestion-image-import docker-rag-api-build docker-rag-api-smoke gcp-rag-api-image-import gcp-rag-db-secret gcp-rag-api-auth-secret gcp-rag-api-render gcp-rag-api-apply gcp-rag-api-status gcp-rag-routing-render gcp-rag-routing-apply gcp-rag-routing-status gcp-rag-routing-smoke gcp-rag-rate-limit-smoke gcp-prefect-db-secret gcp-prefect-role-secret gcp-prefect-server-db-secret gcp-prefect-apply gcp-prefect-bootstrap gcp-prefect-worker-apply gcp-prefect-worker-restart gcp-prefect-status gcp-e5-download gcp-e5-smoke gcp-ingest-run
-.PHONY: gcp-grafana-admin-secret gcp-alertmanager-slack-secret gcp-observability-render gcp-observability-install gcp-observability-apply gcp-observability-status gcp-observability-grafana-port-forward gcp-alert-lifecycle-test gcp-alert-lifecycle-cleanup gcp-release-render gcp-release-apply gcp-release-status gcp-release-prefect-bootstrap gcp-release-e5-download gcp-release-e5-smoke gcp-release-ingest-run gcp-release-ingestion-failure-test k6-load k6-rate-limit
+.PHONY: setup run test test-cov lint format format-check typecheck check lock clean frontend-install frontend-dev frontend-typecheck frontend-build docker-frontend-build gcp-frontend-image-import gcp-frontend-render gcp-frontend-apply gcp-frontend-status gcp-frontend-smoke infra-check k3s-install gcp-k3s-syntax gcp-k3s-install gcp-k3s-tunnel gcp-k3s-status gcp-three-node-syntax gcp-three-node-join gcp-three-node-status gcp-envoy-install gcp-foundation-apply gcp-foundation-delete gcp-foundation-status gcp-foundation-smoke gcp-unsafe-check k3s-foundation-apply k3s-foundation-delete k3s-foundation-status k3s-foundation-smoke k3s-unsafe-check cnpg-render postgresql-render migration-sql gcp-cnpg-install gcp-postgresql-apply gcp-postgresql-status gcp-db-migrate gcp-db-current gcp-db-vector-test gcp-rag-retrieval-test gcp-llama-render gcp-llama-apply gcp-llama-status docker-ingestion-build docker-ingestion-smoke gcp-ingestion-image-import docker-rag-api-build docker-rag-api-smoke gcp-rag-api-image-import gcp-rag-db-secret gcp-rag-api-auth-secret gcp-rag-api-render gcp-rag-api-apply gcp-rag-api-status gcp-rag-routing-render gcp-rag-routing-apply gcp-rag-routing-status gcp-rag-routing-smoke gcp-rag-rate-limit-smoke gcp-prefect-db-secret gcp-prefect-role-secret gcp-prefect-server-db-secret gcp-prefect-apply gcp-prefect-bootstrap gcp-prefect-worker-apply gcp-prefect-worker-restart gcp-prefect-status gcp-e5-download gcp-e5-smoke gcp-ingest-run
+.PHONY: gcp-grafana-admin-secret gcp-alertmanager-slack-secret gcp-observability-render gcp-observability-install gcp-observability-apply gcp-observability-status gcp-observability-grafana-port-forward gcp-alert-lifecycle-test gcp-alert-lifecycle-cleanup gcp-release-render gcp-release-apply gcp-release-status gcp-release-prefect-bootstrap gcp-release-e5-download gcp-release-e5-smoke gcp-release-ingest-run gcp-release-ingestion-failure-test gcp-three-node-render gcp-three-node-postgresql-expand gcp-three-node-postgresql-final gcp-three-node-apps-apply k6-load k6-rate-limit
 
 setup:
 	uv sync --group dev
@@ -147,6 +155,15 @@ gcp-k3s-tunnel:
 
 gcp-k3s-status:
 	KUBECONFIG=$(GCP_KUBECONFIG) kubectl get nodes -o wide
+
+gcp-three-node-syntax:
+	ansible-playbook -i $(GCP_THREE_NODE_ANSIBLE_INVENTORY) infra/ansible/playbooks/k3s-gcp-three-node.yml --syntax-check
+
+gcp-three-node-join:
+	ansible-playbook -i $(GCP_THREE_NODE_ANSIBLE_INVENTORY) infra/ansible/playbooks/k3s-gcp-three-node.yml
+
+gcp-three-node-status:
+	KUBECONFIG=$(GCP_KUBECONFIG) kubectl get nodes -o wide --show-labels
 
 gcp-grafana-admin-secret:
 	KUBECONFIG=$(GCP_KUBECONFIG) $(GRAFANA_ADMIN_SECRET_SCRIPT)
@@ -368,6 +385,28 @@ gcp-release-status:
 	KUBECONFIG=$(GCP_KUBECONFIG) kubectl -n prefect get deployment prefect-server prefect-worker -o wide
 	KUBECONFIG=$(GCP_KUBECONFIG) kubectl -n rag get deployment kuberag-rag-api kuberag-web -o jsonpath='{range .items[*]}{.metadata.name}{": "}{range .spec.template.spec.initContainers[*]}{.image}{" "}{end}{range .spec.template.spec.containers[*]}{.image}{" "}{end}{"\\n"}{end}'
 	KUBECONFIG=$(GCP_KUBECONFIG) kubectl -n prefect get deployment prefect-server prefect-worker -o jsonpath='{range .items[*]}{.metadata.name}{": "}{range .spec.template.spec.containers[*]}{.image}{" "}{end}{"\\n"}{end}'
+
+gcp-three-node-render:
+	kubectl kustomize $(THREE_NODE_RAG_API_KUSTOMIZE)
+	kubectl kustomize $(THREE_NODE_FRONTEND_KUSTOMIZE)
+	kubectl kustomize $(THREE_NODE_LLAMA_KUSTOMIZE)
+	kubectl kustomize $(THREE_NODE_PREFECT_KUSTOMIZE)
+	kubectl kustomize $(THREE_NODE_PREFECT_WORKER_KUSTOMIZE)
+	kubectl kustomize $(THREE_NODE_POSTGRES_EXPAND_KUSTOMIZE)
+	kubectl kustomize $(THREE_NODE_POSTGRES_FINAL_KUSTOMIZE)
+
+gcp-three-node-postgresql-expand:
+	KUBECONFIG=$(GCP_KUBECONFIG) kubectl apply -k $(THREE_NODE_POSTGRES_EXPAND_KUSTOMIZE)
+
+gcp-three-node-postgresql-final:
+	KUBECONFIG=$(GCP_KUBECONFIG) kubectl apply -k $(THREE_NODE_POSTGRES_FINAL_KUSTOMIZE)
+
+gcp-three-node-apps-apply:
+	KUBECONFIG=$(GCP_KUBECONFIG) kubectl apply -k $(THREE_NODE_RAG_API_KUSTOMIZE)
+	KUBECONFIG=$(GCP_KUBECONFIG) kubectl apply -k $(THREE_NODE_FRONTEND_KUSTOMIZE)
+	KUBECONFIG=$(GCP_KUBECONFIG) kubectl apply -k $(THREE_NODE_LLAMA_KUSTOMIZE)
+	KUBECONFIG=$(GCP_KUBECONFIG) kubectl apply -k $(THREE_NODE_PREFECT_KUSTOMIZE)
+	KUBECONFIG=$(GCP_KUBECONFIG) kubectl apply -k $(THREE_NODE_PREFECT_WORKER_KUSTOMIZE)
 
 gcp-release-prefect-bootstrap:
 	KUBECONFIG=$(GCP_KUBECONFIG) kubectl -n prefect delete job/prefect-bootstrap --ignore-not-found

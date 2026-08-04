@@ -7,6 +7,18 @@ locals {
     topology    = "single-node"
   }
   gateway_source_ranges = length(var.gateway_source_cidrs) == 0 ? [var.admin_source_cidr] : var.gateway_source_cidrs
+  worker_nodes = {
+    observability = {
+      machine_type = var.observability_worker_machine_type
+      private_ip   = var.worker_private_ips.observability
+      role         = "observability"
+    }
+    application = {
+      machine_type = var.application_worker_machine_type
+      private_ip   = var.worker_private_ips.application
+      role         = "application"
+    }
+  }
 }
 
 resource "google_project_service" "iap" {
@@ -284,6 +296,94 @@ resource "google_compute_instance" "kuberag" {
     email = google_service_account.node.email
     # OAuth scope is required for the VM to use its narrowly scoped IAM role.
     # Applying this may require a controlled VM stop/start.
+    scopes = ["https://www.googleapis.com/auth/cloud-platform"]
+  }
+
+  scheduling {
+    automatic_restart   = true
+    on_host_maintenance = "MIGRATE"
+    provisioning_model  = "STANDARD"
+  }
+
+  shielded_instance_config {
+    enable_integrity_monitoring = true
+    enable_secure_boot          = true
+    enable_vtpm                 = true
+  }
+
+  lifecycle {
+    # `gcloud compute ssh` may add a short-lived operator key to this metadata
+    # value. Do not remove that access while adding workers; key rotation is a
+    # separately reviewed security operation.
+    ignore_changes = [metadata["ssh-keys"]]
+
+    precondition {
+      condition     = startswith(var.zone, "${var.region}-")
+      error_message = "zone must belong to region."
+    }
+  }
+}
+
+# Workers have no external IP. Operators reach them through the existing server
+# (or IAP), while the k3s control plane and Pod network use the private subnet.
+resource "google_compute_disk" "worker_data" {
+  for_each = local.worker_nodes
+
+  name = "${var.name_prefix}-worker-${each.key}-data"
+  type = var.disk_type
+  zone = var.zone
+  size = var.worker_data_disk_size_gb
+
+  labels = merge(local.resource_labels, {
+    topology = "three-node"
+    role     = each.value.role
+  })
+}
+
+resource "google_compute_instance" "worker" {
+  for_each = local.worker_nodes
+
+  name         = "${var.name_prefix}-worker-${each.key}"
+  machine_type = each.value.machine_type
+  zone         = var.zone
+
+  deletion_protection = false
+
+  tags = ["${var.name_prefix}-node"]
+  labels = merge(local.resource_labels, {
+    topology = "three-node"
+    role     = each.value.role
+  })
+
+  boot_disk {
+    auto_delete = true
+
+    initialize_params {
+      image = "projects/ubuntu-os-cloud/global/images/family/ubuntu-2404-lts-amd64"
+      size  = var.worker_boot_disk_size_gb
+      type  = var.disk_type
+    }
+  }
+
+  attached_disk {
+    source      = google_compute_disk.worker_data[each.key].id
+    device_name = "${var.name_prefix}-worker-${each.key}-data"
+    mode        = "READ_WRITE"
+  }
+
+  network_interface {
+    subnetwork = google_compute_subnetwork.kuberag.id
+    network_ip = each.value.private_ip
+  }
+
+  metadata = {
+    block-project-ssh-keys = "TRUE"
+    enable-oslogin         = "FALSE"
+    ssh-keys               = "${var.ssh_username}:${trimspace(var.ssh_public_key)}"
+  }
+
+  service_account {
+    email  = google_service_account.node.email
     scopes = ["https://www.googleapis.com/auth/cloud-platform"]
   }
 
