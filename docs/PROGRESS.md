@@ -34,13 +34,12 @@ approved phase, PR, or major verification run.
   Envoy targets were both `up=1`.
 - GCP three-node transition: Terraform created two private workers and Cloud
   NAT; Ansible joined both workers and configured kubelet Artifact Registry
-  credential providers using short-lived GCE metadata tokens. CloudNativePG
-  now has `kuberag-pg-1` primary on the server and `kuberag-pg-2` streaming
-  asynchronously on the observability worker. Application workloads were moved
-  to the application worker (2026-08-04) with CPU-request packing for the 2
-  vCPU node. Observability was fresh-redeployed onto the observability worker
-  (telemetry PVC history reset once). PostgreSQL switchover/`postgresql-final`
-  remain pending; see `docs/runbooks/gcp-three-node-handoff.md`.
+  credential providers using short-lived GCE metadata tokens. Application
+  workloads run on the application worker; observability was fresh-redeployed
+  onto the observability worker. PostgreSQL primary is `kuberag-pg-2` on the
+  observability worker with async replica `kuberag-pg-1` on the application
+  worker after controlled promote + `postgresql-final` (2026-08-04). See
+  `docs/runbooks/gcp-three-node-handoff.md` and `docs/evidence/DB-00{2,8,9}/`.
 
 ## Completed Work
 
@@ -252,10 +251,9 @@ Completed:
 
 ### Phase 10 - Final GCP Three-Node Topology
 
-Status: Infrastructure, worker join, private-worker egress, Artifact Registry
-pull authentication, PostgreSQL replication, and application cache preparation
-are **Verified**. Workload placement, observability data migration, PostgreSQL
-switchover/failover, and final three-node evidence remain **In progress**.
+Status: Application placement, observability placement, PostgreSQL
+switchover/`postgresql-final`, and worker-to-worker replication are
+**Verified** (2026-08-04). Week 6 documentation/release closeout remains.
 
 Verified runtime facts (2026-08-04):
 

@@ -7,11 +7,11 @@ operator joining the project. It separates what is running now from what is
 only prepared in Git, so a reader does not mistake a manifest for a deployed
 service.
 
-> **Current handoff:** application and observability workloads are placed on
-> their workers. PostgreSQL still has its primary on the server with a streaming
-> replica on the observability worker. Read
+> **Current handoff:** the final three-node placement is verified for apps,
+> observability, and PostgreSQL primary/replica on the two workers. Remaining
+> closeout is documentation/release work (and optional SEC-009). Read
 > [`runbooks/gcp-three-node-handoff.md`](runbooks/gcp-three-node-handoff.md)
-> before any PostgreSQL switchover or `postgresql-final` apply.
+> for the verified topology before further mutations.
 
 ## Current Milestone
 
@@ -49,10 +49,10 @@ verified the three release digests. Those digests were deployed by reviewed
 release manifest on 2026-08-03. Envoy is a Prometheus scrape target
 (OBS-001 closed).
 
-The final intended topology is now mostly deployed on GCP: one k3s server and
-two private workers are `Ready`. Application Pods run on the application
-worker; observability Pods run on the observability worker. PostgreSQL primary
-remains on the server until a controlled switchover/failover is approved.
+The final intended topology is now deployed on GCP: one k3s server and two
+private workers are `Ready`. Application Pods run on the application worker;
+observability Pods run on the observability worker. PostgreSQL primary runs on
+the observability worker with an async replica on the application worker.
 
 ## What Exists Today
 
@@ -65,7 +65,7 @@ remains on the server until a controlled switchover/failover is approved.
 | Envoy Gateway controller | Installed and verified | Installed and verified | Chart `v1.8.3` in `gateway-system`. |
 | Smoke route | Verified end-to-end | Verified end-to-end via public `:8080` | `curl` returns the smoke Pod hostname. |
 | PSS restricted | Verified | Verified | Unsafe privileged/root Pods are rejected. |
-| PostgreSQL/pgvector | Not deployed | Verified primary + replica | `kuberag-pg-1` is primary on server; `kuberag-pg-2` streams asynchronously on the observability worker. |
+| PostgreSQL/pgvector | Not deployed | Verified primary + replica on workers | `kuberag-pg-2` is primary on the observability worker; `kuberag-pg-1` is an async standby on the application worker. Server is excluded from CNPG affinity. |
 | Source adapters | Offline fixtures/unit tests | Live VnExpress scheduled | Demo source is VnExpress RSS only. |
 | Prefect flow | Offline skeleton tested | Deployed and verified | Daily `0 3 * * *` UTC is registered (10:00 Vietnam); Prefect metadata uses PostgreSQL database `prefect`, separate from RAG data. |
 | llama.cpp | Not deployed | Verified on application worker | Internal `ClusterIP` Service loads Qwen2.5-1.5B GGUF from the warmed application-worker PVC; it is not public. |
@@ -87,7 +87,7 @@ inferred from manifests:
 | Application cache preparation | Pass | The LLM model, RAG embedding, and Prefect embedding warm Jobs all completed on the application worker. Their new node-local PVCs remain Bound. |
 | Application placement | Pass | Frontend, RAG API, llama.cpp, Prefect server/worker run on `kuberag-worker-application` with warmed `-application` PVCs. Three-node overlays lower CPU requests to fit the 2 vCPU worker. Evidence: `docs/evidence/K8S-002/three-node-app-placement-2026-08-04.md`. |
 | Observability placement | Pass | Fresh redeploy onto `kuberag-worker-observability` (telemetry PVC history reset once). Evidence: `docs/evidence/OBS-014/three-node-observability-placement-2026-08-04.md`. |
-| PostgreSQL final placement/failover | Pending | Primary still on server; replica streaming on observability worker. Do not apply `postgresql-final` before controlled switchover/failover and explicit confirmation. |
+| PostgreSQL final placement/failover | Pass | Controlled promote of `kuberag-pg-2`; `postgresql-final` applied; former server instance destroyed and recreated as async replica on the application worker. Evidence: `docs/evidence/DB-002/`, `DB-008/`, `DB-009/`. |
 
 The completed cache-warm Jobs and the old `kuberag-ingestion-failure-test`
 Pod are historical test resources. The latter intentionally has status `Error`
@@ -133,6 +133,7 @@ firewall CIDRs when the operator egress changes.
 | `NET-001` | Pass local + GCP | Envoy GatewayClass/Gateway/HTTPRoute accepted; smoke hostname returned. |
 | `NET-004` | Pass local + GCP | Traefik absent from kube-system on both clusters. |
 | `DB-001`, `DB-003`–`DB-007` | Pass GCP | CNPG, PVC, pgvector, migration/re-run, and vector query evidence captured. |
+| `DB-002`, `DB-008`, `DB-009` | Pass GCP three-node | Primary on observability worker, replica on application worker, streaming async, controlled promote evidence under `docs/evidence/DB-002/`, `DB-008/`, `DB-009/`. |
 | `DB-010` | Pass GCP | Marker checksum/count survived controlled Pod recreate; PVC remained Bound. |
 | `ING-001`, `ING-003`, `ING-004` | Pass offline | VnExpress fixtures, contract, timeout/retry/backoff unit evidence. |
 | `ING-002` | Removed | NVD fully removed from code, fixtures, and demo corpus. |
@@ -159,21 +160,14 @@ firewall CIDRs when the operator egress changes.
 
 ## Immediate Next Checkpoint
 
-Application and observability placement are verified. The next mutation is
-**controlled PostgreSQL switchover/failover**, then (only after Pass)
-`postgresql-final` and any recreate of the former primary as a replica on the
-application worker. Each of those steps needs immediate confirmation by name.
-
-Do **not** skip straight to `postgresql-final`: it would make the old
-server-local primary PVC unschedulable. Follow
-[`runbooks/gcp-three-node-handoff.md`](runbooks/gcp-three-node-handoff.md).
+Three-node application, observability, and PostgreSQL placement are verified.
+Next work is Week 6 closeout: docs/demo script polish, optional SEC-009 branch
+protection screenshot, and release notes — not further topology mutations
+unless a regression appears.
 
 ## Major Work Still Ahead
 
-- Controlled PostgreSQL switchover/failover with DB-002/DB-008/DB-009 evidence.
-- Apply `postgresql-final` only after the primary no longer depends on the
-  server-local PVC.
-- SEC-009 branch-protection screenshot (needs GitHub admin access).
+- Optional SEC-009 branch-protection screenshot (needs GitHub admin access).
 - Week 6 clean-install / release notes / DoD closeout.
 
 ## Useful References

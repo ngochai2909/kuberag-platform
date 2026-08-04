@@ -69,33 +69,39 @@ Verified after `scripts/gcp-three-node-observability-migrate.sh` /
 `make gcp-three-node-observability-migrate`. Prometheus, Grafana, Loki, Tempo,
 Pyroscope, Alertmanager, and the OTel Collector run on
 `kuberag-worker-observability`. Short-retention observability PVCs were
-recreated (telemetry history reset once). PostgreSQL was not modified.
-Evidence: `docs/evidence/OBS-014/three-node-observability-placement-2026-08-04.md`.
+recreated (telemetry history reset once). PostgreSQL was not modified during
+that step. Evidence:
+`docs/evidence/OBS-014/three-node-observability-placement-2026-08-04.md`.
 
-## Next checkpoint: PostgreSQL switchover / failover
+### PostgreSQL switchover and final placement
 
-Prerequisite: IAP kubeconfig tunnel on local port `16443`.
+Verified on 2026-08-04:
 
-Do **not** apply `postgresql-final` first. Current primary `kuberag-pg-1`
-still uses a server-local PVC; replica `kuberag-pg-2` streams on the
-observability worker. Ordered plan:
+1. `kubectl cnpg promote kuberag-pg kuberag-pg-2 -n data` — primary moved to
+   the observability worker; warm RAG remained HTTP 200.
+2. `make gcp-three-node-postgresql-final` — affinity limited to
+   `observability|application` (server excluded).
+3. `kubectl cnpg destroy kuberag-pg 1 -n data` then operator recreate —
+   async replica joined on the application worker with a new local-path PVC.
+4. Cluster healthy with streaming replication; final RAG HTTP 200.
 
-1. Baseline replication (`pg_stat_replication`) and a warm RAG query.
-2. Controlled CNPG switchover/promote of `kuberag-pg-2` (or documented
-   failover) with explicit confirmation naming that action.
-3. Verify new primary, RAG query, and replication health (DB-008/DB-009).
-4. Only then evaluate `make gcp-three-node-postgresql-final` and any
-   recreate of the former primary as a replica on the application worker.
-   Recreating a PostgreSQL instance PVC is destructive to that instance's
-   local files and needs a separate confirmation.
+Evidence: `docs/evidence/DB-002/`, `docs/evidence/DB-008/`,
+`docs/evidence/DB-009/`.
 
-## Do not run yet
+## Current topology
 
-- `make gcp-three-node-postgresql-final` before switchover/failover Pass.
-- Deletion of PostgreSQL PVCs or any Terraform destroy / firewall broaden /
-  public IP on workers.
-- `kubectl delete job` for completed cache-warm Jobs until their evidence is
-  retained (TTL may clean them later).
+```text
+Internet -> static IP :8080 -> Envoy on server -> Services
+  -> application worker (frontend, RAG API, llama.cpp, Prefect, PG replica)
+  -> observability worker (observability stack, PG primary)
+```
+
+## Do not run casually
+
+- Further `cnpg destroy` / PostgreSQL PVC deletion without a named recovery plan.
+- Terraform destroy, VM stop, firewall broadening, or public IP on workers.
+- Treating the historical `kuberag-ingestion-failure-test-*` Error Pod as a
+  new incident.
 
 ## Known non-incidents
 
