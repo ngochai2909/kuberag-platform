@@ -161,6 +161,37 @@ resource "google_compute_subnetwork" "kuberag" {
   private_ip_google_access = true
 }
 
+# Private workers need outbound access for Ubuntu packages, the pinned k3s
+# binary, Artifact Registry, and the model/bootstrap downloads. Cloud NAT is
+# egress-only: it creates no public address on a worker and no inbound rule.
+resource "google_compute_router" "kuberag" {
+  name    = "${var.name_prefix}-router"
+  region  = var.region
+  network = google_compute_network.kuberag.id
+
+  bgp {
+    asn = 64514
+  }
+}
+
+resource "google_compute_router_nat" "kuberag" {
+  name                               = "${var.name_prefix}-nat"
+  router                             = google_compute_router.kuberag.name
+  region                             = var.region
+  nat_ip_allocate_option             = "AUTO_ONLY"
+  source_subnetwork_ip_ranges_to_nat = "LIST_OF_SUBNETWORKS"
+
+  subnetwork {
+    name                    = google_compute_subnetwork.kuberag.id
+    source_ip_ranges_to_nat = ["ALL_IP_RANGES"]
+  }
+
+  log_config {
+    enable = false
+    filter = "ERRORS_ONLY"
+  }
+}
+
 resource "google_compute_firewall" "internal" {
   name      = "${var.name_prefix}-allow-internal"
   network   = google_compute_network.kuberag.name
