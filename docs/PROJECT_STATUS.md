@@ -1,11 +1,17 @@
 # KubeRAG Project Status
 
-Last updated: 2026-08-03
+Last updated: 2026-08-04
 
 This page is the quickest starting point for a contributor, reviewer, or
 operator joining the project. It separates what is running now from what is
 only prepared in Git, so a reader does not mistake a manifest for a deployed
 service.
+
+> **Current handoff:** application and observability workloads are placed on
+> their workers. PostgreSQL still has its primary on the server with a streaming
+> replica on the observability worker. Read
+> [`runbooks/gcp-three-node-handoff.md`](runbooks/gcp-three-node-handoff.md)
+> before any PostgreSQL switchover or `postgresql-final` apply.
 
 ## Current Milestone
 
@@ -43,27 +49,49 @@ verified the three release digests. Those digests were deployed by reviewed
 release manifest on 2026-08-03. Envoy is a Prometheus scrape target
 (OBS-001 closed).
 
-The final intended topology remains one k3s server and two worker nodes. The
-current one-node setup is a deliberately temporary, lower-cost checkpoint.
+The final intended topology is now mostly deployed on GCP: one k3s server and
+two private workers are `Ready`. Application Pods run on the application
+worker; observability Pods run on the observability worker. PostgreSQL primary
+remains on the server until a controlled switchover/failover is approved.
 
 ## What Exists Today
 
 | Area | Local machine | GCP VM | Meaning |
 |---|---|---|---|
-| k3s cluster | Verified running | Verified running | One control-plane node per environment; this is not the final three-node cluster. |
-| Node state | `Ready` | `Ready` | Kubernetes can schedule workload Pods. |
-| Persistent storage | Local host storage | 150 GiB disk mounted at `/var/lib/kuberag` | k3s data and future PVC-backed data can use the dedicated GCP disk. |
+| k3s cluster | One single-node dev cluster | One server + two private workers | Local and GCP are separate clusters. GCP server is the sole control plane. |
+| Node state | `Ready` | All 3 nodes `Ready` | `kuberag-server`, `kuberag-worker-application`, and `kuberag-worker-observability` are schedulable. |
+| Persistent storage | Local host storage | Server 150 GiB data disk; each worker has a 50 GiB data disk | `local-path` PVs are node-local and cannot be moved by changing only a node selector. |
 | Traefik | Disabled for KubeRAG | Disabled | Envoy Gateway is the application entry point. |
 | Envoy Gateway controller | Installed and verified | Installed and verified | Chart `v1.8.3` in `gateway-system`. |
 | Smoke route | Verified end-to-end | Verified end-to-end via public `:8080` | `curl` returns the smoke Pod hostname. |
 | PSS restricted | Verified | Verified | Unsafe privileged/root Pods are rejected. |
-| PostgreSQL/pgvector | Not deployed | Verified single instance | PVC 20 GiB is Bound; `vector` is enabled; Alembic schema and sample similarity query pass. |
+| PostgreSQL/pgvector | Not deployed | Verified primary + replica | `kuberag-pg-1` is primary on server; `kuberag-pg-2` streams asynchronously on the observability worker. |
 | Source adapters | Offline fixtures/unit tests | Live VnExpress scheduled | Demo source is VnExpress RSS only. |
 | Prefect flow | Offline skeleton tested | Deployed and verified | Daily `0 3 * * *` UTC is registered (10:00 Vietnam); Prefect metadata uses PostgreSQL database `prefect`, separate from RAG data. |
-| llama.cpp | Not deployed | Verified running | Internal `ClusterIP` Service loads Qwen2.5-1.5B GGUF from a 5 GiB PVC; it is not public. |
-| RAG API | Skeleton only | Verified through Envoy | Restricted FastAPI Deployment has E5 cache PVC, CNPG Secret, llama.cpp Service dependency, and a 45 s application timeout. The GCP demo route is public without bearer auth, but Envoy applies a shared 10 requests/minute limit. |
-| Frontend | Local Vite development available | Deployed through Envoy `/` | Non-root Nginx serves the built React/Vite SPA; it calls `/api/v1` and shows source title, URL, and optional RSS thumbnail. |
-| Observability | Manifests prepared only | Deployed with OBS evidence | Prometheus, Grafana, Loki, Tempo, Pyroscope, and OTel Collector are private `ClusterIP` workloads; FastAPI + Prefect telemetry evidence under `docs/evidence/OBS-*`; Grafana via IAP port-forward / in-Pod API. |
+| llama.cpp | Not deployed | Verified on application worker | Internal `ClusterIP` Service loads Qwen2.5-1.5B GGUF from the warmed application-worker PVC; it is not public. |
+| RAG API | Skeleton only | Verified through Envoy on application worker | Restricted FastAPI Deployment has E5 cache PVC on the application worker, CNPG Secret, llama.cpp Service dependency, and a 45 s application timeout. The GCP demo route is public without bearer auth, but Envoy applies a shared 10 requests/minute limit. |
+| Frontend | Local Vite development available | Deployed through Envoy `/` on application worker | Non-root Nginx serves the built React/Vite SPA; it calls `/api/v1` and shows source title, URL, and optional RSS thumbnail. |
+| Observability | Manifests prepared only | Deployed on observability worker | Prometheus, Grafana, Loki, Tempo, Pyroscope, and OTel Collector are private `ClusterIP` workloads on `kuberag-worker-observability`; Grafana via IAP port-forward / in-Pod API. |
+
+## GCP Three-Node Transition: Verified State
+
+The following was observed from the running GCP cluster on 2026-08-04, not
+inferred from manifests:
+
+| Component | Runtime state | Location / detail |
+|---|---|---|
+| k3s nodes | Pass | Server, application worker, and observability worker all reported `Ready`; consult Terraform output/IAP-only inventory for private addresses. |
+| Worker networking | Pass | Workers have no public IP. Cloud NAT `kuberag-nat` provides egress only for subnet `kuberag-subnet`; HTTPS outbound from the application worker passed. |
+| Artifact Registry pull auth | Pass | Both workers run a kubelet credential provider that exchanges GCE metadata-service identity for short-lived Artifact Registry credentials. No service-account key or registry token is stored in Git/Kubernetes. |
+| PostgreSQL replica | Pass | `kuberag-pg-1` is primary on the server and `kuberag-pg-2` is `Running` on the observability worker. `pg_stat_replication` returned `kuberag-pg-2|streaming|async`. |
+| Application cache preparation | Pass | The LLM model, RAG embedding, and Prefect embedding warm Jobs all completed on the application worker. Their new node-local PVCs remain Bound. |
+| Application placement | Pass | Frontend, RAG API, llama.cpp, Prefect server/worker run on `kuberag-worker-application` with warmed `-application` PVCs. Three-node overlays lower CPU requests to fit the 2 vCPU worker. Evidence: `docs/evidence/K8S-002/three-node-app-placement-2026-08-04.md`. |
+| Observability placement | Pass | Fresh redeploy onto `kuberag-worker-observability` (telemetry PVC history reset once). Evidence: `docs/evidence/OBS-014/three-node-observability-placement-2026-08-04.md`. |
+| PostgreSQL final placement/failover | Pending | Primary still on server; replica streaming on observability worker. Do not apply `postgresql-final` before controlled switchover/failover and explicit confirmation. |
+
+The completed cache-warm Jobs and the old `kuberag-ingestion-failure-test`
+Pod are historical test resources. The latter intentionally has status `Error`
+and must not be treated as a new production incident.
 
 ## Verified GCP Foundation
 
@@ -98,7 +126,7 @@ firewall CIDRs when the operator egress changes.
 | `INF-003` GCP Ansible single-node install | Pass | k3s installation recap and Ready node captured. |
 | `INF-004` GCP Ansible idempotency | Pass | Second run reported `changed=0`, `failed=0`. |
 | `INF-005` Cost control | Pass | Budget alert and stop/start/destroy runbook captured. |
-| `INF-006` Secret hygiene | Pending | Requires the planned secret/config scan evidence. |
+| `INF-006` Secret hygiene | Pass local review | `git ls-files` / ignore review under `docs/evidence/INF-006/`; CI Trivy secret path under `docs/evidence/SEC-003/`. |
 | `SEC-001`–`SEC-008` | Pass CI + GCP runtime | Chainguard/non-root bases, Semgrep, Trivy filesystem/image scans, CycloneDX SBOM, Cosign, digest rollout and OIDC least privilege are captured under `docs/evidence/SEC-*`. |
 | `SEC-009` | Pending settings evidence | Branch protection API needs repository-administration authentication; capture the Ruleset/branch-protection screen before marking Pass. |
 | `K8S-001` to `K8S-005` | Pass local + GCP | Node, PSS, safe smoke workload, and unsafe rejection verified on both clusters. |
@@ -131,30 +159,22 @@ firewall CIDRs when the operator egress changes.
 
 ## Immediate Next Checkpoint
 
-Week 2 ingestion is complete on the GCP single-node checkpoint. The live
-VnExpress Prefect flow uses real `intfloat/multilingual-e5-small`, writes
-384-dimensional vectors to CloudNativePG, persists run counters, and skips
-unchanged input on rerun.
+Application and observability placement are verified. The next mutation is
+**controlled PostgreSQL switchover/failover**, then (only after Pass)
+`postgresql-final` and any recreate of the former primary as a replica on the
+application worker. Each of those steps needs immediate confirmation by name.
 
-Next checkpoint:
-
-1. Add an Envoy Prometheus scrape target to close `OBS-001` fully (optional
-   narrow follow-up) or accept the documented gap until Week 5 networking polish.
-2. Restore IAP tunnel and pass the 30-minute observability stability gate.
-3. Capture optional Grafana/Slack UI screenshots for the completed k6 window
-   (`PERF-003`, `ALT-007`) without exposing the internal Alertmanager link.
-
-See `docs/ROADMAP.md` week 2 and `docs/data-model.md`.
+Do **not** skip straight to `postgresql-final`: it would make the old
+server-local primary PVC unschedulable. Follow
+[`runbooks/gcp-three-node-handoff.md`](runbooks/gcp-three-node-handoff.md).
 
 ## Major Work Still Ahead
 
-- Grafana/Slack UI screenshots for the completed rate-limit alert run
-  (`docs/evidence/ALT-007/`); the runtime Firing state is captured already.
-- A larger-capacity benchmark only after a separate single-node safety
-  checkpoint; the verified safe demo bound is 3 VU.
-- Optional Envoy Prometheus scrape to finish `OBS-001`.
-- Chainguard image hardening, scanning, SBOMs, and signing.
-- Restoration of the final 1 server + 2 worker topology and PostgreSQL replication/failover evidence.
+- Controlled PostgreSQL switchover/failover with DB-002/DB-008/DB-009 evidence.
+- Apply `postgresql-final` only after the primary no longer depends on the
+  server-local PVC.
+- SEC-009 branch-protection screenshot (needs GitHub admin access).
+- Week 6 clean-install / release notes / DoD closeout.
 
 ## Useful References
 
@@ -164,3 +184,5 @@ See `docs/ROADMAP.md` week 2 and `docs/data-model.md`.
 - `docs/ROADMAP.md`: planned six-week sequence.
 - `docs/ACCEPTANCE_CRITERIA.md`: required evidence and verification rules.
 - `docs/runbooks/gcp-k3s-foundation.md`: operate the current GCP checkpoint.
+- `docs/runbooks/gcp-three-node-handoff.md`: continue the active three-node
+  transition safely.

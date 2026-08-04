@@ -71,7 +71,7 @@ K6_SUMMARY_DIR ?= docs/evidence/PERF-001
 K6_DOCKER_IMAGE ?= grafana/k6:2.1.0@sha256:65c920dc067d5e2e00befbf982af6ad6ad0117034e8b1c65817c7975c52d4669
 
 .PHONY: setup run test test-cov lint format format-check typecheck check lock clean frontend-install frontend-dev frontend-typecheck frontend-build docker-frontend-build gcp-frontend-image-import gcp-frontend-render gcp-frontend-apply gcp-frontend-status gcp-frontend-smoke infra-check k3s-install gcp-k3s-syntax gcp-k3s-install gcp-k3s-tunnel gcp-k3s-status gcp-three-node-syntax gcp-three-node-join gcp-three-node-status gcp-envoy-install gcp-foundation-apply gcp-foundation-delete gcp-foundation-status gcp-foundation-smoke gcp-unsafe-check k3s-foundation-apply k3s-foundation-delete k3s-foundation-status k3s-foundation-smoke k3s-unsafe-check cnpg-render postgresql-render migration-sql gcp-cnpg-install gcp-postgresql-apply gcp-postgresql-status gcp-db-migrate gcp-db-current gcp-db-vector-test gcp-rag-retrieval-test gcp-llama-render gcp-llama-apply gcp-llama-status docker-ingestion-build docker-ingestion-smoke gcp-ingestion-image-import docker-rag-api-build docker-rag-api-smoke gcp-rag-api-image-import gcp-rag-db-secret gcp-rag-api-auth-secret gcp-rag-api-render gcp-rag-api-apply gcp-rag-api-status gcp-rag-routing-render gcp-rag-routing-apply gcp-rag-routing-status gcp-rag-routing-smoke gcp-rag-rate-limit-smoke gcp-prefect-db-secret gcp-prefect-role-secret gcp-prefect-server-db-secret gcp-prefect-apply gcp-prefect-bootstrap gcp-prefect-worker-apply gcp-prefect-worker-restart gcp-prefect-status gcp-e5-download gcp-e5-smoke gcp-ingest-run
-.PHONY: gcp-grafana-admin-secret gcp-alertmanager-slack-secret gcp-observability-render gcp-observability-install gcp-observability-apply gcp-observability-status gcp-observability-grafana-port-forward gcp-alert-lifecycle-test gcp-alert-lifecycle-cleanup gcp-release-render gcp-release-apply gcp-release-status gcp-release-prefect-bootstrap gcp-release-e5-download gcp-release-e5-smoke gcp-release-ingest-run gcp-release-ingestion-failure-test gcp-three-node-render gcp-three-node-cache-warm-render gcp-three-node-cache-warm-apply gcp-three-node-cache-warm-status gcp-three-node-postgresql-expand gcp-three-node-postgresql-final gcp-three-node-apps-apply k6-load k6-rate-limit
+.PHONY: gcp-grafana-admin-secret gcp-alertmanager-slack-secret gcp-observability-render gcp-observability-install gcp-observability-apply gcp-observability-status gcp-observability-grafana-port-forward gcp-alert-lifecycle-test gcp-alert-lifecycle-cleanup gcp-release-render gcp-release-apply gcp-release-status gcp-release-prefect-bootstrap gcp-release-e5-download gcp-release-e5-smoke gcp-release-ingest-run gcp-release-ingestion-failure-test gcp-three-node-render gcp-three-node-cache-warm-render gcp-three-node-cache-warm-apply gcp-three-node-cache-warm-status gcp-three-node-postgresql-expand gcp-three-node-postgresql-final gcp-three-node-apps-apply gcp-three-node-observability-migrate k6-load k6-rate-limit
 
 setup:
 	uv sync --group dev
@@ -419,6 +419,20 @@ gcp-three-node-apps-apply:
 	KUBECONFIG=$(GCP_KUBECONFIG) kubectl apply -k $(THREE_NODE_LLAMA_KUSTOMIZE)
 	KUBECONFIG=$(GCP_KUBECONFIG) kubectl apply -k $(THREE_NODE_PREFECT_KUSTOMIZE)
 	KUBECONFIG=$(GCP_KUBECONFIG) kubectl apply -k $(THREE_NODE_PREFECT_WORKER_KUSTOMIZE)
+
+# DESTRUCTIVE to observability PVCs only (short-retention telemetry). Keeps
+# Grafana/Slack Secrets. Places the stack on kuberag.io/role=observability.
+gcp-three-node-observability-migrate:
+	KUBECONFIG=$(GCP_KUBECONFIG) \
+	OBSERVABILITY_NAMESPACE=$(OBSERVABILITY_NAMESPACE) \
+	OBSERVABILITY_VALUES_DIR=$(OBSERVABILITY_VALUES_DIR) \
+	OBSERVABILITY_KUSTOMIZE=$(OBSERVABILITY_KUSTOMIZE) \
+	KUBE_PROMETHEUS_STACK_VERSION=$(KUBE_PROMETHEUS_STACK_VERSION) \
+	LOKI_CHART_VERSION=$(LOKI_CHART_VERSION) \
+	TEMPO_CHART_VERSION=$(TEMPO_CHART_VERSION) \
+	PYROSCOPE_CHART_VERSION=$(PYROSCOPE_CHART_VERSION) \
+	OTEL_COLLECTOR_CHART_VERSION=$(OTEL_COLLECTOR_CHART_VERSION) \
+	bash scripts/gcp-three-node-observability-migrate.sh
 
 gcp-release-prefect-bootstrap:
 	KUBECONFIG=$(GCP_KUBECONFIG) kubectl -n prefect delete job/prefect-bootstrap --ignore-not-found

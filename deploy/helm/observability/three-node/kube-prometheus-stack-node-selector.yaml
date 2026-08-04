@@ -1,0 +1,23 @@
+# Place kube-prometheus-stack workloads on the observability worker.
+# local-path PVCs are node-local: use only with a fresh PVC recreate.
+alertmanager:
+  alertmanagerSpec:
+    nodeSelector:
+      kuberag.io/role: observability
+
+grafana:
+  nodeSelector:
+    kuberag.io/role: observability
+
+kube-state-metrics:
+  nodeSelector:
+    kuberag.io/role: observability
+
+prometheusOperator:
+  nodeSelector:
+    kuberag.io/role: observability
+
+prometheus:
+  prometheusSpec:
+    nodeSelector:
+      kuberag.io/role: observability

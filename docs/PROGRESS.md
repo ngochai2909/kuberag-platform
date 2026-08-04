@@ -7,13 +7,16 @@ approved phase, PR, or major verification run.
 
 ## Current Snapshot
 
-- Last updated: 2026-08-03.
+- Last updated: 2026-08-04.
 - Current tracked release branch: `main`.
 - Latest immutable release-manifest merge: `43871eb` (PR #26).
 - Last full application verification: `make check` passed (`100 passed`, `2 skipped`,
   `85.91%` coverage). The skipped tests require an explicit `DATABASE_URL` and
   are run against the GCP database through the controlled tunnel command.
-- Runtime environment: one `v1.35.5+k3s1` node runs locally on `hainguyenpc` and one runs on the temporary GCP VM `kuberag-server`. They are separate clusters, not two nodes in one cluster.
+- Runtime environment: one `v1.35.5+k3s1` node runs locally. GCP now has a
+  separate three-node cluster: `kuberag-server` control plane,
+  `kuberag-worker-application`, and `kuberag-worker-observability`. All three
+  reported `Ready` on 2026-08-04.
 - GCP access: SSH and local `kubectl` use IAP tunnels. Envoy Gateway `v1.8.3` and the smoke route are verified on GCP through public port `8080`.
 - Tooling: Helm `v4.2.2`; Envoy Gateway chart `v1.8.3` verified on local and GCP clusters.
 - GCP user-facing demo: `kuberag-web`, `kuberag-rag-api`, and `kuberag-llm` are
@@ -29,6 +32,15 @@ approved phase, PR, or major verification run.
   telemetry evidence are captured under `docs/evidence/OBS-*`
   (2026-07-31). Envoy is a Prometheus scrape target; the post-release API and
   Envoy targets were both `up=1`.
+- GCP three-node transition: Terraform created two private workers and Cloud
+  NAT; Ansible joined both workers and configured kubelet Artifact Registry
+  credential providers using short-lived GCE metadata tokens. CloudNativePG
+  now has `kuberag-pg-1` primary on the server and `kuberag-pg-2` streaming
+  asynchronously on the observability worker. Application workloads were moved
+  to the application worker (2026-08-04) with CPU-request packing for the 2
+  vCPU node. Observability was fresh-redeployed onto the observability worker
+  (telemetry PVC history reset once). PostgreSQL switchover/`postgresql-final`
+  remain pending; see `docs/runbooks/gcp-three-node-handoff.md`.
 
 ## Completed Work
 
@@ -237,6 +249,35 @@ Completed:
   (`docs/evidence/ING-005/prefect-postgresql-metadata.txt`).
 
 ## In Progress / Local Changes
+
+### Phase 10 - Final GCP Three-Node Topology
+
+Status: Infrastructure, worker join, private-worker egress, Artifact Registry
+pull authentication, PostgreSQL replication, and application cache preparation
+are **Verified**. Workload placement, observability data migration, PostgreSQL
+switchover/failover, and final three-node evidence remain **In progress**.
+
+Verified runtime facts (2026-08-04):
+
+- `kuberag-server`, `kuberag-worker-application`, and
+  `kuberag-worker-observability` are all `Ready`. Private addresses remain in
+  Terraform output and the IAP-only Ansible inventory, not this document.
+- Workers have no external IP. Cloud NAT provides egress only; IAP remains the
+  administrative path.
+- `kuberag-pg-1` is the primary on the server. `kuberag-pg-2` runs on the
+  observability worker and `pg_stat_replication` returned
+  `kuberag-pg-2|streaming|async`.
+- Cache-warm Jobs for the LLM model, RAG embedding model, and Prefect embedding
+  model all completed on the application worker. The old server cache PVCs are
+  preserved for rollback.
+- The kubelet credential provider pulls Artifact Registry images through the
+  VM service account's metadata token; no JSON key, static OAuth token, or
+  `imagePullSecret` was introduced.
+
+Do not infer final placement from the node labels. At this point frontend, RAG
+API, llama.cpp, Prefect server/worker, and all observability workloads are
+still on the server. Continue only in the order documented in
+[`runbooks/gcp-three-node-handoff.md`](runbooks/gcp-three-node-handoff.md).
 
 ### Phase 8 - Full-stack Observability
 

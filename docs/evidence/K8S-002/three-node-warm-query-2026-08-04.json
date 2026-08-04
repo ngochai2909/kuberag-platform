@@ -1,0 +1,25 @@
+{
+  "request_id": "0b771e4d-9fb2-461e-b0d1-ca89f77f85d4",
+  "trace_id": "b5a649042aa2b8af61beb4e2994e7bf2",
+  "retrieval_ms": 78.55,
+  "generation_ms": 7188.07,
+  "total_ms": 7267.26,
+  "source_count": 3,
+  "sources": [
+    {
+      "title": "Google tri\u1ec3n khai AI Agent cho ng\u01b0\u1eddi d\u00f9ng Vi\u1ec7t Nam",
+      "url": "https://vnexpress.net/google-trien-khai-ai-agent-cho-nguoi-dung-viet-nam-5102904.html",
+      "source": "vnexpress"
+    },
+    {
+      "title": "OpenAI v\u01b0\u1ee3t m\u1ed1c m\u1ed9t t\u1ef7 ng\u01b0\u1eddi d\u00f9ng",
+      "url": "https://vnexpress.net/openai-vuot-moc-mot-ty-nguoi-dung-5104202.html",
+      "source": "vnexpress"
+    },
+    {
+      "title": "OpenAI v\u01b0\u1ee3t m\u1ed1c m\u1ed9t t\u1ef7 ng\u01b0\u1eddi d\u00f9ng",
+      "url": "https://vnexpress.net/openai-vuot-moc-mot-ty-nguoi-dung-5104202.html",
+      "source": "vnexpress"
+    }
+  ]
+}

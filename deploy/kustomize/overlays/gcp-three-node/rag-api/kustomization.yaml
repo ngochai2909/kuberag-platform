@@ -20,3 +20,10 @@ patches:
       - op: replace
         path: /spec/template/spec/volumes/1/persistentVolumeClaim/claimName
         value: kuberag-rag-embedding-models-application
+      # Pack onto the 2 vCPU application worker with llama.cpp and Prefect.
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/requests/cpu
+        value: "500m"
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/requests/memory
+        value: 1536Mi

@@ -1,0 +1,3 @@
+singleBinary:
+  nodeSelector:
+    kuberag.io/role: observability
