@@ -3,6 +3,7 @@ kind: Kustomization
 
 resources:
   - ../../gcp/llama-cpp
+  - model-pvc.yaml
 
 patches:
   - target:
@@ -16,3 +17,6 @@ patches:
         path: /spec/template/spec/nodeSelector
         value:
           kuberag.io/role: application
+      - op: replace
+        path: /spec/template/spec/volumes/0/persistentVolumeClaim/claimName
+        value: kuberag-llm-models-application

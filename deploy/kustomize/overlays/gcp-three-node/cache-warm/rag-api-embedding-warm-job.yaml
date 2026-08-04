@@ -1,0 +1,81 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: kuberag-rag-api-embedding-warm
+  namespace: rag
+  labels:
+    app.kubernetes.io/name: kuberag-rag-api-embedding-warm
+    app.kubernetes.io/part-of: kuberag
+spec:
+  backoffLimit: 2
+  activeDeadlineSeconds: 1800
+  ttlSecondsAfterFinished: 86400
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: kuberag-rag-api-embedding-warm
+        app.kubernetes.io/part-of: kuberag
+    spec:
+      automountServiceAccountToken: false
+      restartPolicy: Never
+      nodeSelector:
+        kuberag.io/role: application
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532
+        runAsGroup: 65532
+        fsGroup: 65532
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: download
+          image: kuberag-rag-api:local
+          imagePullPolicy: IfNotPresent
+          command:
+            - /app/.venv/bin/python
+            - -c
+          args:
+            - |
+              import os
+              from sentence_transformers import SentenceTransformer
+
+              model_id = "intfloat/multilingual-e5-small"
+              cache = os.environ["KUBERAG_EMBEDDING_CACHE"]
+              print(f"ensuring {model_id} in {cache}", flush=True)
+              SentenceTransformer(model_id, cache_folder=cache)
+              print("embedding cache ready", flush=True)
+          env:
+            - name: KUBERAG_EMBEDDING_CACHE
+              value: /models
+            - name: HF_HOME
+              value: /models/hf
+            - name: TRANSFORMERS_CACHE
+              value: /models/hf
+            - name: SENTENCE_TRANSFORMERS_HOME
+              value: /models
+            - name: HOME
+              value: /tmp
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+          resources:
+            requests:
+              cpu: 500m
+              memory: 1Gi
+            limits:
+              cpu: "2"
+              memory: 2Gi
+          volumeMounts:
+            - name: models
+              mountPath: /models
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: models
+          persistentVolumeClaim:
+            claimName: kuberag-rag-embedding-models-application
+        - name: tmp
+          emptyDir: {}

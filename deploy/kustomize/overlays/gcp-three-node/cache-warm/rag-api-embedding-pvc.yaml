@@ -1,0 +1,16 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: kuberag-rag-embedding-models-application
+  namespace: rag
+  labels:
+    app.kubernetes.io/name: kuberag-rag-embedding-models
+    app.kubernetes.io/part-of: kuberag
+    kuberag.io/role: application
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: local-path
+  resources:
+    requests:
+      storage: 2Gi
