@@ -7,28 +7,19 @@ approved phase, PR, or major verification run.
 
 ## Current Snapshot
 
-- Last updated: 2026-08-03.
+- Last updated: 2026-08-05.
 - Current tracked release branch: `main`.
-- Latest immutable release-manifest merge: `43871eb` (PR #26).
-- Last full application verification: `make check` passed (`100 passed`, `2 skipped`,
-  `85.91%` coverage). The skipped tests require an explicit `DATABASE_URL` and
-  are run against the GCP database through the controlled tunnel command.
-- Runtime environment: one `v1.35.5+k3s1` node runs locally on `hainguyenpc` and one runs on the temporary GCP VM `kuberag-server`. They are separate clusters, not two nodes in one cluster.
-- GCP access: SSH and local `kubectl` use IAP tunnels. Envoy Gateway `v1.8.3` and the smoke route are verified on GCP through public port `8080`.
-- Tooling: Helm `v4.2.2`; Envoy Gateway chart `v1.8.3` verified on local and GCP clusters.
-- GCP user-facing demo: `kuberag-web`, `kuberag-rag-api`, and `kuberag-llm` are
-  Ready in namespace `rag`. Envoy serves the React SPA at `/` and FastAPI at
-  `/api/`; `/hostname` remains the separate smoke route.
-- Immutable GCP release: API, frontend, Prefect server and Prefect worker were
-  rolled out from CI-produced Artifact Registry digests after image scan, SBOM
-  generation and Cosign verification. Runtime digest evidence is
-  `docs/evidence/SEC-007/`.
-- GCP observability: Prometheus, Grafana, Loki, Tempo, Pyroscope, and
-  `kuberag-otel-collector` are Running as private `ClusterIP` workloads in
-  `observability`. FastAPI four-signal evidence and Prefect ingestion
-  telemetry evidence are captured under `docs/evidence/OBS-*`
-  (2026-07-31). Envoy is a Prometheus scrape target; the post-release API and
-  Envoy targets were both `up=1`.
+- Latest immutable release-manifest merge: `43871eb` (PR #26). Manual
+  operator digests currently pinned in `gcp-release` overlays:
+  API `sha256:dbbd725e…`, web `sha256:0febcaed…` (Tin/Chat + catalog order).
+- Runtime environment: local single-node k3s for laptop work. GCP three-node
+  cluster: `kuberag-server`, `kuberag-worker-application`,
+  `kuberag-worker-observability` (Ready). Gateway `http://136.85.35.106:8080`.
+- User-facing demo: Tin (`/`) + Chat (`/chat`); catalog APIs; multi-feed
+  VnExpress corpus (~1000 documents, ~18 categories); unique-document
+  retrieval `top_k`.
+- GCP three-node + DOC-004 clean install evidence under
+  `docs/evidence/DOC-004/` and `docs/runbooks/gcp-three-node-handoff.md`.
 
 ## Completed Work
 
@@ -238,6 +229,28 @@ Completed:
 
 ## In Progress / Local Changes
 
+### Phase 10 - Final GCP Three-Node Topology
+
+Status: Application placement, observability placement, PostgreSQL
+switchover/`postgresql-final`, and worker-to-worker replication are
+**Verified** (2026-08-04). A full GCP clean install (`DOC-004`) then rebuilt
+the same topology from wiped compute/network.
+
+Verified runtime facts after clean install (2026-08-04):
+
+- External IP is now `136.85.35.106` (previous `136.85.70.219` destroyed).
+- `kuberag-server`, `kuberag-worker-application`, and
+  `kuberag-worker-observability` are all `Ready`.
+- Apps (web, RAG API, llama.cpp, Prefect) run on the application worker;
+  observability stack runs on the observability worker.
+- `kuberag-pg-2` is primary on the observability worker; `kuberag-pg-1` is
+  the async replica on the application worker.
+- Ingest Completed (`flow_run_id=39890d19-ded8-4542-ab3b-90052468604f`);
+  gateway `/hostname`, `/`, `/api/v1/status`, and a warm RAG query returned
+  HTTP 200.
+- Evidence: `docs/evidence/DOC-004/gcp-full-clean-install-2026-08-04.md`.
+- `DOC-006` demo script remains pending by choice.
+
 ### Phase 8 - Full-stack Observability
 
 Status: Core single-node observability is deployed with runtime evidence on GCP
@@ -321,34 +334,49 @@ Still required for the roadmap acceptance set:
   the Envoy data plane returned an answer and three source records with
   thumbnail URLs.
 
+### Phase 9 - Tin browse + Chat pages + catalog API
+
+Status: Deployed on GCP (2026-08-05).
+
+Completed:
+
+- Multi-feed VnExpress adapter (`DEFAULT_FEEDS`, `metadata.category`, skip-soft
+  article failures) and a Completed multi-feed ingest (~1000 documents).
+- FastAPI `GET /api/v1/categories` and `GET /api/v1/documents` (metadata only).
+- Unique-document retrieval for `top_k`.
+- React Tin (`/`) + Chat (`/chat`) with shared Layout; category order puts
+  `tin-moi-nhat` before `tin-xem-nhieu`.
+- Nginx `/assets/` 404 (no HTML fallback); Vite local `real` mode proxies to
+  the GCP gateway.
+- Operator digests pinned in `gcp-release` overlays for API + web.
+
 ## Not Done Yet
 
 The following required scopes are not implemented yet:
 
+- `DOC-006` demo script / rehearsal.
+- Week 6 release notes / Git tag after the next CI-signed digests when ready.
+- Optional SEC-009 branch-protection screenshot.
 - Optional Grafana and Slack UI screenshots for the k6 rate-limit window. The
   runtime rate-limit Firing state, JSON summaries, resource snapshot, and
   Alertmanager delivery metrics are stored under `docs/evidence/PERF-*` and
   `docs/evidence/ALT-007/`.
-- Optional Envoy Prometheus scrape to finish `OBS-001`.
-- Chainguard image hardening for all custom images.
-- Semgrep, Trivy, SBOM, Cosign signing/verification.
-- Runtime evidence for the remaining platform phases.
 
 ## Recommended Next Phase
 
-The user-facing demo path and Week 4 observability evidence path are deployed.
-Continue with Week 5 operational controls:
+Week 6 closeout:
 
-- Keep the verified 3-VU single-node bound for demos. Capture optional Grafana
-  and Slack UI screenshots for the completed k6 rate-limit scenario; do not
-  publicize the internal Alertmanager link.
-- Replace temporary public-demo API access with a reviewed user/gateway
-  authentication design before any broader deployment.
+- `DOC-006` demo script / rehearsal.
+- Release notes / Git tag after the next CI-signed digests when ready.
+- Optional SEC-009 branch-protection screenshot.
+- Replace temporary public-demo API access with reviewed auth before broader
+  exposure.
 
 Relevant acceptance groups:
 
-- `ING-001`–`ING-010` are Pass for the current offline/GCP evidence split.
-- Next focus: runtime evidence for `RAG-005`–`RAG-009`, then frontend/routes.
+- `ING-*` multi-feed corpus is live; keep schedule/retry evidence current.
+- `WEB-*` Tin + Chat path is deployed; capture screenshots for DoD if required.
+- Next focus: documentation closeout, not topology mutations.
 
 ## Coordination Notes
 

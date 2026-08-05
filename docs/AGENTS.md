@@ -21,7 +21,7 @@ If code and documentation conflict, report the conflict. Do not silently change 
 apps/
   rag-api/          FastAPI retrieval and generation API
   ingestion/        Prefect flows, source adapters and embedding/upsert
-  frontend/         React/Vite single-page UI
+  frontend/         React/Vite Tin + Chat UI
 infra/
   terraform/        GCP network, VM, disk, firewall and outputs
   ansible/          OS and k3s configuration

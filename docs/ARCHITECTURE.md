@@ -238,6 +238,10 @@ migration hoặc triển khai PostgreSQL.
 
 ## 8. RAG request architecture
 
+Browse (Tin) uses metadata-only catalog reads. Chat uses the deterministic RAG
+path below. Neither path returns full article bodies to the browser beyond
+short summaries already stored in `metadata.summary`.
+
 ```mermaid
 sequenceDiagram
     participant U as Người dùng
@@ -249,12 +253,19 @@ sequenceDiagram
     U->>G: POST /api/v1/query
     G->>A: Forward request + trace context
     A->>A: Embed query
-    A->>P: Similarity search top-k
+    A->>P: Similarity search top-k unique documents
     P-->>A: Chunks + metadata
     A->>A: Build bounded prompt
     A->>L: Generate answer
     L-->>A: Completion
     A-->>U: Answer + sources + IDs + latency
+```
+
+Catalog browse:
+
+```text
+GET /api/v1/categories
+GET /api/v1/documents?category=&limit=&offset=
 ```
 
 ### 8.1. API contract tối thiểu

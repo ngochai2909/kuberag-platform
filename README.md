@@ -4,15 +4,14 @@ KubeRAG is a cloud-native RAG platform monorepo. The target platform uses FastAP
 
 The current infrastructure target is a **temporary single-node k3s environment** for local development and constrained demo work. The final target remains the original cluster shape: **1 k3s server/control-plane node and 2 k3s worker nodes** on GCP Compute Engine.
 
-Current application state: **week 3 user-facing demo deployed on the temporary
-GCP single-node cluster**. The GCP checkpoint has CloudNativePG/pgvector, a live
-Prefect VnExpress flow using `multilingual-e5-small`, a running internal
-llama.cpp Pod serving `Qwen2.5-1.5B-Instruct` GGUF `Q4_K_M`, and a running
-FastAPI RAG API. A real request has completed the deterministic E5 ->
-pgvector -> prompt -> llama.cpp flow on GCP. Envoy exposes the browser UI at
-`/` and the temporary demo API at `/api/`; PostgreSQL, E5, and llama.cpp remain
-internal services. The UI displays returned VnExpress source titles, links,
-and RSS thumbnail URLs when available.
+Current application state: **three-node GCP demo** with CloudNativePG/pgvector,
+Prefect multi-feed VnExpress ingestion, llama.cpp (`Qwen2.5-1.5B-Instruct`
+GGUF `Q4_K_M`), and FastAPI RAG. Envoy exposes the browser UI at `/` and the
+temporary demo API at `/api/`. The SPA has two routes: **Tin** (`/`) browses
+indexed article metadata by category (click opens the original VnExpress URL);
+**Chat** (`/chat`) runs the deterministic embed → retrieve → generate flow and
+shows source title, link, and RSS thumbnail when available. Gateway:
+`http://136.85.35.106:8080`.
 
 For an accurate deployed-versus-prepared summary, start with
 [`docs/PROJECT_STATUS.md`](docs/PROJECT_STATUS.md). It records the verified
@@ -32,20 +31,30 @@ safe checkpoint.
 
 ## Frontend Workspace
 
-The frontend starts in `mock` mode by default for local UI development. Install
-and run it locally:
+The frontend defaults to `mock` mode for offline UI work. Install and run:
 
 ```bash
 make frontend-install
 make frontend-dev
 ```
 
-Open the local Vite URL printed by the second command, normally
-`http://127.0.0.1:5173`. The page provides a RAG chat workflow with mock
-answers, sources, latency, request ID, trace ID, loading, and error states.
-`apps/frontend/.env.example` documents the mode switch. The GCP overlay builds
-the same UI in `real` mode against same-origin `/api/v1`; it is allowed only by
-the explicitly declared temporary `PUBLIC_DEMO_MODE` configuration.
+Open `http://127.0.0.1:5173`. Routes:
+
+- `/` — **Tin**: category chips + article cards from the corpus (mock data or live API)
+- `/chat` — **Chat**: RAG question flow with sources, latency, request/trace IDs
+
+To point the local Vite UI at the GCP gateway without browser CORS, set
+`apps/frontend/.env.local` (gitignored) from `.env.example`:
+
+```bash
+VITE_API_MODE=real
+VITE_API_BASE_URL=/api/v1
+VITE_DEV_API_PROXY_TARGET=http://136.85.35.106:8080
+```
+
+`vite.config.ts` proxies `/api` to that target. Restart `make frontend-dev`
+after changing env. The GCP image builds with `VITE_API_MODE=real` against
+same-origin `/api/v1` under temporary `PUBLIC_DEMO_MODE`.
 
 Validated local platform versions:
 
@@ -70,12 +79,16 @@ running. `/health/ready` returns `503` unless `RAG_RUNTIME_ENABLED=true` with a
 database URI and the cluster-only E5/llama.cpp dependencies available. This is
 intentional: laptop tests inject a fake service and never download models.
 
-The public API contract is:
+The public API contract includes:
 
 ```bash
 curl -X POST http://localhost:8000/api/v1/query \
   -H 'Content-Type: application/json' \
   -d '{"question":"What is KubeRAG?","top_k":5}'
+
+# Browse metadata only (no article body):
+curl 'http://localhost:8000/api/v1/categories'
+curl 'http://localhost:8000/api/v1/documents?limit=24'
 ```
 
 Without a configured `RagService`, this endpoint returns a safe `503` response. Unit and integration tests inject a fake service to verify request/response behavior without network access.
@@ -189,14 +202,13 @@ Grafana is reached temporarily through the existing IAP-backed Kubernetes API
 tunnel, not by publishing an additional port:
 
 ```bash
-# Terminal A: keep the Kubernetes API tunnel open.
-make gcp-k3s-tunnel
-
-# Terminal B: expose Grafana only at this laptop's loopback address.
-make gcp-observability-grafana-port-forward
+# One command each (starts the IAP kubectl tunnel automatically if needed).
+make grafana    # http://127.0.0.1:3000
+make prefect    # http://127.0.0.1:4200
 ```
 
-Open `http://127.0.0.1:3000`. Retrieve the locally generated Grafana username
+Keep each terminal open while you use the UI. Open `http://127.0.0.1:3000`.
+Retrieve the locally generated Grafana username
 and password from the Kubernetes Secret only when logging in; never commit or
 paste them into a ticket:
 
@@ -245,7 +257,7 @@ Run `make gcp-frontend-status` to verify its Deployment, Service, and route.
 apps/
   rag-api/          FastAPI contract, retrieval, llama.cpp client, composition
   ingestion/        Adapters, Prefect flows, e5 embedding, Alembic, upsert
-  frontend/         React/Vite browser UI and non-root Nginx runtime image
+  frontend/         React/Vite Tin + Chat UI and non-root Nginx runtime image
 infra/
   terraform/        GCP network, firewall, VM, disk, IP, and outputs
   ansible/          Local and GCP single-node k3s host configuration

@@ -17,7 +17,7 @@ from uuid import UUID
 
 from prefect import flow, task
 
-from ingestion.adapters.vnexpress import DEFAULT_FEED_URL, VnExpressAdapter
+from ingestion.adapters.vnexpress import DEFAULT_FEED_URLS, VnExpressAdapter
 from ingestion.chunking import ChunkingConfig
 from ingestion.embedding import EmbeddingProvider
 from ingestion.http import HttpClient
@@ -50,7 +50,7 @@ class IngestionRuntime:
     store: DocumentStore
     embedder: EmbeddingProvider | None = None
     chunking: ChunkingConfig = field(default_factory=ChunkingConfig)
-    vnexpress_feed_url: str = DEFAULT_FEED_URL
+    vnexpress_feed_urls: list[str] = field(default_factory=lambda: list(DEFAULT_FEED_URLS))
     embedding_batch_size: int = 32
 
 
@@ -108,14 +108,21 @@ def deployment_schedule() -> dict[str, str]:
 
 
 @task(name="fetch-vnexpress", retries=2, retry_delay_seconds=1)
-def fetch_vnexpress_documents(*, feed_url: str | None = None) -> list[SourceDocument]:
+def fetch_vnexpress_documents(
+    *,
+    feed_url: str | None = None,
+    feed_urls: list[str] | None = None,
+) -> list[SourceDocument]:
     runtime = get_ingestion_runtime()
-    adapter = VnExpressAdapter(
-        runtime.http,
-        feed_url=feed_url or runtime.vnexpress_feed_url,
-    )
+    if feed_url:
+        urls = [feed_url]
+    elif feed_urls is not None:
+        urls = feed_urls
+    else:
+        urls = list(runtime.vnexpress_feed_urls)
+    adapter = VnExpressAdapter(runtime.http)
     with get_tracer().start_as_current_span("ingestion.fetch"):
-        return adapter.fetch_documents()
+        return adapter.fetch_documents_from_feeds(urls)
 
 
 @task(name="upsert-documents", retries=1, retry_delay_seconds=1)
@@ -151,8 +158,8 @@ def daily_ingest_flow(
     """Run the deterministic ingestion pipeline for configured sources.
 
     ``vnexpress_feed_url`` is an operator-only override used by the isolated
-    failure-test Job. It is not exposed by the RAG API and the daily deployment
-    keeps the configured production feed URL.
+    failure-test Job (forces a single feed URL). Normal runs use the multi-feed
+    catalog on :class:`IngestionRuntime`.
     """
 
     configure_ingestion_telemetry()
@@ -167,7 +174,16 @@ def daily_ingest_flow(
         if "vnexpress" in selected:
             documents.extend(fetch_vnexpress_documents(feed_url=vnexpress_feed_url))
 
-        source_scope = ",".join(selected)
+        categories = sorted(
+            {
+                str(document.metadata.get("category"))
+                for document in documents
+                if isinstance(document.metadata.get("category"), str)
+            }
+        )
+        source_scope = (
+            f"vnexpress:{','.join(categories)}" if categories else ",".join(selected)
+        )
         run = upsert_documents(documents, source_scope=source_scope)
         status: Literal["completed", "failed"] = (
             "failed" if run.status != "completed" else "completed"

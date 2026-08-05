@@ -60,6 +60,7 @@ def build_runtime_from_env() -> IngestionRuntime:
     batch_size = int(os.environ.get("KUBERAG_EMBEDDING_BATCH_SIZE", "32"))
     max_chars = int(os.environ.get("KUBERAG_CHUNK_MAX_CHARS", "800"))
     overlap_chars = int(os.environ.get("KUBERAG_CHUNK_OVERLAP_CHARS", "150"))
+    feed_urls = _vnexpress_feed_urls_from_env()
 
     http = RetryingHttpClient(
         HttpxHttpClient(timeout_seconds=timeout_seconds),
@@ -75,5 +76,19 @@ def build_runtime_from_env() -> IngestionRuntime:
         store=store,
         embedder=build_embedder(),
         chunking=ChunkingConfig(max_chars=max_chars, overlap_chars=overlap_chars),
+        vnexpress_feed_urls=feed_urls,
         embedding_batch_size=batch_size,
     )
+
+
+def _vnexpress_feed_urls_from_env() -> list[str]:
+    from ingestion.adapters.vnexpress import DEFAULT_FEED_URLS
+
+    raw = os.environ.get("KUBERAG_VNEXPRESS_FEED_URLS", "").strip()
+    if not raw:
+        return list(DEFAULT_FEED_URLS)
+    urls = [part.strip() for part in raw.split(",") if part.strip()]
+    if not urls:
+        msg = "KUBERAG_VNEXPRESS_FEED_URLS is set but empty after parsing"
+        raise ValueError(msg)
+    return urls

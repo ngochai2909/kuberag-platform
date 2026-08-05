@@ -20,3 +20,11 @@ patches:
       - op: replace
         path: /spec/template/spec/volumes/0/persistentVolumeClaim/claimName
         value: kuberag-llm-models-application
+      # Application worker is 2 vCPU / ~8 GiB. Keep limits for burst;
+      # lower requests so LLM + RAG API + Prefect fit scheduler packing.
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/requests/cpu
+        value: "500m"
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/requests/memory
+        value: 3Gi

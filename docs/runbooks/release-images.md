@@ -85,11 +85,24 @@ Tempo) vẫn chạy trên nó. Chỉ sau đó mới xóa Node thừa bằng mộ
 hành riêng; thao tác này sẽ làm DaemonSet trên Node thừa bị dừng nhưng không xóa
 PVC hay dữ liệu PostgreSQL.
 
-## Release hiện tại: `cb6c0f0`
+## Release hiện tại: operator digests (2026-08-05)
+
+CI release `cb6c0f0` remains the last fully scanned/Cosign-signed set in
+evidence. The live three-node demo currently pins **operator-built** digests in
+`deploy/kustomize/overlays/gcp-release/` after Tin/Chat + catalog work:
+
+| Workload | Immutable image |
+| --- | --- |
+| RAG API (gồm init container) | `asia-southeast1-docker.pkg.dev/kube-rag-platform/kuberag/kuberag-api@sha256:dbbd725ebfd7b6acf02cf8779f46594f3b892813443a8dc49ff0817eaaeaec94` |
+| Frontend | `asia-southeast1-docker.pkg.dev/kube-rag-platform/kuberag/kuberag-web@sha256:0febcaed0d7607bfdb911278e689196a9f865f83ee77cc87f8e29aebff5cdeac` |
+
+Prefect/ingestion remains on the multi-feed operator digest previously rolled
+out (`…16ba3c00…`). Re-pin through CI when the next `main` release job succeeds.
+
+### Historical signed release: `cb6c0f0`
 
 Workflow thành công của commit `cb6c0f07c9e0280f5fd2ac4a5ccaf356d59f0598`
-đã quét, tạo SBOM và ký ba digest dưới đây. Release overlay tại
-`deploy/kustomize/overlays/gcp-release/` là bản ghi Git của đúng release này.
+đã quét, tạo SBOM và ký ba digest dưới đây (evidence `SEC-*`).
 
 | Workload | Immutable image |
 | --- | --- |

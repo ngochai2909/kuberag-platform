@@ -111,6 +111,8 @@ def _metric_route(path: str) -> str:
     known_routes = {
         "/api/v1/query",
         "/api/v1/status",
+        "/api/v1/categories",
+        "/api/v1/documents",
         "/health",
         "/health/live",
         "/health/ready",

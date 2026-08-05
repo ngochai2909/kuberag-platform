@@ -13,7 +13,8 @@ from app.core.config import Settings, get_settings
 from app.core.logging import configure_logging
 from app.core.middleware import add_request_context
 from app.core.telemetry import configure_pyroscope, configure_telemetry
-from app.services.composition import build_rag_service
+from app.providers.catalog import CatalogService
+from app.services.composition import build_catalog_service, build_rag_service
 from app.services.rag import RagService
 
 logger = logging.getLogger(__name__)
@@ -22,12 +23,18 @@ logger = logging.getLogger(__name__)
 def create_app(
     settings: Settings | None = None,
     rag_service: RagService | None = None,
+    catalog_service: CatalogService | None = None,
 ) -> FastAPI:
     resolved_settings = settings or get_settings()
     telemetry_handler = configure_telemetry(resolved_settings)
     configure_logging(resolved_settings.log_level, telemetry_handler=telemetry_handler)
     configure_pyroscope(resolved_settings)
-    resolved_rag_service = rag_service or build_rag_service(resolved_settings)
+    resolved_rag_service = (
+        rag_service if rag_service is not None else build_rag_service(resolved_settings)
+    )
+    resolved_catalog_service = (
+        catalog_service if catalog_service is not None else build_catalog_service(resolved_settings)
+    )
 
     @asynccontextmanager
     async def lifespan(_: FastAPI) -> AsyncIterator[None]:
@@ -55,6 +62,7 @@ def create_app(
     )
     app.state.settings = resolved_settings
     app.state.rag_service = resolved_rag_service
+    app.state.catalog_service = resolved_catalog_service
 
     if resolved_settings.cors_origin_list:
         app.add_middleware(

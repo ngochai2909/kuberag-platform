@@ -20,3 +20,10 @@ patches:
       - op: replace
         path: /spec/template/spec/volumes/1/persistentVolumeClaim/claimName
         value: kuberag-embedding-models-application
+      # Idle worker shares the 2 vCPU node with RAG/LLM; burst via limits.
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/requests/cpu
+        value: "100m"
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/requests/memory
+        value: 768Mi

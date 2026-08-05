@@ -76,20 +76,32 @@ class PostgresVectorStore:
             ) as connection,
             connection.cursor(row_factory=dict_row) as cursor,
         ):
+            # One best chunk per document, then the top_k nearest unique articles.
             cursor.execute(
                 """
                 SELECT
-                    documents.title,
-                    documents.url,
-                    documents.source,
-                    documents.metadata AS document_metadata,
-                    chunks.content,
-                    chunks.metadata,
-                    chunks.embedding <=> %s::vector AS cosine_distance
-                FROM chunks
-                INNER JOIN documents ON documents.id = chunks.document_id
-                WHERE chunks.embedding IS NOT NULL
-                ORDER BY chunks.embedding <=> %s::vector, chunks.id
+                    title,
+                    url,
+                    source,
+                    document_metadata,
+                    content,
+                    metadata,
+                    cosine_distance
+                FROM (
+                    SELECT DISTINCT ON (documents.id)
+                        documents.title,
+                        documents.url,
+                        documents.source,
+                        documents.metadata AS document_metadata,
+                        chunks.content,
+                        chunks.metadata,
+                        chunks.embedding <=> %s::vector AS cosine_distance
+                    FROM chunks
+                    INNER JOIN documents ON documents.id = chunks.document_id
+                    WHERE chunks.embedding IS NOT NULL
+                    ORDER BY documents.id, chunks.embedding <=> %s::vector, chunks.id
+                ) AS best_chunk_per_document
+                ORDER BY cosine_distance, url
                 LIMIT %s
                 """,
                 (vector, vector, top_k),

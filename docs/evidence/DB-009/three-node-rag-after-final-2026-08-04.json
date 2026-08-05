@@ -1,0 +1,9 @@
+{
+  "http": 200,
+  "request_id": "aadd2898-cb3f-41bf-86a4-f7af0783861e",
+  "trace_id": "36326c91ce8d91734d18b3f0df995158",
+  "retrieval_ms": 78.82,
+  "generation_ms": 35812.77,
+  "total_ms": 35891.98,
+  "source_count": 2
+}
