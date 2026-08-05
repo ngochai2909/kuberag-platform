@@ -188,7 +188,11 @@ class VnExpressAdapter:
                 # instead of failing the whole catalog fetch.
                 logger.warning(
                     "vnexpress_article_skipped",
-                    extra={"url": item.link, "category": item.category, "error": type(exc).__name__},
+                    extra={
+                        "url": item.link,
+                        "category": item.category,
+                        "error": type(exc).__name__,
+                    },
                 )
                 continue
         return documents

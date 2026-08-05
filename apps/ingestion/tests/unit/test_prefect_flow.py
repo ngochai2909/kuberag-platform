@@ -5,9 +5,9 @@ from typing import cast
 
 from http_fakes import FakeHttpClient
 
+from ingestion.adapters.vnexpress import DEFAULT_FEED_URL
 from ingestion.chunking import ChunkingConfig
 from ingestion.embedding import FakeEmbeddingProvider
-from ingestion.adapters.vnexpress import DEFAULT_FEED_URL
 from ingestion.flows.ingest import (
     DAILY_INGEST_CRON,
     DAILY_INGEST_FLOW_NAME,

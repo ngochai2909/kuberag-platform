@@ -63,3 +63,6 @@ Thumbs.db
 tmp/
 docker-compose.override.yml
 /install.sh
+
+# Local terraform plan outputs (binary)
+tfplan-*
