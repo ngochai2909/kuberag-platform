@@ -140,9 +140,33 @@ def test_postgres_catalog_filters_and_pages_document_metadata() -> None:
     count_statement, count_params = cursor.execute.call_args_list[0].args
     documents_statement, documents_params = cursor.execute.call_args_list[1].args
     assert "metadata->>'category' = %s" in count_statement
-    assert count_params == ["khoa-hoc-cong-nghe"]
+    assert count_params == ("khoa-hoc-cong-nghe",)
     assert "LIMIT %s OFFSET %s" in documents_statement
-    assert documents_params == ["khoa-hoc-cong-nghe", 10, 20]
+    assert documents_params == ("khoa-hoc-cong-nghe", 10, 20)
+
+
+def test_postgres_catalog_lists_unfiltered_documents_with_static_sql() -> None:
+    cursor = MagicMock()
+    cursor.fetchone.return_value = {"total": 0}
+    cursor.fetchall.return_value = []
+    connection = MagicMock()
+    connection.__enter__.return_value = connection
+    connection.cursor.return_value.__enter__.return_value = cursor
+
+    with patch("app.providers.catalog.psycopg.connect", return_value=connection):
+        page = PostgresDocumentCatalog(database_url="postgresql://fixture").list_documents(
+            category=None,
+            limit=24,
+            offset=0,
+        )
+
+    assert page.documents == ()
+    count_statement, count_params = cursor.execute.call_args_list[0].args
+    documents_statement, documents_params = cursor.execute.call_args_list[1].args
+    assert "WHERE" not in count_statement
+    assert count_params == ()
+    assert "WHERE" not in documents_statement
+    assert documents_params == (24, 0)
 
 
 @pytest.mark.parametrize(

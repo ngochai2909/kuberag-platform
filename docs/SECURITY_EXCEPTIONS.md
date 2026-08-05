@@ -18,6 +18,21 @@ the PSS rejection verification with an equivalent negative test.
 Trivy skips the same exact file through the CI action `skip-files` input so its
 intentional privilege cannot hide a finding in any other manifest.
 
+## GCE Artifact Registry credential provider
+
+The two files under `infra/ansible/files/` that implement the kubelet Artifact
+Registry credential provider use the fixed GCE metadata token URL. Google
+documents this endpoint as link-local HTTP with the `Metadata-Flavor: Google`
+header; it does not support HTTPS. The provider accepts only the configured
+Artifact Registry hostname, constructs no URL from kubelet input, and keeps the
+short-lived token in memory only.
+
+Each required Semgrep suppression is inline and scoped to the fixed metadata
+URL, its `Request`, or its `urlopen` call. It must not be copied to a URL that
+comes from user, Pod, image, or network input. The provider configuration is
+verified during the three-node GCP image-pull test; a failed image pull must be
+investigated rather than broadening this exception.
+
 ## Temporary single-node Envoy public IP
 
 Trivy check `GCP-0031` is ignored inline only on
