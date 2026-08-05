@@ -10,6 +10,8 @@ from urllib.request import Request, urlopen
 
 
 REGISTRY_HOST = "asia-southeast1-docker.pkg.dev"
+# GCE metadata is a link-local, host-only endpoint that supports HTTP only.
+# nosemgrep: python.lang.security.audit.insecure-transport.urllib.insecure-request-object.insecure-request-object
 METADATA_TOKEN_URL = (
     "http://metadata.google.internal/computeMetadata/v1/instance/"
     "service-accounts/default/token"
@@ -23,10 +25,12 @@ def main() -> None:
     if registry != REGISTRY_HOST:
         raise ValueError("unsupported registry")
 
+    # nosemgrep: python.lang.security.audit.insecure-transport.urllib.insecure-request-object.insecure-request-object
     metadata_request = Request(
         METADATA_TOKEN_URL,
         headers={"Metadata-Flavor": "Google"},
     )
+    # nosemgrep: python.lang.security.audit.dynamic-urllib-use-detected.dynamic-urllib-use-detected
     with urlopen(metadata_request, timeout=5) as response:
         access_token = json.load(response)["access_token"]
 

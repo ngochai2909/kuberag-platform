@@ -135,12 +135,43 @@ class PostgresDocumentCatalog:
             msg = "offset must be >= 0"
             raise ValueError(msg)
 
-        filters = []
-        params: list[Any] = []
-        if category is not None:
-            filters.append("metadata->>'category' = %s")
-            params.append(category)
-        where_sql = f"WHERE {' AND '.join(filters)}" if filters else ""
+        if category is None:
+            count_statement = "SELECT COUNT(*)::int AS total FROM documents"
+            document_statement = """
+                SELECT
+                    id,
+                    title,
+                    url,
+                    source,
+                    published_at,
+                    metadata
+                FROM documents
+                ORDER BY published_at DESC NULLS LAST, updated_at DESC, id DESC
+                LIMIT %s OFFSET %s
+                """
+            count_params: tuple[str, ...] = ()
+            document_params: tuple[str | int, ...] = (limit, offset)
+        else:
+            count_statement = """
+                SELECT COUNT(*)::int AS total
+                FROM documents
+                WHERE metadata->>'category' = %s
+                """
+            document_statement = """
+                SELECT
+                    id,
+                    title,
+                    url,
+                    source,
+                    published_at,
+                    metadata
+                FROM documents
+                WHERE metadata->>'category' = %s
+                ORDER BY published_at DESC NULLS LAST, updated_at DESC, id DESC
+                LIMIT %s OFFSET %s
+                """
+            count_params = (category,)
+            document_params = (category, limit, offset)
 
         with (
             psycopg.connect(
@@ -150,29 +181,11 @@ class PostgresDocumentCatalog:
             ) as connection,
             connection.cursor(row_factory=dict_row) as cursor,
         ):
-            cursor.execute(
-                f"SELECT COUNT(*)::int AS total FROM documents {where_sql}",
-                params,
-            )
+            cursor.execute(count_statement, count_params)
             total_row = cursor.fetchone()
             total = 0 if total_row is None else int(total_row["total"])
 
-            cursor.execute(
-                f"""
-                SELECT
-                    id,
-                    title,
-                    url,
-                    source,
-                    published_at,
-                    metadata
-                FROM documents
-                {where_sql}
-                ORDER BY published_at DESC NULLS LAST, updated_at DESC, id DESC
-                LIMIT %s OFFSET %s
-                """,
-                [*params, limit, offset],
-            )
+            cursor.execute(document_statement, document_params)
             rows = cursor.fetchall()
 
         documents = tuple(_row_to_document(row) for row in rows)
