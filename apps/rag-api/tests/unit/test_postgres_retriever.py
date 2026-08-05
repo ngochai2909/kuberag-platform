@@ -1,10 +1,16 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
+from unittest.mock import MagicMock, patch
 
 import pytest
 
-from app.providers.retrieval import PostgresRetriever, VectorSearchResult, VectorSearchStore
+from app.providers.retrieval import (
+    PostgresRetriever,
+    PostgresVectorStore,
+    VectorSearchResult,
+    VectorSearchStore,
+)
 from app.services.rag import Retriever
 from ingestion.embedding import EMBEDDING_DIMENSIONS, EmbeddingProvider
 
@@ -97,3 +103,67 @@ def test_fakes_and_retriever_satisfy_provider_interfaces() -> None:
     retriever: Retriever = PostgresRetriever(embedder=embedder, store=store)
 
     assert retriever is not None
+
+
+def test_postgres_vector_store_returns_one_best_chunk_per_document() -> None:
+    cursor = MagicMock()
+    cursor.fetchall.return_value = [
+        {
+            "title": "VnExpress technology",
+            "url": "https://vnexpress.net/technology.html",
+            "source": "vnexpress",
+            "document_metadata": {"image_url": "https://example.com/thumb.jpg"},
+            "content": "Nearest chunk",
+            "metadata": {"chunk_index": 1},
+            "cosine_distance": 0.2,
+        }
+    ]
+    connection = MagicMock()
+    connection.__enter__.return_value = connection
+    connection.cursor.return_value.__enter__.return_value = cursor
+
+    with patch("app.providers.retrieval.psycopg.connect", return_value=connection) as connect:
+        results = PostgresVectorStore(database_url="postgresql://fixture").search(
+            embedding=[1.0, 0.0],
+            top_k=3,
+        )
+
+    assert results == [
+        VectorSearchResult(
+            title="VnExpress technology",
+            url="https://vnexpress.net/technology.html",
+            source="vnexpress",
+            content="Nearest chunk",
+            score=0.8,
+            metadata={"chunk_index": 1},
+            thumbnail_url="https://example.com/thumb.jpg",
+        )
+    ]
+    connect.assert_called_once_with(
+        "postgresql://fixture",
+        autocommit=True,
+        connect_timeout=5,
+    )
+    statement, params = cursor.execute.call_args.args
+    assert "SELECT DISTINCT ON (documents.id)" in statement
+    assert "ORDER BY cosine_distance, url" in statement
+    assert params == ("[1.0,0.0]", "[1.0,0.0]", 3)
+
+
+@pytest.mark.parametrize(
+    ("embedding", "top_k", "message"),
+    [
+        ([], 1, "embedding must not be empty"),
+        ([1.0, float("nan")], 1, "embedding values must be finite"),
+        ([1.0], 0, "top_k must be >= 1"),
+    ],
+)
+def test_postgres_vector_store_rejects_invalid_search_inputs(
+    embedding: list[float],
+    top_k: int,
+    message: str,
+) -> None:
+    store = PostgresVectorStore(database_url="postgresql://fixture")
+
+    with pytest.raises(ValueError, match=message):
+        store.search(embedding=embedding, top_k=top_k)

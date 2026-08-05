@@ -181,9 +181,7 @@ def daily_ingest_flow(
                 if isinstance(document.metadata.get("category"), str)
             }
         )
-        source_scope = (
-            f"vnexpress:{','.join(categories)}" if categories else ",".join(selected)
-        )
+        source_scope = f"vnexpress:{','.join(categories)}" if categories else ",".join(selected)
         run = upsert_documents(documents, source_scope=source_scope)
         status: Literal["completed", "failed"] = (
             "failed" if run.status != "completed" else "completed"

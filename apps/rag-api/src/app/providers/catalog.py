@@ -155,10 +155,7 @@ class PostgresDocumentCatalog:
                 params,
             )
             total_row = cursor.fetchone()
-            if total_row is None:
-                total = 0
-            else:
-                total = int(total_row["total"])
+            total = 0 if total_row is None else int(total_row["total"])
 
             cursor.execute(
                 f"""

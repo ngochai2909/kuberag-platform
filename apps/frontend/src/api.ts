@@ -128,7 +128,7 @@ export async function queryRag(question: string): Promise<RAGResponse> {
   const response = await fetch(`${baseUrl}/query`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ question, top_k: 5 }),
+    body: JSON.stringify({ question, top_k: 3 }),
   });
 
   if (!response.ok) {
