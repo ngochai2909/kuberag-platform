@@ -20,16 +20,19 @@ VnExpress RSS
 
 ## VnExpress Source Decision
 
-Initial feed:
+Default demo catalog uses multiple public VnExpress RSS channels (tin mới nhất,
+thời sự, thế giới, kinh doanh, khoa học công nghệ, giải trí, …). The adapter
+deduplicates by canonical article URL before downloading bodies, and stores
+`metadata.category` plus `metadata.feed_url` for the Tin browse UI
+(`GET /api/v1/categories`, `GET /api/v1/documents` — metadata only).
+
+Operators may override the list with `KUBERAG_VNEXPRESS_FEED_URLS` (comma-
+separated). The original single-feed URL remains available as
+`DEFAULT_FEED_URL` for focused tests:
 
 ```text
 https://vnexpress.net/rss/khoa-hoc-cong-nghe.rss
 ```
-
-The technology/science feed is a better initial RAG corpus than the general
-"Tin mới nhất" feed: it is closer to the platform's technical focus, keeps the
-corpus smaller, and avoids discovering the same article from both a general and
-a category feed.
 
 RSS is used to discover articles and obtain metadata. It is not treated as the
 full article body because its `description` is a short HTML summary. For a new

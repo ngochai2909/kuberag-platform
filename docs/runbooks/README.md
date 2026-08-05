@@ -191,8 +191,23 @@ The GCP frontend is a separate `kuberag-web` Deployment. Envoy serves the SPA
 at the root path and FastAPI remains behind the same origin:
 
 ```text
-Browser -> Envoy :8080 -> /       -> kuberag-web Service -> React/Vite SPA
-                       -> /api/   -> kuberag-rag-api Service -> E5/pgvector/llama.cpp
+Browser -> Envoy :8080 -> /           -> kuberag-web  -> Tin (category browse)
+                       -> /chat       -> kuberag-web  -> Chat (RAG Q&A)
+                       -> /api/v1/*   -> kuberag-rag-api -> catalog + query
+                       -> /hostname   -> smoke Pod
+```
+
+SPA routes (client-side History API; Nginx falls back to `index.html` for
+non-asset paths; `/assets/*` missing files return `404`):
+
+- `/` — Tin: filter by `metadata.category`, cards open the VnExpress URL
+- `/chat` — Chat: `POST /api/v1/query` with sources and timings
+
+Catalog API (metadata only; never returns `documents.content`):
+
+```bash
+curl -sS "http://VM_EXTERNAL_IP:8080/api/v1/categories"
+curl -sS "http://VM_EXTERNAL_IP:8080/api/v1/documents?category=tin-moi-nhat&limit=24"
 ```
 
 Use the VM external IP that Terraform prints, for example:

@@ -49,21 +49,32 @@ async def test_postgres_retriever_embeds_question_and_maps_vector_results() -> N
                 score=0.91,
                 metadata={"chunk_index": 0},
                 thumbnail_url="https://example.com/vnexpress-thumbnail.jpg",
-            )
+            ),
+            VectorSearchResult(
+                title="Second article",
+                url="https://vnexpress.net/second.html",
+                source="vnexpress",
+                content="Another retrieved chunk.",
+                score=0.88,
+                metadata={"chunk_index": 0},
+            ),
         ]
     )
     retriever = PostgresRetriever(embedder=embedder, store=store)
 
     chunks = await retriever.retrieve(
         question="AI co tac dong gi?",
-        top_k=1,
+        top_k=5,
         request_id="request-1",
     )
 
     assert embedder.queries == ["AI co tac dong gi?"]
-    assert store.calls == [(embedder.vector, 1)]
+    assert store.calls == [(embedder.vector, 5)]
+    assert [chunk.url for chunk in chunks] == [
+        "https://vnexpress.net/technology.html",
+        "https://vnexpress.net/second.html",
+    ]
     assert chunks[0].title == "VnExpress technology"
-    assert chunks[0].url == "https://vnexpress.net/technology.html"
     assert chunks[0].metadata == {"chunk_index": 0}
     assert chunks[0].thumbnail_url == "https://example.com/vnexpress-thumbnail.jpg"
 

@@ -68,17 +68,14 @@ phổ biến là thiếu RAM hoặc local-path PVC chưa bind được.
 
 ## Mở Grafana
 
-Terminal A mở Kubernetes API qua IAP:
+Một lệnh (tự mở IAP kubectl tunnel nếu chưa có, rồi port-forward):
 
 ```bash
-make gcp-k3s-tunnel
+make grafana
 ```
 
-Terminal B mở Grafana chỉ trên laptop:
-
-```bash
-make gcp-observability-grafana-port-forward
-```
+Tương đương cũ: `make gcp-k3s-tunnel` + `make gcp-observability-grafana-port-forward`.
+Prefect UI: `make prefect` → `http://127.0.0.1:4200`.
 
 Mở `http://127.0.0.1:3000`. Lấy thông tin đăng nhập tại terminal khi cần, không
 commit Secret hay gửi password vào chat/ticket:

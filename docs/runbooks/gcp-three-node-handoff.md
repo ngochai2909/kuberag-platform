@@ -1,28 +1,28 @@
 # GCP Three-Node Handoff Runbook
 
-Last verified: 2026-08-04
+Last verified: 2026-08-04 (post clean install `DOC-004`)
 
-This runbook is the continuation point for the active final-topology migration.
-It records runtime facts only. It is not permission to run the mutating steps:
-confirm each cluster, persistence, or cloud change immediately before running
-it.
+This runbook records the verified final three-node topology. It is not
+permission to run mutating steps: confirm each cluster, persistence, or cloud
+change immediately before running it.
 
 ## Target topology and current position
 
 ```text
-Internet -> static IP :8080 -> Envoy on server -> Services -> application worker
-                                               -> PostgreSQL primary / replica
+Internet -> 136.85.35.106:8080 -> Envoy on server -> Services
+  -> application worker: web, RAG API, llama.cpp, Prefect, PG replica (pg-1)
+  -> observability worker: obs stack, PG primary (pg-2)
 
-kuberag-server                 control plane, Envoy, current application Pods,
-                               PostgreSQL primary
-kuberag-worker-application     warmed model caches; destination for app Pods
-kuberag-worker-observability   PostgreSQL streaming replica; future observability
-                               destination after PVC-data migration
+kuberag-server                 control plane + Envoy controller path
+kuberag-worker-application     apps + model caches + PG async replica
+kuberag-worker-observability   observability stack + PG primary
 ```
 
-All three nodes are `Ready`. The workers have no public addresses; their
-private addresses remain in Terraform output and the IAP-only inventory. Cloud
-NAT is egress-only and IAP remains the administration path.
+All three nodes are `Ready` after the 2026-08-04 full clean install. Workers
+have no public addresses; private addresses remain in Terraform output and the
+IAP-only inventory. Cloud NAT is egress-only and IAP remains the administration
+path. Clean-install evidence:
+`docs/evidence/DOC-004/gcp-full-clean-install-2026-08-04.md`.
 
 ## Completed and verified
 
@@ -35,8 +35,9 @@ NAT is egress-only and IAP remains the administration path.
   replace this with a service-account key, static token, or Git-tracked Docker
   config.
 - CloudNativePG reports `INSTANCES=2`, `READY=2`, and healthy status.
-  `kuberag-pg-1` is primary on the server; `kuberag-pg-2` is a streaming async
-  replica on the observability worker.
+  After switchover/`postgresql-final`, `kuberag-pg-2` is primary on the
+  observability worker and `kuberag-pg-1` is the streaming async replica on
+  the application worker.
 - The following Jobs completed on the application worker:
   `kuberag-llm-model-warm`, `kuberag-rag-api-embedding-warm`, and
   `kuberag-prefect-embedding-warm`.
@@ -91,10 +92,12 @@ Evidence: `docs/evidence/DB-002/`, `docs/evidence/DB-008/`,
 ## Current topology
 
 ```text
-Internet -> static IP :8080 -> Envoy on server -> Services
+Internet -> 136.85.35.106:8080 -> Envoy on server -> Services
   -> application worker (frontend, RAG API, llama.cpp, Prefect, PG replica)
   -> observability worker (observability stack, PG primary)
 ```
+
+`DOC-004` clean install Pass; `DOC-006` demo script still pending.
 
 ## Do not run casually
 

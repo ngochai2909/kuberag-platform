@@ -23,7 +23,7 @@ If code and documentation conflict, report the conflict. Do not silently change 
 
 - `apps/rag-api`: FastAPI RAG API. HTTP routes perform transport and validation only.
 - `apps/ingestion`: Prefect flows, source adapters, chunking, embedding, and upsert logic.
-- `apps/frontend`: React/Vite single-page UI.
+- `apps/frontend`: React/Vite Tin browse + Chat UI.
 - `infra/terraform`: GCP network, VM, disk, firewall, and outputs.
 - `infra/ansible`: OS prerequisites and k3s installation/join configuration.
 - `deploy/helm`: Project-owned Helm assets when justified.

@@ -8,6 +8,7 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
 from app.core.config import Settings
 from app.core.errors import AuthenticationError, RagUnavailableError
+from app.providers.catalog import CatalogService
 from app.services.rag import RagService
 
 _bearer_scheme = HTTPBearer(auto_error=False)
@@ -27,6 +28,13 @@ def get_trace_id(request: Request) -> str:
 
 def get_rag_service(request: Request) -> RagService:
     service = cast(RagService | None, request.app.state.rag_service)
+    if service is None:
+        raise RagUnavailableError
+    return service
+
+
+def get_catalog_service(request: Request) -> CatalogService:
+    service = cast(CatalogService | None, request.app.state.catalog_service)
     if service is None:
         raise RagUnavailableError
     return service
@@ -52,5 +60,6 @@ async def require_api_key(
 
 
 RagServiceDependency = Annotated[RagService, Depends(get_rag_service)]
+CatalogServiceDependency = Annotated[CatalogService, Depends(get_catalog_service)]
 RequestIdDependency = Annotated[str, Depends(get_request_id)]
 TraceIdDependency = Annotated[str, Depends(get_trace_id)]

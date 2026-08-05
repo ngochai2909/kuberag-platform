@@ -7,6 +7,7 @@ from http_fakes import FakeHttpClient
 
 from ingestion.chunking import ChunkingConfig
 from ingestion.embedding import FakeEmbeddingProvider
+from ingestion.adapters.vnexpress import DEFAULT_FEED_URL
 from ingestion.flows.ingest import (
     DAILY_INGEST_CRON,
     DAILY_INGEST_FLOW_NAME,
@@ -46,6 +47,7 @@ def _runtime_with_fixtures() -> tuple[IngestionRuntime, InMemoryDocumentStore]:
         store=store,
         embedder=FakeEmbeddingProvider(),
         chunking=ChunkingConfig(max_chars=220, overlap_chars=40),
+        vnexpress_feed_urls=[DEFAULT_FEED_URL],
         embedding_batch_size=2,
     )
     return runtime, store

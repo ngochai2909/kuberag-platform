@@ -1,17 +1,20 @@
 # KubeRAG Project Status
 
-Last updated: 2026-08-04
+Last updated: 2026-08-05
 
 This page is the quickest starting point for a contributor, reviewer, or
 operator joining the project. It separates what is running now from what is
 only prepared in Git, so a reader does not mistake a manifest for a deployed
 service.
 
-> **Current handoff:** the final three-node placement is verified for apps,
-> observability, and PostgreSQL primary/replica on the two workers. Remaining
-> closeout is documentation/release work (and optional SEC-009). Read
+> **Current handoff:** three-node GCP demo is live at
+> `http://136.85.35.106:8080`. Multi-feed VnExpress ingest (~1000 documents),
+> Tin browse UI (`/`), Chat UI (`/chat`), and catalog APIs
+> (`GET /api/v1/categories`, `GET /api/v1/documents`) are deployed. Remaining
+> Week 6 closeout: demo script (`DOC-006`), release notes/tag, optional
+> SEC-009. Read
 > [`runbooks/gcp-three-node-handoff.md`](runbooks/gcp-three-node-handoff.md)
-> for the verified topology before further mutations.
+> and `docs/evidence/DOC-004/gcp-full-clean-install-2026-08-04.md`.
 
 ## Current Milestone
 
@@ -24,11 +27,15 @@ FastAPI now has a provider-independent PostgreSQL retrieval adapter with local
 unit/type/lint verification and a passing controlled GCP pgvector integration
 test. The internal llama.cpp generation runtime is now deployed and verified.
 FastAPI composition is deployed with a separate E5 cache PVC and has completed
-a real RAG request through pgvector and llama.cpp. Envoy now routes `/api/` to
-FastAPI and enforces a local rate limit. The React/Vite frontend is deployed at
-`/`, calls the same-origin API, and renders VnExpress source cards with RSS
-thumbnails when present. The GCP overlay explicitly enables a temporary public
-demo mode; it is not production authentication.
+a real RAG request through pgvector and llama.cpp. Retrieval returns up to
+`top_k` **unique documents** (best chunk per article). Envoy routes `/api/` to
+FastAPI and enforces a local rate limit. The React UI is deployed at `/`
+(**Tin**: category browse of indexed metadata; click opens VnExpress) and
+`/chat` (**Chat**: RAG Q&A with source cards/thumbnails). Catalog endpoints
+`GET /api/v1/categories` and `GET /api/v1/documents` return metadata only —
+never full article `content`. Ingestion uses the multi-feed VnExpress catalog
+with `metadata.category`. The GCP overlay enables temporary public demo mode;
+it is not production authentication.
 
 The Week 4 observability stack is deployed on the GCP checkpoint with runtime
 evidence under `docs/evidence/OBS-*`. Grafana, Prometheus, Loki, Tempo,
@@ -66,11 +73,11 @@ the observability worker with an async replica on the application worker.
 | Smoke route | Verified end-to-end | Verified end-to-end via public `:8080` | `curl` returns the smoke Pod hostname. |
 | PSS restricted | Verified | Verified | Unsafe privileged/root Pods are rejected. |
 | PostgreSQL/pgvector | Not deployed | Verified primary + replica on workers | `kuberag-pg-2` is primary on the observability worker; `kuberag-pg-1` is an async standby on the application worker. Server is excluded from CNPG affinity. |
-| Source adapters | Offline fixtures/unit tests | Live VnExpress scheduled | Demo source is VnExpress RSS only. |
+| Frontend | Local Vite (`mock` or `real` via proxy) | Deployed through Envoy `/` and `/chat` on application worker | Non-root Nginx SPA: Tin browse + Chat; same-origin `/api/v1`; missing `/assets/*` returns 404. |
+| Source adapters / ingest | Offline fixtures/unit tests | Live multi-feed VnExpress scheduled + manual Jobs | ~19 RSS categories; skip-soft on bad articles; corpus ~1000 docs after multi-feed run. |
 | Prefect flow | Offline skeleton tested | Deployed and verified | Daily `0 3 * * *` UTC is registered (10:00 Vietnam); Prefect metadata uses PostgreSQL database `prefect`, separate from RAG data. |
 | llama.cpp | Not deployed | Verified on application worker | Internal `ClusterIP` Service loads Qwen2.5-1.5B GGUF from the warmed application-worker PVC; it is not public. |
-| RAG API | Skeleton only | Verified through Envoy on application worker | Restricted FastAPI Deployment has E5 cache PVC on the application worker, CNPG Secret, llama.cpp Service dependency, and a 45 s application timeout. The GCP demo route is public without bearer auth, but Envoy applies a shared 10 requests/minute limit. |
-| Frontend | Local Vite development available | Deployed through Envoy `/` on application worker | Non-root Nginx serves the built React/Vite SPA; it calls `/api/v1` and shows source title, URL, and optional RSS thumbnail. |
+| RAG API | Catalog + query unit/integration tests | Verified through Envoy on application worker | Query + categories/documents catalog; unique-document retrieval; temporary public demo + Envoy 10 req/min; 45 s application timeout. |
 | Observability | Manifests prepared only | Deployed on observability worker | Prometheus, Grafana, Loki, Tempo, Pyroscope, and OTel Collector are private `ClusterIP` workloads on `kuberag-worker-observability`; Grafana via IAP port-forward / in-Pod API. |
 
 ## GCP Three-Node Transition: Verified State
@@ -83,7 +90,7 @@ inferred from manifests:
 | k3s nodes | Pass | Server, application worker, and observability worker all reported `Ready`; consult Terraform output/IAP-only inventory for private addresses. |
 | Worker networking | Pass | Workers have no public IP. Cloud NAT `kuberag-nat` provides egress only for subnet `kuberag-subnet`; HTTPS outbound from the application worker passed. |
 | Artifact Registry pull auth | Pass | Both workers run a kubelet credential provider that exchanges GCE metadata-service identity for short-lived Artifact Registry credentials. No service-account key or registry token is stored in Git/Kubernetes. |
-| PostgreSQL replica | Pass | `kuberag-pg-1` is primary on the server and `kuberag-pg-2` is `Running` on the observability worker. `pg_stat_replication` returned `kuberag-pg-2|streaming|async`. |
+| PostgreSQL primary/replica | Pass | After clean install + switchover: `kuberag-pg-2` primary on the observability worker; `kuberag-pg-1` async replica on the application worker (`readyInstances=2`). |
 | Application cache preparation | Pass | The LLM model, RAG embedding, and Prefect embedding warm Jobs all completed on the application worker. Their new node-local PVCs remain Bound. |
 | Application placement | Pass | Frontend, RAG API, llama.cpp, Prefect server/worker run on `kuberag-worker-application` with warmed `-application` PVCs. Three-node overlays lower CPU requests to fit the 2 vCPU worker. Evidence: `docs/evidence/K8S-002/three-node-app-placement-2026-08-04.md`. |
 | Observability placement | Pass | Fresh redeploy onto `kuberag-worker-observability` (telemetry PVC history reset once). Evidence: `docs/evidence/OBS-014/three-node-observability-placement-2026-08-04.md`. |
@@ -157,18 +164,21 @@ firewall CIDRs when the operator egress changes.
 | `OBS-005`–`OBS-007` | Pass GCP runtime | FastAPI and Prefect OTLP logs in Loki; required fields present as structured metadata; sample review shows no raw prompt/document/secret (`docs/evidence/OBS-005`–`OBS-007/`). |
 | `OBS-008`–`OBS-010` | Pass GCP runtime | Tempo RAG span tree, ingestion fetch/upsert spans, and response↔Loki↔Tempo `trace_id` correlation (`docs/evidence/OBS-008`–`OBS-010/`). |
 | `OBS-011`–`OBS-014` | Pass GCP runtime | Pyroscope CPU profile, Git-provisioned Grafana datasources/dashboard (API evidence), no Alloy inventory, retention/PVC/limits match single-node budget (`docs/evidence/OBS-011`–`OBS-014/`). |
+| `DOC-004` | Pass GCP clean install | Targeted compute/network destroy+recreate, three-node rebuild, ingest Completed, gateway/RAG smoke on new IP `136.85.35.106`. Evidence: `docs/evidence/DOC-004/gcp-full-clean-install-2026-08-04.md`. |
+| `DOC-006` | Pending | Demo script / rehearsal deferred by operator choice after clean install. |
 
 ## Immediate Next Checkpoint
 
-Three-node application, observability, and PostgreSQL placement are verified.
-Next work is Week 6 closeout: docs/demo script polish, optional SEC-009 branch
-protection screenshot, and release notes — not further topology mutations
-unless a regression appears.
+`DOC-004` clean install is Pass with evidence under `docs/evidence/DOC-004/`.
+Next work is Week 6 closeout: demo script (`DOC-006`), release notes/tag
+(`DOC-008`), limitations report (`DOC-009`), and optional SEC-009 — not further
+topology mutations unless a regression appears.
 
 ## Major Work Still Ahead
 
+- `DOC-006` demo script (12–15 minute rehearsal) — still pending by choice.
 - Optional SEC-009 branch-protection screenshot (needs GitHub admin access).
-- Week 6 clean-install / release notes / DoD closeout.
+- Week 6 release notes / Git tag / DoD closeout.
 
 ## Useful References
 

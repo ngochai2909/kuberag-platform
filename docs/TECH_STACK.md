@@ -21,7 +21,8 @@
 | Overlay | Kustomize | Required | Custom app manifests | Native với kubectl, rõ khác biệt môi trường |
 | Gateway | Envoy Gateway | Required | Gateway API, route, rate limit | Tách network policy khỏi service |
 | Default ingress | Traefik | Disabled locally, unused | Thành phần k3s mặc định | Không phục vụ route của dự án |
-| Frontend | React + Vite | Required | UI truy vấn một trang | Nhẹ, nhanh, đủ cho demo |
+| Frontend | React + Vite | Required | Tin browse + Chat RAG pages | Nhẹ, nhanh, đủ cho demo |
+
 | Backend | FastAPI | Required | RAG HTTP API | Python, async, OpenAPI và dễ instrument |
 | Orchestrator | Prefect + PostgreSQL metadata DB | Required | Daily ingestion flow, schedule, retry và run state | Tránh SQLite writer lock khi server, scheduler và worker cùng hoạt động |
 | Sources | VnExpress RSS | Required | Dữ liệu mới hằng ngày | Một nguồn tin tiếng Việt ổn định cho demo RAG |
