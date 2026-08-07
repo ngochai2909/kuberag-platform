@@ -5,7 +5,7 @@ resources:
 images:
   - name: kuberag-rag-api
     newName: asia-southeast1-docker.pkg.dev/kube-rag-platform/kuberag/kuberag-api
-    digest: sha256:dbbd725ebfd7b6acf02cf8779f46594f3b892813443a8dc49ff0817eaaeaec94
+    digest: sha256:eea47fb4453c84f8539fc62ce540403751d2c04cb81465d3246d7f35934dac79
 patches:
   - target:
       group: apps
