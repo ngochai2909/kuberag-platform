@@ -77,7 +77,7 @@ the observability worker with an async replica on the application worker.
 | Source adapters / ingest | Offline fixtures/unit tests | Live multi-feed VnExpress scheduled + manual Jobs | ~19 RSS categories; skip-soft on bad articles; corpus ~1000 docs after multi-feed run. |
 | Prefect flow | Offline skeleton tested | Deployed and verified | Daily `0 3 * * *` UTC is registered (10:00 Vietnam); Prefect metadata uses PostgreSQL database `prefect`, separate from RAG data. |
 | llama.cpp | Not deployed | Verified on application worker | Internal `ClusterIP` Service loads Qwen2.5-1.5B GGUF from the warmed application-worker PVC; it is not public. |
-| RAG API | Catalog + query unit/integration tests | Verified through Envoy on application worker | Query + categories/documents catalog; unique-document retrieval; temporary public demo + Envoy 10 req/min; 45 s application timeout. |
+| RAG API | Catalog + query unit/integration tests | Verified through Envoy on application worker | Query + categories/documents catalog; unique-document retrieval; temporary public demo + Envoy 10 req/min; 90 s application timeout (Envoy API route 100s/95s); UI `top_k=3`. |
 | Observability | Manifests prepared only | Deployed on observability worker | Prometheus, Grafana, Loki, Tempo, Pyroscope, and OTel Collector are private `ClusterIP` workloads on `kuberag-worker-observability`; Grafana via IAP port-forward / in-Pod API. |
 
 ## GCP Three-Node Transition: Verified State

@@ -75,7 +75,8 @@ Chất lượng nội dung do LLM sinh ra **không phải tiêu chí đánh giá
 
 - Một nguồn dữ liệu bắt buộc: VnExpress RSS (khoa-học-công-nghệ).
 - Có fixture/sample data để test offline và dự phòng khi nguồn lỗi.
-- Prefect flow hằng ngày: `fetch → normalize → deduplicate → chunk → embed → upsert`.
+- Prefect flow hằng ngày: catalog RSS (dedupe URL), rồi với mỗi bài
+  `fetch → normalize → chunk → embed → upsert` ngay (không chờ crawl hết catalog).
 - Có retry, timeout, exponential backoff, watermark và trạng thái ingestion run.
 - Chạy lại cùng input không tạo document/chunk trùng.
 

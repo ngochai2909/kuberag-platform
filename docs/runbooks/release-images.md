@@ -94,7 +94,7 @@ evidence. The live three-node demo currently pins **operator-built** digests in
 | Workload | Immutable image |
 | --- | --- |
 | RAG API (gồm init container) | `asia-southeast1-docker.pkg.dev/kube-rag-platform/kuberag/kuberag-api@sha256:dbbd725ebfd7b6acf02cf8779f46594f3b892813443a8dc49ff0817eaaeaec94` |
-| Frontend | `asia-southeast1-docker.pkg.dev/kube-rag-platform/kuberag/kuberag-web@sha256:0febcaed0d7607bfdb911278e689196a9f865f83ee77cc87f8e29aebff5cdeac` |
+| Frontend | `asia-southeast1-docker.pkg.dev/kube-rag-platform/kuberag/kuberag-web@sha256:7e10d7c294168bd7a2286c38b1d96ff34a84448e48a79b153f354a8ed7fd6a06` |
 
 Prefect/ingestion remains on the multi-feed operator digest previously rolled
 out (`…16ba3c00…`). Re-pin through CI when the next `main` release job succeeds.

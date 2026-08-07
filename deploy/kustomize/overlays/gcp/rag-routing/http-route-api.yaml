@@ -15,8 +15,9 @@ spec:
             type: PathPrefix
             value: /api/
       timeouts:
-        request: 60s
-        backendRequest: 55s
+        # Keep Envoy above rag-api RAG_TIMEOUT_SECONDS (90s) so the app owns the cut.
+        request: 100s
+        backendRequest: 95s
       backendRefs:
         - name: kuberag-rag-api
           port: 80

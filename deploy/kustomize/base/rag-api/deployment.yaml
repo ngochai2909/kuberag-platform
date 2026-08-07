@@ -103,6 +103,8 @@ spec:
               value: /models
             - name: RAG_EMBEDDING_LOCAL_ONLY
               value: "true"
+            - name: RAG_TIMEOUT_SECONDS
+              value: "90"
             - name: LLAMA_CPP_BASE_URL
               value: http://kuberag-llm.rag.svc.cluster.local:8080
             - name: LLAMA_CPP_MODEL

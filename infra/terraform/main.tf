@@ -378,7 +378,10 @@ resource "google_compute_instance" "worker" {
   machine_type = each.value.machine_type
   zone         = var.zone
 
-  deletion_protection = false
+  # Compute Engine must stop a VM before changing its machine type. The
+  # observability worker is not being resized in this operation.
+  allow_stopping_for_update = each.key == "application"
+  deletion_protection       = false
 
   tags = ["${var.name_prefix}-node"]
   labels = merge(local.resource_labels, {
@@ -431,6 +434,11 @@ resource "google_compute_instance" "worker" {
   }
 
   lifecycle {
+    # `gcloud compute ssh` may add a short-lived operator key to this metadata
+    # value. Do not remove that access while resizing workers; key rotation is
+    # a separately reviewed security operation.
+    ignore_changes = [metadata["ssh-keys"]]
+
     precondition {
       condition     = startswith(var.zone, "${var.region}-")
       error_message = "zone must belong to region."

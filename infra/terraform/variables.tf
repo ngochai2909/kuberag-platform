@@ -150,7 +150,7 @@ variable "observability_worker_machine_type" {
 variable "application_worker_machine_type" {
   description = "Compute Engine machine type for the RAG, ingestion, llama.cpp, and PostgreSQL worker."
   type        = string
-  default     = "e2-custom-2-8192"
+  default     = "e2-custom-4-16384"
 }
 
 variable "worker_private_ips" {

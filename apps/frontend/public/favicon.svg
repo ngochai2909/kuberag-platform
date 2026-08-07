@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 44" role="img">
+  <title>KubeRAG</title>
+  <path
+    d="M20 2.5 36 11.5v18L20 41.5 4 29.5v-18L20 2.5Z"
+    fill="#0d6b63"
+  />
+  <text
+    x="20"
+    y="27"
+    text-anchor="middle"
+    fill="#ffffff"
+    font-family="Outfit, 'Source Sans 3', 'Segoe UI', sans-serif"
+    font-size="16"
+    font-weight="700"
+  >
+    K
+  </text>
+</svg>
