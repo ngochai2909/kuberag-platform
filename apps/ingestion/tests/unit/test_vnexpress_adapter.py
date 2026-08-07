@@ -76,6 +76,49 @@ def test_fetch_documents_uses_injected_http_client() -> None:
     assert len(http.calls) == 3
 
 
+def test_catalog_feed_items_dedupes_and_prefers_first_feed() -> None:
+    feed = load_fixture("vnexpress", "feed.xml")
+    http = FakeHttpClient(
+        {
+            "https://vnexpress.net/rss/tin-moi-nhat.rss": HttpResponse(200, feed),
+            "https://vnexpress.net/rss/khoa-hoc-cong-nghe.rss": HttpResponse(200, feed),
+        }
+    )
+    items = VnExpressAdapter(http).catalog_feed_items(
+        [
+            "https://vnexpress.net/rss/tin-moi-nhat.rss",
+            "https://vnexpress.net/rss/khoa-hoc-cong-nghe.rss",
+        ]
+    )
+    assert len(items) == 2
+    assert items[0].category == "tin-moi-nhat"
+    assert items[1].category == "tin-moi-nhat"
+    # Catalog only hits RSS endpoints.
+    assert len(http.calls) == 2
+    assert all(call[0].endswith(".rss") for call in http.calls)
+
+
+def test_fetch_document_skips_articles_that_fail_extraction() -> None:
+    feed = load_fixture("vnexpress", "feed.xml")
+    http = FakeHttpClient(
+        {
+            "https://vnexpress.net/rss/khoa-hoc-cong-nghe.rss": HttpResponse(200, feed),
+            "https://vnexpress.net/robot-ho-tro-van-hanh-kho-1001.html": HttpResponse(
+                200, "<html><body><p>no article region</p></body></html>"
+            ),
+            "https://vnexpress.net/pin-the-ran-1002.html": HttpResponse(
+                200, load_fixture("vnexpress", "article-1002.html")
+            ),
+        }
+    )
+    adapter = VnExpressAdapter(http)
+    items = adapter.catalog_feed_items(["https://vnexpress.net/rss/khoa-hoc-cong-nghe.rss"])
+    assert adapter.fetch_document(items[0]) is None
+    document = adapter.fetch_document(items[1])
+    assert document is not None
+    assert document.url == "https://vnexpress.net/pin-the-ran-1002.html"
+
+
 def test_fetch_documents_from_feeds_skips_articles_that_fail_extraction() -> None:
     feed = load_fixture("vnexpress", "feed.xml")
     http = FakeHttpClient(

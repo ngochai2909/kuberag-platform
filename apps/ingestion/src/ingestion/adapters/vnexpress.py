@@ -164,8 +164,12 @@ class VnExpressAdapter:
     def fetch_documents(self) -> list[SourceDocument]:
         return self.fetch_documents_from_feeds([self._feed_url])
 
-    def fetch_documents_from_feeds(self, feed_urls: Sequence[str]) -> list[SourceDocument]:
-        """Fetch many RSS channels, dedupe by article URL, then extract bodies."""
+    def catalog_feed_items(self, feed_urls: Sequence[str]) -> list[RssItem]:
+        """GET RSS channels and return unique items keyed by canonical article URL.
+
+        First feed that discovers a URL wins (``tin-moi-nhat`` is listed first in
+        :data:`DEFAULT_FEEDS`). Does not download article HTML.
+        """
 
         if not feed_urls:
             msg = "feed_urls must not be empty"
@@ -175,26 +179,38 @@ class VnExpressAdapter:
         for feed_url in feed_urls:
             response = self._http.get(feed_url)
             for item in self.parse_feed(response.text, feed_url=feed_url):
-                # First feed that discovers a URL wins (tin-moi-nhat is listed first).
                 unique_items.setdefault(item.link, item)
+        return list(unique_items.values())
+
+    def fetch_document(self, item: RssItem) -> SourceDocument | None:
+        """Download one article and build a :class:`SourceDocument`.
+
+        Soft-skips video/live/paywall/extract failures so one bad URL does not
+        abort a multi-feed run. Returns ``None`` when the article is skipped.
+        """
+
+        try:
+            article = self._http.get(item.link)
+            return self.build_document(item, article_html=article.text)
+        except Exception as exc:
+            logger.warning(
+                "vnexpress_article_skipped",
+                extra={
+                    "url": item.link,
+                    "category": item.category,
+                    "error": type(exc).__name__,
+                },
+            )
+            return None
+
+    def fetch_documents_from_feeds(self, feed_urls: Sequence[str]) -> list[SourceDocument]:
+        """Catalog feeds, then fetch each unique article body (batch helper)."""
 
         documents: list[SourceDocument] = []
-        for item in unique_items.values():
-            try:
-                article = self._http.get(item.link)
-                documents.append(self.build_document(item, article_html=article.text))
-            except Exception as exc:
-                # Multi-feed runs hit video/live/paywall pages; skip one bad URL
-                # instead of failing the whole catalog fetch.
-                logger.warning(
-                    "vnexpress_article_skipped",
-                    extra={
-                        "url": item.link,
-                        "category": item.category,
-                        "error": type(exc).__name__,
-                    },
-                )
-                continue
+        for item in self.catalog_feed_items(feed_urls):
+            document = self.fetch_document(item)
+            if document is not None:
+                documents.append(document)
         return documents
 
     def parse_feed(self, xml_text: str, *, feed_url: str | None = None) -> list[RssItem]:

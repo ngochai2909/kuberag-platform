@@ -4,7 +4,7 @@ Verification:
   uv run pytest apps/ingestion/tests/unit/test_prefect_flow.py -q --no-cov
 
 Proven steps via `daily_ingest_flow`:
-fetch → normalize → deduplicate → chunk → embed → upsert
+catalog (RSS dedupe) → per article: fetch → normalize → chunk → embed → upsert
 
 Collaborators used in the test harness:
 - FakeHttpClient + VnExpress fixtures

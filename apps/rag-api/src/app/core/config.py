@@ -47,7 +47,7 @@ class Settings(BaseSettings):
     pyroscope_enabled: bool = False
     pyroscope_server_address: str = "http://kuberag-pyroscope.observability.svc.cluster.local:4040"
 
-    rag_timeout_seconds: float = Field(default=45.0, gt=0, le=600)
+    rag_timeout_seconds: float = Field(default=90.0, gt=0, le=600)
     rag_max_context_chars: int = Field(default=12000, ge=1000, le=100000)
     rag_runtime_enabled: bool = False
     database_url: SecretStr | None = None

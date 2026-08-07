@@ -193,16 +193,19 @@ counts, watermarks, and errors needed for dashboards and alerting.
 ## Ingestion And Deduplication Rules
 
 ```text
-1. Fetch configured RSS feed with timeout and retry/backoff.
-2. Parse entries and normalize each canonical URL.
-3. Check documents by (source, external_id).
-4. For a new or recently changed candidate, fetch the article page at a low,
-   bounded concurrency.
-5. Extract and normalize text, then calculate checksum.
-6. If the checksum is unchanged, increment skipped_count and do not re-embed.
-7. If new or changed, upsert documents, replace affected chunks, and embed.
-8. Complete ingestion_runs with counters and its final watermark.
+1. Fetch configured RSS feeds with timeout and retry/backoff; parse items.
+2. Deduplicate by canonical article URL across feeds (first feed wins).
+3. For each unique URL, sequentially:
+   a. Fetch the article page (soft-skip one bad URL; do not abort the run).
+   b. Extract and normalize text, then calculate checksum.
+   c. Check documents by (source, external_id).
+   d. If the checksum is unchanged, increment skipped_count and do not re-embed.
+   e. If new or changed, upsert the document, replace affected chunks, and embed.
+4. Complete ingestion_runs with counters and its final watermark.
 ```
+
+Articles are upserted as soon as each page is fetched; the run does not wait
+to download the full catalog before writing.
 
 The initial schedule should be conservative. RSS is an update feed, not an
 historical archive, and the adapter should not retry indefinitely or fetch pages

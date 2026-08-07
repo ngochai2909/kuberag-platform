@@ -11,7 +11,7 @@ def test_default_development_settings_are_safe() -> None:
 
     assert settings.app_env is Environment.DEVELOPMENT
     assert settings.api_auth_enabled is False
-    assert settings.rag_timeout_seconds == 45.0
+    assert settings.rag_timeout_seconds == 90.0
     assert settings.rag_max_context_chars == 12000
     assert settings.cors_origin_list == [
         "http://localhost:3000",

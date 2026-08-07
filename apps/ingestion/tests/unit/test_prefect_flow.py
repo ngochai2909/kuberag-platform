@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from collections.abc import Mapping
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import cast
 
@@ -23,9 +25,33 @@ from ingestion.store import InMemoryDocumentStore
 
 FIXTURES = Path(__file__).parent / "fixtures"
 
+ARTICLE_1 = "https://vnexpress.net/robot-ho-tro-van-hanh-kho-1001.html"
+ARTICLE_2 = "https://vnexpress.net/pin-the-ran-1002.html"
+
 
 def load_fixture(*parts: str) -> str:
     return FIXTURES.joinpath(*parts).read_text(encoding="utf-8")
+
+
+@dataclass
+class SequentialProbeHttpClient(FakeHttpClient):
+    """Fail the run unless article 1 is already stored before article 2 is fetched."""
+
+    store: InMemoryDocumentStore | None = None
+    saw_first_upserted_before_second_fetch: bool = field(default=False, init=False)
+
+    def get(
+        self,
+        url: str,
+        *,
+        headers: Mapping[str, str] | None = None,
+        timeout: float | None = None,
+    ) -> HttpResponse:
+        if url == ARTICLE_2 and self.store is not None:
+            existing = self.store.get_document("vnexpress", ARTICLE_1)
+            if existing is not None:
+                self.saw_first_upserted_before_second_fetch = True
+        return super().get(url, headers=headers, timeout=timeout)
 
 
 def _runtime_with_fixtures() -> tuple[IngestionRuntime, InMemoryDocumentStore]:
@@ -34,12 +60,8 @@ def _runtime_with_fixtures() -> tuple[IngestionRuntime, InMemoryDocumentStore]:
     http = FakeHttpClient(
         {
             "https://vnexpress.net/rss/khoa-hoc-cong-nghe.rss": HttpResponse(200, feed),
-            "https://vnexpress.net/robot-ho-tro-van-hanh-kho-1001.html": HttpResponse(
-                200, load_fixture("vnexpress", "article-1001.html")
-            ),
-            "https://vnexpress.net/pin-the-ran-1002.html": HttpResponse(
-                200, load_fixture("vnexpress", "article-1002.html")
-            ),
+            ARTICLE_1: HttpResponse(200, load_fixture("vnexpress", "article-1001.html")),
+            ARTICLE_2: HttpResponse(200, load_fixture("vnexpress", "article-1002.html")),
         }
     )
     runtime = IngestionRuntime(
@@ -63,6 +85,7 @@ def test_deployment_schedule_is_daily_cron() -> None:
 
 def test_pipeline_step_contract() -> None:
     assert flow_pipeline_steps() == [
+        "catalog",
         "fetch",
         "normalize",
         "deduplicate",
@@ -132,3 +155,36 @@ def test_daily_ingest_flow_uses_operator_feed_override() -> None:
     assert result.document_count == 2
     assert http.calls[0][0] == override_url
     assert store.count_documents() == 2
+
+
+def test_daily_ingest_upserts_each_article_before_fetching_the_next() -> None:
+    store = InMemoryDocumentStore()
+    feed = load_fixture("vnexpress", "feed.xml")
+    http = SequentialProbeHttpClient(
+        responses={
+            "https://vnexpress.net/rss/khoa-hoc-cong-nghe.rss": HttpResponse(200, feed),
+            ARTICLE_1: HttpResponse(200, load_fixture("vnexpress", "article-1001.html")),
+            ARTICLE_2: HttpResponse(200, load_fixture("vnexpress", "article-1002.html")),
+        },
+        store=store,
+    )
+    runtime = IngestionRuntime(
+        http=http,
+        store=store,
+        embedder=FakeEmbeddingProvider(),
+        chunking=ChunkingConfig(max_chars=220, overlap_chars=40),
+        vnexpress_feed_urls=[DEFAULT_FEED_URL],
+        embedding_batch_size=2,
+    )
+
+    with ingestion_runtime(runtime):
+        result = daily_ingest_flow()
+
+    assert result.status == "completed"
+    assert result.counters.inserted_count == 2
+    assert http.saw_first_upserted_before_second_fetch
+    assert [call[0] for call in http.calls] == [
+        "https://vnexpress.net/rss/khoa-hoc-cong-nghe.rss",
+        ARTICLE_1,
+        ARTICLE_2,
+    ]

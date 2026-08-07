@@ -134,12 +134,16 @@ Rate limit không được cài trong FastAPI. Test phải chứng minh request 
 
 ```mermaid
 flowchart LR
-    Fetch["Fetch"] --> Normalize["Normalize"]
-    Normalize --> Dedupe["Deduplicate"]
-    Dedupe --> Chunk["Chunk"]
+    Catalog["Catalog RSS + URL dedupe"] --> PerArticle["Per article"]
+    PerArticle --> Fetch["Fetch HTML"]
+    Fetch --> Normalize["Normalize"]
+    Normalize --> Chunk["Chunk"]
     Chunk --> Embed["Embed"]
     Embed --> Upsert["Upsert pgvector"]
+    Upsert --> PerArticle
 ```
+
+Mỗi bài được upsert ngay sau khi tải; không chờ crawl hết catalog.
 
 ### 6.1. Document contract
 

@@ -59,9 +59,10 @@ shortcut.
 
 Verified after `make gcp-three-node-apps-apply`. Frontend, RAG API, llama.cpp,
 Prefect server, and Prefect worker run on `kuberag-worker-application` using
-the warmed `-application` PVCs. The 2 vCPU worker required lower CPU
-*requests* in the three-node overlays so LLM + RAG + Prefect can schedule;
-limits stay higher for burst. Evidence:
+the warmed `-application` PVCs. On 2026-08-06, the application worker was
+resized to 4 vCPU / 16 GiB so llama.cpp can use its four configured generation
+threads. The lower CPU *requests* in the three-node overlays remain from the
+former 2 vCPU packing configuration; limits stay higher for burst. Evidence:
 `docs/evidence/K8S-002/three-node-app-placement-2026-08-04.md`.
 
 ### Observability placement (fresh redeploy)

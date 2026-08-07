@@ -85,7 +85,7 @@ Các mục liên quan 3-node/replica đang đánh dấu `Optional` chỉ để k
 | ING-003 | Required | Adapter VnExpress trả `SourceDocument` contract               | contract tests                   | test output              |
 | ING-004 | Required | External calls có timeout/retry/backoff và user-agent phù hợp | tests mô phỏng timeout/429/5xx   | test output              |
 | ING-005 | Required | Prefect flow có schedule hằng ngày                            | inspect deployment/schedule      | Prefect UI/config        |
-| ING-006 | Required | Pipeline thực hiện fetch→normalize→dedup→chunk→embed→upsert   | flow run end-to-end              | Prefect run              |
+| ING-006 | Required | Pipeline catalog RSS rồi từng bài fetch→normalize→chunk→embed→upsert | flow run end-to-end         | Prefect run              |
 | ING-007 | Required | Chạy lại cùng input không tăng document/chunk trùng           | chạy hai lần, so counts/checksum | SQL counts               |
 | ING-008 | Required | `ingestion_runs` ghi success/failure/count/duration           | SQL query                        | records                  |
 | ING-009 | Required | Chunk size/overlap có cấu hình và test boundary               | unit tests                       | test output              |
