@@ -21,3 +21,5 @@ spec:
             test_only: "true"
           annotations:
             summary: "KubeRAG test-only alert lifecycle verification"
+            dashboard_url: "http://127.0.0.1:3000/d/kuberag-overview"
+            runbook_url: "https://github.com/ngochai2909/kuberag-platform/blob/main/docs/runbooks/alerting.md"

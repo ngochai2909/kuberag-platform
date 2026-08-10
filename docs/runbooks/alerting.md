@@ -17,6 +17,11 @@ Kubernetes Secret `kuberag-slack-webhook`, được mount và đọc bằng
 `api_url_file`. Do đó URL không xuất hiện trong Git, Helm values, log hoặc
 evidence.
 
+Tin nhắn Slack dùng title/summary ngắn và link Grafana local
+(`http://127.0.0.1:3000/...`). Link chỉ mở được khi máy operator đang chạy
+`make grafana` (port-forward). Chúng không public Grafana ra Internet; chỉ giúp
+click từ Slack vào đúng dashboard/panel khi tunnel đã mở.
+
 ## Checkpoint 1: render local
 
 Lệnh này chỉ render template ra stdout; không kết nối Kubernetes, không tạo
