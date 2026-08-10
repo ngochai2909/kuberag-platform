@@ -243,7 +243,11 @@ export function ChatPage({ path }: { path: AppPath }) {
                                     </article>
                                 ))}
                                 {isLoading ? (
-                                    <article className="message assistant loading">
+                                    <article
+                                        className="message assistant loading"
+                                        aria-busy="true"
+                                        aria-label="Đang trả lời"
+                                    >
                                         <div
                                             className="assistant-avatar"
                                             aria-hidden="true"
@@ -254,10 +258,17 @@ export function ChatPage({ path }: { path: AppPath }) {
                                             <p className="message-label">
                                                 KubeRAG
                                             </p>
-                                            <div className="message-bubble">
-                                                <p className="message-content">
-                                                    Đang truy xuất nguồn và tạo
-                                                    câu trả lời...
+                                            <div className="message-bubble loading-bubble">
+                                                <p className="loading-status">
+                                                    Đang trả lời
+                                                    <span
+                                                        className="loading-dots"
+                                                        aria-hidden="true"
+                                                    >
+                                                        <span />
+                                                        <span />
+                                                        <span />
+                                                    </span>
                                                 </p>
                                             </div>
                                         </div>
@@ -312,7 +323,7 @@ export function ChatPage({ path }: { path: AppPath }) {
                                 type="submit"
                                 disabled={isLoading || !question.trim()}
                             >
-                                {isLoading ? "Đang xử lý" : "Gửi"}
+                                {isLoading ? "Đang trả lời..." : "Gửi"}
                             </button>
                         </form>
                     </div>

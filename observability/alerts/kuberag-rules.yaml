@@ -23,6 +23,7 @@ spec:
             alert_receiver: slack
           annotations:
             summary: "KubeRAG API 5xx rate is above 5%"
+            dashboard_url: "http://127.0.0.1:3000/d/kuberag-overview?viewPanel=3"
             runbook_url: "https://github.com/ngochai2909/kuberag-platform/blob/main/docs/runbooks/alerting.md"
         - alert: KubeRagApiHighP95Latency
           expr: |
@@ -35,6 +36,7 @@ spec:
             alert_receiver: slack
           annotations:
             summary: "KubeRAG API p95 latency is above 45 seconds"
+            dashboard_url: "http://127.0.0.1:3000/d/kuberag-overview?viewPanel=2"
             runbook_url: "https://github.com/ngochai2909/kuberag-platform/blob/main/docs/runbooks/alerting.md"
     - name: kuberag.workloads
       rules:
@@ -63,6 +65,7 @@ spec:
             alert_receiver: slack
           annotations:
             summary: "KubeRAG workload memory is above 85% of its limit"
+            dashboard_url: "http://127.0.0.1:3000/d/kuberag-overview?viewPanel=5"
             runbook_url: "https://github.com/ngochai2909/kuberag-platform/blob/main/docs/runbooks/alerting.md"
         - alert: KubeRagWorkloadRestarted
           expr: |
@@ -75,6 +78,7 @@ spec:
             alert_receiver: slack
           annotations:
             summary: "KubeRAG API or Prefect worker restarted"
+            dashboard_url: "http://127.0.0.1:3000/d/kuberag-overview?viewPanel=6"
             runbook_url: "https://github.com/ngochai2909/kuberag-platform/blob/main/docs/runbooks/alerting.md"
     - name: kuberag.ingestion-and-data
       rules:
@@ -87,6 +91,7 @@ spec:
             alert_receiver: slack
           annotations:
             summary: "A KubeRAG ingestion run failed in the last 30 minutes"
+            dashboard_url: "http://127.0.0.1:3000/d/kuberag-overview"
             runbook_url: "https://github.com/ngochai2909/kuberag-platform/blob/main/docs/runbooks/alerting.md"
         - alert: KubeRagPostgresNotReady
           expr: |
@@ -101,6 +106,7 @@ spec:
             alert_receiver: slack
           annotations:
             summary: "KubeRAG PostgreSQL Pod has not been Ready for two minutes"
+            dashboard_url: "http://127.0.0.1:3000/d/kuberag-overview?viewPanel=6"
             runbook_url: "https://github.com/ngochai2909/kuberag-platform/blob/main/docs/runbooks/alerting.md"
     - name: kuberag.gateway
       rules:
@@ -112,4 +118,5 @@ spec:
             alert_receiver: slack
           annotations:
             summary: "Envoy returned at least five rate-limited responses in five minutes"
+            dashboard_url: "http://127.0.0.1:3000/d/kuberag-overview?viewPanel=8"
             runbook_url: "https://github.com/ngochai2909/kuberag-platform/blob/main/docs/runbooks/alerting.md"
