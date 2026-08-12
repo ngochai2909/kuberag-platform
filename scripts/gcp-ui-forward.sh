@@ -16,16 +16,41 @@ ssh_target="${GCP_SSH_TARGET:-kuberag-gcp}"
 tunnel_port="${GCP_K3S_TUNNEL_PORT:-16443}"
 export KUBECONFIG="$kubeconfig"
 
+case "$target" in
+  grafana)
+    namespace="observability"
+    ;;
+  prefect)
+    namespace="prefect"
+    ;;
+  *)
+    usage
+    ;;
+esac
+
+port_is_listening() {
+  ss -ltnH "sport = :${tunnel_port}" 2>/dev/null | grep -q .
+}
+
+verify_kuberag_cluster() {
+  kubectl --request-timeout=5s get namespace "$namespace" >/dev/null 2>&1
+}
+
 ensure_tunnel() {
-  if ss -ltn 2>/dev/null | grep -q ":${tunnel_port} "; then
-    return 0
+  if port_is_listening; then
+    if verify_kuberag_cluster; then
+      return 0
+    fi
+    echo "Port ${tunnel_port} is already in use, but ${KUBECONFIG} cannot reach the KubeRAG ${namespace} namespace." >&2
+    echo "Check that its current context is kuberag-gcp; do not reuse a Kind/local-cluster kubeconfig." >&2
+    exit 1
   fi
   echo "Starting Kubernetes API tunnel on 127.0.0.1:${tunnel_port} ..."
   ssh -f -N -o ExitOnForwardFailure=yes \
     -L "${tunnel_port}:127.0.0.1:6443" \
     "$ssh_target"
   for _ in $(seq 1 30); do
-    if ss -ltn 2>/dev/null | grep -q ":${tunnel_port} "; then
+    if port_is_listening && verify_kuberag_cluster; then
       echo "Tunnel ready."
       return 0
     fi
