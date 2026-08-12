@@ -12,7 +12,7 @@ resources:
 images:
   - name: kuberag-rag-api
     newName: asia-southeast1-docker.pkg.dev/kube-rag-platform/kuberag/kuberag-api
-    digest: sha256:6f830e78a1cab6841ea3cd10022606e333fc3e8daca0e4bf413434cbe1b01901
+    digest: sha256:677438c1e2e9278ca661801e4695ab263a684972d4f6bab12442366303c3e92b
   - name: kuberag-ingestion
     newName: asia-southeast1-docker.pkg.dev/kube-rag-platform/kuberag/kuberag-ingestion
-    digest: sha256:5d42fbc2c72c7f62de36d6bcfee39b035c24c36b7266955cc52024a888df2658
+    digest: sha256:ca85d278ebe7c9190cb59b15fe787ffdc1eb3d465040b7cfbeddbbf2a37b2ec1
