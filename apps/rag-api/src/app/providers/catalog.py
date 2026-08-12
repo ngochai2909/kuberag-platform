@@ -6,13 +6,14 @@ canonical source URL instead of re-hosting article bodies.
 
 from __future__ import annotations
 
-import asyncio
 from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import datetime
+from functools import partial
 from typing import Any, Protocol
 from uuid import UUID
 
+import anyio
 import psycopg
 from psycopg.rows import dict_row
 
@@ -200,7 +201,7 @@ class CatalogService:
 
     async def list_categories(self) -> list[CategoryRecord]:
         with get_tracer(__name__).start_as_current_span("catalog.list_categories"):
-            records = await asyncio.to_thread(self._catalog.list_categories)
+            records = await anyio.to_thread.run_sync(self._catalog.list_categories)
         return list(records)
 
     async def list_documents(
@@ -211,11 +212,13 @@ class CatalogService:
         offset: int,
     ) -> DocumentPage:
         with get_tracer(__name__).start_as_current_span("catalog.list_documents"):
-            return await asyncio.to_thread(
-                self._catalog.list_documents,
-                category=category,
-                limit=limit,
-                offset=offset,
+            return await anyio.to_thread.run_sync(
+                partial(
+                    self._catalog.list_documents,
+                    category=category,
+                    limit=limit,
+                    offset=offset,
+                )
             )
 
 

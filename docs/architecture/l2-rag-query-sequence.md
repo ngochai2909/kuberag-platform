@@ -7,9 +7,8 @@
 
 ## Sequence view
 
-`top_k` là input được validate; tài liệu không mặc định hóa giá trị UI/API vì
-giá trị mặc định phải khớp contract triển khai. `traceparent` được Edge forward
-để các span cùng trace.
+`top_k` là input được validate trong khoảng 1–20; FastAPI và UI hiện dùng mặc
+định **3**. `traceparent` được Edge forward để các span cùng trace.
 
 ```mermaid
 sequenceDiagram

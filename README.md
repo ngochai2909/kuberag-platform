@@ -84,7 +84,7 @@ The public API contract includes:
 ```bash
 curl -X POST http://localhost:8000/api/v1/query \
   -H 'Content-Type: application/json' \
-  -d '{"question":"What is KubeRAG?","top_k":5}'
+  -d '{"question":"What is KubeRAG?","top_k":3}'
 
 # Browse metadata only (no article body):
 curl 'http://localhost:8000/api/v1/categories'

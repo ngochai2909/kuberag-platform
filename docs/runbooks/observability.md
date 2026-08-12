@@ -119,9 +119,14 @@ response.trace_id -> Loki `{service_name="kuberag-rag-api"}` -> Tempo trace
                     build_prompt, llm_generate
 ```
 
-`KubeRAG Operations` không hiển thị metric không được scrape. Hiện Prometheus
-chưa có node CPU/RAM chi tiết hoặc CloudNativePG database metrics; không coi
-panel container CPU/RAM là thay thế cho hai nhóm metric đó.
+`KubeRAG Operations` có hai mức tài nguyên khác nhau. Panel API/llama.cpp là
+CPU/RAM của container. Hai panel node mới tính tổng CPU/RAM **của workload
+Kubernetes** theo label `node`, rồi chia cho `machine_cpu_cores` hoặc
+`machine_memory_bytes` từ cAdvisor. Chúng giúp thấy headroom scheduler của ba
+node, nhưng không bao gồm process của host operating system. Muốn chẩn đoán
+host-OS đầy CPU/RAM hoặc disk I/O, cần thêm `node_exporter` bằng một checkpoint
+cluster riêng. CloudNativePG database metrics chi tiết cũng chưa được scrape;
+không coi PVC/container metric là thay thế cho metric database.
 
 Trong Pyroscope, chọn service `kuberag-rag-api` và CPU profile để xem flame
 graph. Profile là thống kê CPU theo thời gian; nó không phải log request và
@@ -138,9 +143,11 @@ không chứa câu hỏi/đoạn văn người dùng.
 | Pyroscope rỗng | Tạo workload có CPU rồi chờ ít nhất một upload interval | Pyroscope lấy mẫu định kỳ, không có flame graph ngay lập tức sau startup. |
 | Disk/RAM cao | `kubectl top pods -n observability`, `kubectl get pvc -n observability` | Giảm retention trước khi tăng disk; không tăng limit mù quáng trên single-node. |
 
-## Phần chưa hoàn tất
+## Trạng thái evidence
 
-Alert rules/contact point, alert lifecycle test, k6 correlation và runtime
-evidence screenshots vẫn là checkpoint tiếp theo. Không coi Pod `Running` là
-bằng chứng một acceptance item đã Pass; cần query hoặc screenshot thực tế cho
-từng tiêu chí `OBS-*`.
+Alert rules/contact point, lifecycle Firing→Resolved, k6 correlation và các
+evidence `OBS-*` đã được ghi nhận trong `docs/evidence/`. Pod `Running` vẫn
+không tự là bằng chứng; khi có thay đổi release phải chạy lại query/smoke phù
+hợp và lưu output mới. Node exporter và CloudNativePG exporter là cải thiện
+quan sát host/database, không được tự ý bật vì chúng thêm workload/metrics vào
+cluster.

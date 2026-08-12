@@ -10,6 +10,7 @@ readme = "README.md"
 requires-python = ">=3.12,<3.14"
 dependencies = [
     "alembic>=1.18.5",
+    "anyio>=4.0,<5.0",
     "fastapi>=0.116,<1.0",
     "httpx>=0.28,<1.0",
     "pgvector>=0.5.0",
@@ -39,7 +40,12 @@ embedding = [
 dev = [
     "mypy>=1.15,<2.0",
     "pytest>=8.3,<10.0",
-    "pytest-asyncio>=0.24,<2.0",
+    # pytest-asyncio 1.x retains an ASGI worker across tests under Python 3.12.
+    # The 0.24 line preserves the function-scoped cleanup this suite declares.
+    "pytest-asyncio>=0.24,<0.25",
+    # Coverage 7.15+ can stall an ASGI test that crosses AnyIO's worker pool.
+    # This affects local verification only; production images do not install it.
+    "coverage>=6.0,<7.15",
     "pytest-cov>=6.0,<8.0",
     "ruff>=0.12,<1.0",
 ]
@@ -58,6 +64,7 @@ packages = ["apps/rag-api/src/app", "apps/ingestion/src/ingestion"]
 [tool.pytest.ini_options]
 addopts = "-ra --strict-config --strict-markers --cov=app --cov=ingestion --cov-report=term-missing"
 asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
 testpaths = ["apps/rag-api/tests", "apps/ingestion/tests"]
 pythonpath = ["apps/rag-api/src", "apps/ingestion/src", "apps/ingestion/tests/unit"]
 markers = [

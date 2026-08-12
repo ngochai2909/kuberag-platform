@@ -43,16 +43,16 @@ sơ đồ:
 
 - Overlay ba node pin `prefect-server` vào worker `application`
 ([manifest](../../deploy/kustomize/overlays/gcp-three-node/prefect/kustomization.yaml)),
-nhưng Pod runtime lúc kiểm tra vẫn ở `kuberag-server`. L2 deployment ghi cả
-trạng thái mong muốn và trạng thái quan sát này; cần rollout/kiểm tra riêng
-trước khi coi placement đã đồng bộ.
+nhưng Pod runtime lúc kiểm tra 2026-08-12 vẫn ở `kuberag-server`. L2 deployment
+ghi cả trạng thái mong muốn và trạng thái quan sát này; cần rollout/kiểm tra
+riêng trước khi coi placement đã đồng bộ.
 - [`../data-model.md`](../data-model.md) vẫn dùng ngôn ngữ “planned/production
   will use” cho E5, trong khi composition root và runtime đã dùng
   `E5EmbeddingProvider`. Đây là tài liệu cần đồng bộ trạng thái, không phải lý
   do để thêm một embedding provider thứ hai.
-- Ví dụ `top_k: 5` trong [`../ARCHITECTURE.md`](../ARCHITECTURE.md) không phải
-  default implementation: model API và frontend hiện mặc định/gửi `3`. Chỉ đổi
-  default sau khi chủ dự án xác nhận thay đổi public behavior và benchmark lại.
+- Contract `top_k` đã được đồng bộ: FastAPI và frontend mặc định/gửi `3`, còn
+  caller chỉ dùng `5` khi chủ động cần nhiều nguồn hơn. Mọi thay đổi default là
+  thay đổi public behavior, cần benchmark lại trước khi áp dụng.
 
 ## Quy trình cập nhật
 

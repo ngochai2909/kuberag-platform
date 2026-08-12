@@ -290,9 +290,13 @@ Request:
 ```json
 {
   "question": "Các tin công nghệ mới liên quan đến AI là gì?",
-  "top_k": 5
+  "top_k": 3
 }
 ```
+
+`top_k` được validate trong khoảng 1–20. Giá trị mặc định đang triển khai ở
+FastAPI và giá trị UI gửi đi là **3**; `top_k=5` chỉ là lựa chọn tường minh của
+caller khi cần nhiều nguồn hơn, không phải default.
 
 Response:
 

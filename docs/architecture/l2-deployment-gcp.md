@@ -22,7 +22,6 @@ flowchart TB
       subgraph cluster[k3s cluster]
         subgraph server[kuberag-server — control plane]
           control
-          pg[(CloudNativePG PostgreSQL + pgvector)]
           prefectServer[Prefect Server]
         end
         subgraph application[kuberag-worker-application]
@@ -30,8 +29,10 @@ flowchart TB
           api[RAG API + warm-up sidecar]
           llm[llama.cpp]
           worker[Prefect Worker]
+          pgReplica[(CloudNativePG replica)]
         end
         subgraph obsNode[kuberag-worker-observability]
+          pgPrimary[(CloudNativePG primary + pgvector)]
           telemetry[OTel Collector]
           obs[Prometheus / Loki / Tempo / Pyroscope / Grafana]
         end
@@ -39,10 +40,10 @@ flowchart TB
     end
 
     gateway --> api
-    api --> pg
+    api --> pgPrimary
     api --> llm
-    worker --> pg
-    prefectServer --> pg
+    worker --> pgPrimary
+    prefectServer --> pgPrimary
     api -.-> telemetry
     worker -.-> telemetry
     telemetry --> obs
@@ -55,7 +56,7 @@ flowchart TB
     classDef entity fill:#dcfce7,stroke:#15803d,color:#111827;
     class gateway,control,iap infra;
     class api,llm,worker,prefectServer,telemetry,obs owned;
-    class pg datastore;
+    class pgPrimary,pgReplica datastore;
     class browser,admin,vnexpress entity;
 ```
 
@@ -65,8 +66,8 @@ flowchart TB
 | --- | --- | --- | --- |
 | RAG API, llama.cpp, Prefect Worker | `nodeSelector: kuberag.io/role=application` | RAG API/llama/Worker ở application worker | Chia CPU/RAM; warm-up chặn ready traffic tới khi model path dùng được |
 | Observability | Worker `observability` | Prometheus, Grafana, Loki, Tempo, Pyroscope, OTel Collector ở observability worker | Cô lập resource telemetry khỏi inference path |
-| PostgreSQL/pgvector | CloudNativePG + PVC, service ổn định | CNPG Pod ở `kuberag-server` khi kiểm tra 2026-08-11 | Không dùng Pod IP; persistence nằm ở PVC |
-| Prefect Server | Overlay ba node mong muốn `application` | Đã quan sát Pod còn ở `kuberag-server` ngày 2026-08-11 | **Chênh lệch cần rollout/verify**; sơ đồ không coi placement này đã đồng bộ |
+| PostgreSQL/pgvector | CloudNativePG + PVC, service ổn định | Primary ở observability worker, async replica ở application worker (2026-08-12) | Không dùng Pod IP; persistence nằm ở PVC |
+| Prefect Server | Overlay ba node mong muốn `application` | Đã quan sát Pod còn ở `kuberag-server` ngày 2026-08-12 | **Chênh lệch cần rollout/verify**; sơ đồ không coi placement này đã đồng bộ |
 | Admin UI/API | IAP/SSH local tunnel, rồi `kubectl port-forward` | Grafana/Prefect vẫn private `ClusterIP` | Không mở thêm firewall/public LoadBalancer chỉ để truy cập dashboard |
 
 `prefectServer` được vẽ ở server để phản ánh runtime quan sát; đây không phải

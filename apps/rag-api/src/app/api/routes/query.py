@@ -1,11 +1,11 @@
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Request
 
 from app.api.dependencies import (
-    RagServiceDependency,
-    RequestIdDependency,
-    TraceIdDependency,
+    get_rag_service,
+    get_request_id,
+    get_trace_id,
     require_api_key,
 )
 from app.models.rag import ErrorResponse, QueryRequest, QueryResponse, SourceReference
@@ -16,7 +16,6 @@ router = APIRouter(prefix="/query", tags=["rag"])
 @router.post(
     "",
     response_model=QueryResponse,
-    dependencies=[Depends(require_api_key)],
     responses={
         401: {"model": ErrorResponse},
         502: {"model": ErrorResponse},
@@ -26,10 +25,12 @@ router = APIRouter(prefix="/query", tags=["rag"])
 )
 async def query(
     payload: QueryRequest,
-    service: RagServiceDependency,
-    request_id: RequestIdDependency,
-    trace_id: TraceIdDependency,
+    request: Request,
 ) -> QueryResponse:
+    await require_api_key(request)
+    service = get_rag_service(request)
+    request_id = get_request_id(request)
+    trace_id = get_trace_id(request)
     reply = await service.query(
         question=payload.question,
         top_k=payload.top_k,
