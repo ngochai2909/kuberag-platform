@@ -120,6 +120,26 @@ data:
           "targets": [{"expr": "{service_name=\"kuberag-rag-api\"} |= \"request_completed\"", "refId": "A"}],
           "title": "Recent RAG API events (Loki)",
           "type": "logs"
+        },
+        {
+          "datasource": {"type": "prometheus", "uid": "prometheus"},
+          "fieldConfig": {"defaults": {"unit": "percentunit", "min": 0, "max": 1}, "overrides": []},
+          "gridPos": {"h": 8, "w": 12, "x": 0, "y": 40},
+          "id": 12,
+          "targets": [{"expr": "sum by (node) (rate(container_cpu_usage_seconds_total{container!=\"\",image!=\"\"}[$__rate_interval])) / on (node) machine_cpu_cores", "legendFormat": "{{node}}", "refId": "A"}],
+          "title": "Node workload CPU / machine capacity",
+          "description": "CPU used by Kubernetes workload containers divided by cAdvisor machine_cpu_cores. It excludes host operating-system processes; use it for Kubernetes workload headroom, not host-only diagnosis.",
+          "type": "timeseries"
+        },
+        {
+          "datasource": {"type": "prometheus", "uid": "prometheus"},
+          "fieldConfig": {"defaults": {"unit": "percentunit", "min": 0, "max": 1}, "overrides": []},
+          "gridPos": {"h": 8, "w": 12, "x": 12, "y": 40},
+          "id": 13,
+          "targets": [{"expr": "sum by (node) (container_memory_working_set_bytes{container!=\"\",image!=\"\"}) / on (node) machine_memory_bytes", "legendFormat": "{{node}}", "refId": "A"}],
+          "title": "Node workload memory / machine capacity",
+          "description": "Working-set memory used by Kubernetes workload containers divided by cAdvisor machine_memory_bytes. It excludes host operating-system memory; use it for Kubernetes workload headroom, not host-only diagnosis.",
+          "type": "timeseries"
         }
       ],
       "schemaVersion": 41,
@@ -128,5 +148,5 @@ data:
       "time": {"from": "now-6h", "to": "now"},
       "title": "KubeRAG Operations",
       "uid": "kuberag-operations",
-      "version": 1
+      "version": 2
     }

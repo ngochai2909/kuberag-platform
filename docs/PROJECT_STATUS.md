@@ -1,6 +1,6 @@
 # KubeRAG Project Status
 
-Last updated: 2026-08-11
+Last updated: 2026-08-12
 
 This page is the quickest starting point for a contributor, reviewer, or
 operator joining the project. It separates what is running now from what is
@@ -58,10 +58,10 @@ release manifest on 2026-08-03. Envoy is a Prometheus scrape target
 (OBS-001 closed).
 
 The final intended topology is now deployed on GCP: one k3s server and two
-private workers are `Ready`. The 2026-08-11 runtime audit observed frontend,
-llama.cpp, Prefect worker, and the PostgreSQL replica on the application
-worker; RAG API and Prefect server currently have no node selector and were
-scheduled on the server. Observability Pods run on the observability worker.
+private workers are `Ready`. The 2026-08-12 runtime audit observed frontend,
+llama.cpp, Prefect worker, the RAG API, and the PostgreSQL replica on the
+application worker; Prefect Server remains on the server. Observability Pods
+run on the observability worker.
 PostgreSQL primary runs on the observability worker with an async replica on
 the application worker.
 
@@ -148,7 +148,7 @@ firewall CIDRs when the operator egress changes.
 | `INF-004` GCP Ansible idempotency | Pass | Second run reported `changed=0`, `failed=0`. |
 | `INF-005` Cost control | Pass | Budget alert and stop/start/destroy runbook captured. |
 | `INF-006` Secret hygiene | Pass local review | `git ls-files` / ignore review under `docs/evidence/INF-006/`; CI Trivy secret path under `docs/evidence/SEC-003/`. |
-| `SEC-001`–`SEC-008` | Pass CI + GCP runtime | Chainguard/non-root bases, Semgrep, Trivy filesystem/image scans, CycloneDX SBOM, Cosign, digest rollout and OIDC least privilege are captured under `docs/evidence/SEC-*`. |
+| `SEC-001`–`SEC-008` | Historical CI + GCP runtime | Chainguard/non-root bases, Trivy filesystem/image scans, CycloneDX SBOM, Cosign, digest rollout and OIDC least privilege are captured under `docs/evidence/SEC-*`. A fresh local Semgrep scan passed on 2026-08-12 (248 files / 623 rules / 0 findings); fresh Trivy was intentionally skipped by operator instruction. |
 | `SEC-009` | Pending settings evidence | Branch protection API needs repository-administration authentication; capture the Ruleset/branch-protection screen before marking Pass. |
 | `K8S-001` to `K8S-005` | Pass local + GCP | Node, PSS, safe smoke workload, and unsafe rejection verified on both clusters. |
 | `NET-001` | Pass local + GCP | Envoy GatewayClass/Gateway/HTTPRoute accepted; smoke hostname returned. |
@@ -174,25 +174,30 @@ firewall CIDRs when the operator egress changes.
 | `WEB-001` | Pass GCP runtime | `kuberag-web` is Ready; its Service and accepted `/` HTTPRoute return the React SPA from the Envoy data plane. |
 | `NET-006` | Pass GCP runtime | k6 status burst through Envoy returned 5 expected `429` and no `5xx`; Envoy Prometheus metric increased. Evidence: `docs/evidence/NET-006/k6-rate-limit-2026-08-03.md`. |
 | `OBS-001` | Pass GCP runtime | Kubernetes, FastAPI/`kube-state-metrics`, and Envoy Gateway data-plane targets scrape. Post-k6 `up{job="kuberag-envoy-metrics"}=1`; evidence: `docs/evidence/OBS-001/` and `docs/evidence/PERF-003/`. |
-| `OBS-002`–`OBS-004` | Pass GCP runtime | PromQL RPS/p50/p95/p99/status codes, Pod memory/restarts, RAG stage metrics, and ingestion `kuberag_ingestion_*` metrics captured under `docs/evidence/OBS-002`–`OBS-004/`. |
+| `OBS-002`–`OBS-004` | Pass GCP runtime | PromQL RPS/p50/p95/p99/status codes, Pod/node-workload CPU/RAM/restarts, RAG stage metrics, and ingestion `kuberag_ingestion_*` metrics are captured under `docs/evidence/OBS-002`–`OBS-004/`. The node panels use cAdvisor workload usage divided by machine capacity, not host-OS usage. |
 | `OBS-005`–`OBS-007` | Pass GCP runtime | FastAPI and Prefect OTLP logs in Loki; required fields present as structured metadata; sample review shows no raw prompt/document/secret (`docs/evidence/OBS-005`–`OBS-007/`). |
 | `OBS-008`–`OBS-010` | Pass GCP runtime | Tempo RAG span tree, ingestion fetch/upsert spans, and response↔Loki↔Tempo `trace_id` correlation (`docs/evidence/OBS-008`–`OBS-010/`). |
-| `OBS-011`–`OBS-014` | Pass GCP runtime | Pyroscope CPU profile, Git-provisioned Grafana datasources/dashboard (API evidence), no Alloy inventory, retention/PVC/limits match single-node budget (`docs/evidence/OBS-011`–`OBS-014/`). |
+| `OBS-011`–`OBS-014` | Pass GCP runtime | Pyroscope CPU profile, Git-provisioned Grafana datasources/dashboard (Operations v2 API evidence), no Alloy inventory, retention/PVC/limits match single-node budget (`docs/evidence/OBS-011`–`OBS-014/`). |
 | `DOC-004` | Pass GCP clean install | Targeted compute/network destroy+recreate, three-node rebuild, ingest Completed, gateway/RAG smoke on new IP `136.85.35.106`. Evidence: `docs/evidence/DOC-004/gcp-full-clean-install-2026-08-04.md`. |
+| `DOC-005` | Pass GCP smoke | 2026-08-12 IAP read-only smoke: all three nodes Ready; four long-running deployments Available; Envoy frontend/API-status/smoke routes all returned 200. Evidence: `docs/evidence/DOC-005/gcp-smoke-2026-08-12.md`. |
 | `DOC-006` | Pending | Demo script / rehearsal deferred by operator choice after clean install. |
+| `DOC-009` | Pass documentation | Current topology, resource evidence, access trade-offs, cost posture and release gates are published in `docs/limitations-and-cost.md`. |
 
 ## Immediate Next Checkpoint
 
 `DOC-004` clean install is Pass with evidence under `docs/evidence/DOC-004/`.
-Next work is Week 6 closeout: demo script (`DOC-006`), release notes/tag
-(`DOC-008`), limitations report (`DOC-009`), and optional SEC-009 — not further
-topology mutations unless a regression appears.
+The local verification suite passed on 2026-08-12: 125 tests passed, 2
+database integration tests skipped because no local `DATABASE_URL` was set, and
+coverage was 86.67% (threshold 85%). The deferred work is demo script/rehearsal
+(`DOC-006`); release tag (`DOC-008`) remains correctly gated on that required
+item. SEC-009 still needs GitHub administrator settings evidence.
 
 ## Major Work Still Ahead
 
 - `DOC-006` demo script (12–15 minute rehearsal) — still pending by choice.
 - Optional SEC-009 branch-protection screenshot (needs GitHub admin access).
-- Week 6 release notes / Git tag / DoD closeout.
+- Release tag / final DoD closeout — gated by deferred `DOC-006` and fresh
+  release security evidence.
 
 ## Useful References
 

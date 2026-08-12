@@ -174,6 +174,11 @@ async def test_authentication_is_enforced(authenticated_client: AsyncClient) -> 
         headers={"Authorization": "Bearer wrong"},
         json={"question": "hello"},
     )
+    malformed = await authenticated_client.post(
+        "/api/v1/query",
+        headers={"Authorization": "Basic not-a-bearer-token"},
+        json={"question": "hello"},
+    )
     valid = await authenticated_client.post(
         "/api/v1/query",
         headers={"Authorization": f"Bearer {TEST_API_KEY}"},
@@ -183,4 +188,5 @@ async def test_authentication_is_enforced(authenticated_client: AsyncClient) -> 
     assert missing.status_code == 401
     assert missing.headers["WWW-Authenticate"] == "Bearer"
     assert invalid.status_code == 401
+    assert malformed.status_code == 401
     assert valid.status_code == 200

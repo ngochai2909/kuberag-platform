@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Query, Request
 
-from app.api.dependencies import CatalogServiceDependency, require_api_key
+from app.api.dependencies import get_catalog_service, require_api_key
 from app.models.catalog import (
     CategoriesResponse,
     CategoryCount,
@@ -19,10 +19,11 @@ router = APIRouter(tags=["catalog"])
 @router.get(
     "/categories",
     response_model=CategoriesResponse,
-    dependencies=[Depends(require_api_key)],
     responses={401: {"model": ErrorResponse}, 503: {"model": ErrorResponse}},
 )
-async def list_categories(service: CatalogServiceDependency) -> CategoriesResponse:
+async def list_categories(request: Request) -> CategoriesResponse:
+    await require_api_key(request)
+    service = get_catalog_service(request)
     records = await service.list_categories()
     return CategoriesResponse(
         categories=[
@@ -34,15 +35,16 @@ async def list_categories(service: CatalogServiceDependency) -> CategoriesRespon
 @router.get(
     "/documents",
     response_model=DocumentsResponse,
-    dependencies=[Depends(require_api_key)],
     responses={401: {"model": ErrorResponse}, 503: {"model": ErrorResponse}},
 )
 async def list_documents(
-    service: CatalogServiceDependency,
+    request: Request,
     category: str | None = Query(default=None, min_length=1, max_length=100),
     limit: int = Query(default=24, ge=1, le=50),
     offset: int = Query(default=0, ge=0),
 ) -> DocumentsResponse:
+    await require_api_key(request)
+    service = get_catalog_service(request)
     page = await service.list_documents(category=category, limit=limit, offset=offset)
     return DocumentsResponse(
         documents=[

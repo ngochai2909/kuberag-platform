@@ -1,17 +1,14 @@
 from __future__ import annotations
 
 import secrets
-from typing import Annotated, cast
+from typing import cast
 
-from fastapi import Depends, Request, Security
-from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+from fastapi import Request
 
 from app.core.config import Settings
 from app.core.errors import AuthenticationError, RagUnavailableError
 from app.providers.catalog import CatalogService
 from app.services.rag import RagService
-
-_bearer_scheme = HTTPBearer(auto_error=False)
 
 
 def get_settings_from_request(request: Request) -> Settings:
@@ -41,25 +38,17 @@ def get_catalog_service(request: Request) -> CatalogService:
 
 
 async def require_api_key(
-    settings: Annotated[Settings, Depends(get_settings_from_request)],
-    credentials: Annotated[
-        HTTPAuthorizationCredentials | None,
-        Security(_bearer_scheme),
-    ],
+    request: Request,
 ) -> None:
+    settings = get_settings_from_request(request)
     if not settings.api_auth_enabled:
         return
 
-    if credentials is None or settings.app_api_key is None:
+    scheme, _, supplied_token = request.headers.get("Authorization", "").partition(" ")
+    if scheme.lower() != "bearer" or not supplied_token or settings.app_api_key is None:
         raise AuthenticationError
 
-    supplied = credentials.credentials.encode()
+    supplied = supplied_token.encode()
     expected = settings.app_api_key.get_secret_value().encode()
     if not secrets.compare_digest(supplied, expected):
         raise AuthenticationError
-
-
-RagServiceDependency = Annotated[RagService, Depends(get_rag_service)]
-CatalogServiceDependency = Annotated[CatalogService, Depends(get_catalog_service)]
-RequestIdDependency = Annotated[str, Depends(get_request_id)]
-TraceIdDependency = Annotated[str, Depends(get_trace_id)]
