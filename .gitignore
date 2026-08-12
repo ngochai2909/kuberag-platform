@@ -17,6 +17,8 @@ dist/
 apps/frontend/node_modules/
 apps/frontend/dist/
 
+*.pdf
+
 # Virtual environments
 .venv/
 venv/

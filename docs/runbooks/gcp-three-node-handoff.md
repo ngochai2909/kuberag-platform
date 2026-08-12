@@ -1,6 +1,6 @@
 # GCP Three-Node Handoff Runbook
 
-Last verified: 2026-08-04 (post clean install `DOC-004`)
+Last verified: 2026-08-11 (post-reboot runtime audit; `DOC-004` clean-install evidence remains historical)
 
 This runbook records the verified final three-node topology. It is not
 permission to run mutating steps: confirm each cluster, persistence, or cloud
@@ -94,11 +94,19 @@ Evidence: `docs/evidence/DB-002/`, `docs/evidence/DB-008/`,
 
 ```text
 Internet -> 136.85.35.106:8080 -> Envoy on server -> Services
-  -> application worker (frontend, RAG API, llama.cpp, Prefect, PG replica)
+  -> application worker (frontend, llama.cpp, Prefect worker, PG replica)
+  -> server (RAG API and Prefect server; current release overlays have no nodeSelector)
   -> observability worker (observability stack, PG primary)
 ```
 
-`DOC-004` clean install Pass; `DOC-006` demo script still pending.
+The deployed GCP RAG API includes a `rag-warmup` sidecar. After every API Pod
+start it issues one loopback RAG query (`top_k=1`) and waits idle. A readiness
+probe keeps the Pod out of Envoy traffic until that query succeeds. This warms the
+embedding, retrieval, and llama.cpp paths before a user request. It adds a 10m
+CPU / 64Mi memory request (100m / 128Mi limit) and does not bypass Envoy for
+user traffic or expose a new endpoint.
+
+`DOC-004` clean install Pass; `DOC-006` demo script/rehearsal remains pending.
 
 ## Do not run casually
 

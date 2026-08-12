@@ -1,6 +1,6 @@
 # KubeRAG Project Status
 
-Last updated: 2026-08-05
+Last updated: 2026-08-11
 
 This page is the quickest starting point for a contributor, reviewer, or
 operator joining the project. It separates what is running now from what is
@@ -15,6 +15,7 @@ service.
 > SEC-009. Read
 > [`runbooks/gcp-three-node-handoff.md`](runbooks/gcp-three-node-handoff.md)
 > and `docs/evidence/DOC-004/gcp-full-clean-install-2026-08-04.md`.
+> Demo rehearsal remains pending by operator decision.
 
 ## Current Milestone
 
@@ -57,9 +58,22 @@ release manifest on 2026-08-03. Envoy is a Prometheus scrape target
 (OBS-001 closed).
 
 The final intended topology is now deployed on GCP: one k3s server and two
-private workers are `Ready`. Application Pods run on the application worker;
-observability Pods run on the observability worker. PostgreSQL primary runs on
-the observability worker with an async replica on the application worker.
+private workers are `Ready`. The 2026-08-11 runtime audit observed frontend,
+llama.cpp, Prefect worker, and the PostgreSQL replica on the application
+worker; RAG API and Prefect server currently have no node selector and were
+scheduled on the server. Observability Pods run on the observability worker.
+PostgreSQL primary runs on the observability worker with an async replica on
+the application worker.
+
+The same audit verified an Envoy RAG request with an explicit `top_k=5`: the
+first request after a full VM reboot took 37.5 seconds, while a repeated warm
+request took 1.16 seconds. The current API default and frontend request value
+are both `top_k=3`; making `5` the default is a separate API/UI decision. The
+GCP API now has a warm-up sidecar with a readiness gate: it keeps the Pod out
+of Envoy traffic until the startup path completes. The 2026-08-11 rollout log
+confirmed `RAG startup warm-up completed`; a subsequent Envoy `top_k=5` query
+returned five sources in 14.49 seconds (139.79 ms retrieval, 14.35 s
+generation).
 
 ## What Exists Today
 
@@ -77,8 +91,8 @@ the observability worker with an async replica on the application worker.
 | Source adapters / ingest | Offline fixtures/unit tests | Live multi-feed VnExpress scheduled + manual Jobs | ~19 RSS categories; skip-soft on bad articles; corpus ~1000 docs after multi-feed run. |
 | Prefect flow | Offline skeleton tested | Deployed and verified | Daily `0 3 * * *` UTC is registered (10:00 Vietnam); Prefect metadata uses PostgreSQL database `prefect`, separate from RAG data. |
 | llama.cpp | Not deployed | Verified on application worker | Internal `ClusterIP` Service loads Qwen2.5-1.5B GGUF from the warmed application-worker PVC; it is not public. |
-| RAG API | Catalog + query unit/integration tests | Verified through Envoy on application worker | Query + categories/documents catalog; unique-document retrieval; temporary public demo + Envoy 10 req/min; 90 s application timeout (Envoy API route 100s/95s); UI `top_k=3`. |
-| Observability | Manifests prepared only | Deployed on observability worker | Prometheus, Grafana, Loki, Tempo, Pyroscope, and OTel Collector are private `ClusterIP` workloads on `kuberag-worker-observability`; Grafana via IAP port-forward / in-Pod API. |
+| RAG API | Catalog + query unit/integration tests | Verified through Envoy; scheduled on application worker | Query + categories/documents catalog; unique-document retrieval; temporary public demo + Envoy 10 req/min; 90 s application timeout (Envoy API route 100s/95s); API/UI default `top_k=3`, while an explicit `top_k=5` request is verified; deployed startup warm-up blocks traffic until its local query succeeds. |
+| Observability | Manifests prepared only | Deployed on observability worker | Prometheus, Grafana, Loki, Tempo, Pyroscope, and OTel Collector are private `ClusterIP` workloads on `kuberag-worker-observability`; Grafana via IAP port-forward / in-Pod API. `KubeRAG Overview` and `KubeRAG Operations` are Git-provisioned; the latter covers query percentiles, RAG stages, errors/429, warm-up, targets, CPU/RAM, PVCs, restarts, and Loki events. |
 
 ## GCP Three-Node Transition: Verified State
 

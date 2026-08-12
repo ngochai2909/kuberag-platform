@@ -86,8 +86,12 @@ ssh kuberag-gcp 'sudo k3s kubectl -n observability get secret kuberag-grafana-ad
 ```
 
 Dashboard `KubeRAG Overview` có API request rate, p95 latency, status code gồm
-`429`, RAG stage duration, memory và restart count. Grafana Explore dùng Loki,
-Tempo hoặc Pyroscope khi cần điều tra từng request.
+`429`, RAG stage duration, memory và restart count. Dashboard `KubeRAG
+Operations` dùng khi vận hành hoặc điều tra hiệu năng: p50/p95/p99 riêng cho
+`/api/v1/query`, outcome theo status, p95 từng stage RAG, 5xx/429 trong 30
+phút, warm-up readiness, scrape health, CPU/RAM của API + llama.cpp, PVC usage,
+restart và log API gần nhất từ Loki. Grafana Explore dùng Loki, Tempo hoặc
+Pyroscope khi cần điều tra từng request.
 
 ## Kiểm tra read-only
 
@@ -114,6 +118,10 @@ response.trace_id -> Loki `{service_name="kuberag-rag-api"}` -> Tempo trace
                  -> spans: http.request, embed_query, pgvector_search,
                     build_prompt, llm_generate
 ```
+
+`KubeRAG Operations` không hiển thị metric không được scrape. Hiện Prometheus
+chưa có node CPU/RAM chi tiết hoặc CloudNativePG database metrics; không coi
+panel container CPU/RAM là thay thế cho hai nhóm metric đó.
 
 Trong Pyroscope, chọn service `kuberag-rag-api` và CPU profile để xem flame
 graph. Profile là thống kê CPU theo thời gian; nó không phải log request và

@@ -1,5 +1,11 @@
 # Kiến trúc KubeRAG
 
+> Bộ sơ đồ thiết kế chuẩn L1/L2/L3 theo STD-DIAG được duy trì tại
+> [`architecture/README.md`](architecture/README.md). Tài liệu này giữ vai trò
+> quyết định kiến trúc và mô tả tổng quan; bộ mới tách context, integration,
+> data ownership, runtime, deployment, security và đặc tả từng bounded context
+> để tránh trộn grain trong một sơ đồ.
+
 ## 1. Mục tiêu kiến trúc
 
 Kiến trúc ưu tiên năm thuộc tính:
