@@ -152,7 +152,12 @@ gcp-k3s-install:
 	ansible-playbook -i $(GCP_ANSIBLE_INVENTORY) infra/ansible/playbooks/k3s-gcp-single-node.yml
 
 gcp-k3s-tunnel:
-	ssh -N -L 16443:127.0.0.1:6443 kuberag-gcp
+	@if ss -ltnH 'sport = :16443' 2>/dev/null | grep -q .; then \
+		echo "Kubernetes API tunnel already listening on 127.0.0.1:16443."; \
+		echo "Use another terminal for kubectl, make grafana, or make prefect."; \
+	else \
+		ssh -N -L 16443:127.0.0.1:6443 kuberag-gcp; \
+	fi
 
 gcp-k3s-status:
 	KUBECONFIG=$(GCP_KUBECONFIG) kubectl get nodes -o wide
