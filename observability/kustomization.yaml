@@ -4,6 +4,7 @@ resources:
   - alertmanager/config-secret.yaml
   - alerts/kuberag-rules.yaml
   - dashboards/kuberag-overview.yaml
+  - dashboards/kuberag-operations.yaml
   - servicemonitors/envoy-gateway.yaml
   - servicemonitors/rag-api.yaml
   - servicemonitors/otel-collector.yaml

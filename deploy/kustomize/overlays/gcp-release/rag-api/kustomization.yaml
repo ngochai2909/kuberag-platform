@@ -20,3 +20,65 @@ patches:
       - op: replace
         path: /spec/template/spec/containers/0/imagePullPolicy
         value: IfNotPresent
+      - op: add
+        path: /spec/template/spec/containers/-
+        value:
+          name: rag-warmup
+          image: asia-southeast1-docker.pkg.dev/kube-rag-platform/kuberag/kuberag-api@sha256:eea47fb4453c84f8539fc62ce540403751d2c04cb81465d3246d7f35934dac79
+          imagePullPolicy: IfNotPresent
+          command:
+            - /app/.venv/bin/python
+            - -c
+            - |
+              import time
+              from pathlib import Path
+              from urllib.error import HTTPError, URLError
+              from urllib.request import Request, urlopen
+
+              request = Request(
+                  "http://127.0.0.1:8000/api/v1/query",
+                  data=b'{"question":"KubeRAG startup warm-up.","top_k":1}',
+                  headers={"Content-Type": "application/json"},
+                  method="POST",
+              )
+              while True:
+                  try:
+                      with urlopen(request, timeout=90) as response:
+                          if 200 <= response.status < 300:
+                              Path("/tmp/rag-warmup-complete").touch()
+                              print("RAG startup warm-up completed", flush=True)
+                              break
+                  except (HTTPError, URLError, OSError) as exc:
+                      print(f"RAG startup warm-up retry: {exc}", flush=True)
+                  time.sleep(5)
+
+              while True:
+                  time.sleep(3600)
+          env:
+            - name: HOME
+              value: /tmp
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+          resources:
+            requests:
+              cpu: 10m
+              memory: 64Mi
+            limits:
+              cpu: 100m
+              memory: 128Mi
+          readinessProbe:
+            exec:
+              command:
+                - /app/.venv/bin/python
+                - -c
+                - from pathlib import Path; raise SystemExit(not Path('/tmp/rag-warmup-complete').exists())
+            periodSeconds: 2
+            timeoutSeconds: 1
+            failureThreshold: 150
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
