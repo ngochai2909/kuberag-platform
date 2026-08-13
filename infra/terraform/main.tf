@@ -378,9 +378,9 @@ resource "google_compute_instance" "worker" {
   machine_type = each.value.machine_type
   zone         = var.zone
 
-  # Compute Engine must stop a VM before changing its machine type. The
-  # observability worker is not being resized in this operation.
-  allow_stopping_for_update = each.key == "application"
+  # Compute Engine must stop a VM before changing its machine type. This lets
+  # Terraform resize either worker while preserving its attached data disk.
+  allow_stopping_for_update = true
   deletion_protection       = false
 
   tags = ["${var.name_prefix}-node"]

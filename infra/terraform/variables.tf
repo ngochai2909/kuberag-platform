@@ -144,7 +144,7 @@ variable "machine_type" {
 variable "observability_worker_machine_type" {
   description = "Compute Engine machine type for the observability and PostgreSQL-replica worker."
   type        = string
-  default     = "e2-custom-2-8192"
+  default     = "e2-custom-4-16384"
 }
 
 variable "application_worker_machine_type" {
