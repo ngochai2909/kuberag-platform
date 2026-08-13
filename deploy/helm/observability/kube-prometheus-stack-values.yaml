@@ -33,11 +33,11 @@ grafana:
     size: 2Gi
   resources:
     requests:
-      cpu: 100m
-      memory: 128Mi
+      cpu: 500m
+      memory: 1Gi
     limits:
-      cpu: 300m
-      memory: 384Mi
+      cpu: "1500m"
+      memory: 2Gi
   grafana.ini:
     users:
       allow_sign_up: false
