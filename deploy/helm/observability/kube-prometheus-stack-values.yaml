@@ -63,7 +63,7 @@ grafana:
           - name: TraceID
             matcherRegex: '"trace_id":"([a-f0-9]{32})"'
             datasourceUid: tempo
-            url: '$${__value.raw}'
+            url: "$${__value.raw}"
     - name: Tempo
       uid: tempo
       type: tempo

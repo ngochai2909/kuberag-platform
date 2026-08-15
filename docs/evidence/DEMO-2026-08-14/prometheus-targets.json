@@ -1,0 +1,396 @@
+{
+  "status": "success",
+  "active_target_count": 26,
+  "healthy_target_count": 26,
+  "activeTargets": [
+    {
+      "scrapePool": "serviceMonitor/observability/kuberag-envoy-gateway/0",
+      "scrapeUrl": "http://10.52.1.136:19001/stats/prometheus",
+      "health": "up",
+      "lastError": "",
+      "labels": {
+        "container": "envoy",
+        "endpoint": "metrics",
+        "instance": "10.52.1.136:19001",
+        "job": "kuberag-envoy-metrics",
+        "namespace": "gateway-system",
+        "pod": "envoy-rag-kuberag-168c3936-5c66859d87-7n7vx",
+        "service": "kuberag-envoy-metrics"
+      }
+    },
+    {
+      "scrapePool": "serviceMonitor/observability/kuberag-loki/0",
+      "scrapeUrl": "http://10.52.2.100:3100/metrics",
+      "health": "up",
+      "lastError": "",
+      "labels": {
+        "cluster": "kuberag-loki",
+        "container": "loki",
+        "endpoint": "http-metrics",
+        "instance": "10.52.2.100:3100",
+        "job": "observability/kuberag-loki",
+        "namespace": "observability",
+        "pod": "kuberag-loki-0",
+        "service": "kuberag-loki"
+      }
+    },
+    {
+      "scrapePool": "serviceMonitor/observability/kuberag-monitoring-grafana/0",
+      "scrapeUrl": "http://10.52.2.104:3000/metrics",
+      "health": "up",
+      "lastError": "",
+      "labels": {
+        "container": "grafana",
+        "endpoint": "http-web",
+        "instance": "10.52.2.104:3000",
+        "job": "kuberag-monitoring-grafana",
+        "namespace": "observability",
+        "pod": "kuberag-monitoring-grafana-57d9f859d9-s24tz",
+        "service": "kuberag-monitoring-grafana"
+      }
+    },
+    {
+      "scrapePool": "serviceMonitor/observability/kuberag-monitoring-kube-pr-alertmanager/0",
+      "scrapeUrl": "http://10.52.2.102:9093/metrics",
+      "health": "up",
+      "lastError": "",
+      "labels": {
+        "container": "alertmanager",
+        "endpoint": "http-web",
+        "instance": "10.52.2.102:9093",
+        "job": "kuberag-monitoring-kube-pr-alertmanager",
+        "namespace": "observability",
+        "pod": "alertmanager-kuberag-monitoring-kube-pr-alertmanager-0",
+        "service": "kuberag-monitoring-kube-pr-alertmanager"
+      }
+    },
+    {
+      "scrapePool": "serviceMonitor/observability/kuberag-monitoring-kube-pr-alertmanager/1",
+      "scrapeUrl": "http://10.52.2.102:8080/metrics",
+      "health": "up",
+      "lastError": "",
+      "labels": {
+        "container": "config-reloader",
+        "endpoint": "reloader-web",
+        "instance": "10.52.2.102:8080",
+        "job": "kuberag-monitoring-kube-pr-alertmanager",
+        "namespace": "observability",
+        "pod": "alertmanager-kuberag-monitoring-kube-pr-alertmanager-0",
+        "service": "kuberag-monitoring-kube-pr-alertmanager"
+      }
+    },
+    {
+      "scrapePool": "serviceMonitor/observability/kuberag-monitoring-kube-pr-apiserver/0",
+      "scrapeUrl": "https://10.42.0.2:6443/metrics",
+      "health": "up",
+      "lastError": "",
+      "labels": {
+        "endpoint": "https",
+        "instance": "10.42.0.2:6443",
+        "job": "apiserver",
+        "namespace": "default",
+        "service": "kubernetes"
+      }
+    },
+    {
+      "scrapePool": "serviceMonitor/observability/kuberag-monitoring-kube-pr-coredns/0",
+      "scrapeUrl": "http://10.52.0.78:9153/metrics",
+      "health": "up",
+      "lastError": "",
+      "labels": {
+        "container": "coredns",
+        "endpoint": "http-metrics",
+        "instance": "10.52.0.78:9153",
+        "job": "coredns",
+        "namespace": "kube-system",
+        "pod": "coredns-8db54c48d-wr9nh",
+        "service": "kuberag-monitoring-kube-pr-coredns"
+      }
+    },
+    {
+      "scrapePool": "serviceMonitor/observability/kuberag-monitoring-kube-pr-kubelet/0",
+      "scrapeUrl": "https://10.42.0.3:10250/metrics",
+      "health": "up",
+      "lastError": "",
+      "labels": {
+        "endpoint": "https-metrics",
+        "instance": "10.42.0.3:10250",
+        "job": "kubelet",
+        "metrics_path": "/metrics",
+        "namespace": "kube-system",
+        "node": "kuberag-worker-observability",
+        "service": "kuberag-monitoring-kube-pr-kubelet"
+      }
+    },
+    {
+      "scrapePool": "serviceMonitor/observability/kuberag-monitoring-kube-pr-kubelet/0",
+      "scrapeUrl": "https://10.42.0.2:10250/metrics",
+      "health": "up",
+      "lastError": "",
+      "labels": {
+        "endpoint": "https-metrics",
+        "instance": "10.42.0.2:10250",
+        "job": "kubelet",
+        "metrics_path": "/metrics",
+        "namespace": "kube-system",
+        "node": "kuberag-server",
+        "service": "kuberag-monitoring-kube-pr-kubelet"
+      }
+    },
+    {
+      "scrapePool": "serviceMonitor/observability/kuberag-monitoring-kube-pr-kubelet/0",
+      "scrapeUrl": "https://10.42.0.4:10250/metrics",
+      "health": "up",
+      "lastError": "",
+      "labels": {
+        "endpoint": "https-metrics",
+        "instance": "10.42.0.4:10250",
+        "job": "kubelet",
+        "metrics_path": "/metrics",
+        "namespace": "kube-system",
+        "node": "kuberag-worker-application",
+        "service": "kuberag-monitoring-kube-pr-kubelet"
+      }
+    },
+    {
+      "scrapePool": "serviceMonitor/observability/kuberag-monitoring-kube-pr-kubelet/1",
+      "scrapeUrl": "https://10.42.0.2:10250/metrics/cadvisor",
+      "health": "up",
+      "lastError": "",
+      "labels": {
+        "endpoint": "https-metrics",
+        "instance": "10.42.0.2:10250",
+        "job": "kubelet",
+        "metrics_path": "/metrics/cadvisor",
+        "namespace": "kube-system",
+        "node": "kuberag-server",
+        "service": "kuberag-monitoring-kube-pr-kubelet"
+      }
+    },
+    {
+      "scrapePool": "serviceMonitor/observability/kuberag-monitoring-kube-pr-kubelet/1",
+      "scrapeUrl": "https://10.42.0.4:10250/metrics/cadvisor",
+      "health": "up",
+      "lastError": "",
+      "labels": {
+        "endpoint": "https-metrics",
+        "instance": "10.42.0.4:10250",
+        "job": "kubelet",
+        "metrics_path": "/metrics/cadvisor",
+        "namespace": "kube-system",
+        "node": "kuberag-worker-application",
+        "service": "kuberag-monitoring-kube-pr-kubelet"
+      }
+    },
+    {
+      "scrapePool": "serviceMonitor/observability/kuberag-monitoring-kube-pr-kubelet/1",
+      "scrapeUrl": "https://10.42.0.3:10250/metrics/cadvisor",
+      "health": "up",
+      "lastError": "",
+      "labels": {
+        "endpoint": "https-metrics",
+        "instance": "10.42.0.3:10250",
+        "job": "kubelet",
+        "metrics_path": "/metrics/cadvisor",
+        "namespace": "kube-system",
+        "node": "kuberag-worker-observability",
+        "service": "kuberag-monitoring-kube-pr-kubelet"
+      }
+    },
+    {
+      "scrapePool": "serviceMonitor/observability/kuberag-monitoring-kube-pr-kubelet/2",
+      "scrapeUrl": "https://10.42.0.4:10250/metrics/probes",
+      "health": "up",
+      "lastError": "",
+      "labels": {
+        "endpoint": "https-metrics",
+        "instance": "10.42.0.4:10250",
+        "job": "kubelet",
+        "metrics_path": "/metrics/probes",
+        "namespace": "kube-system",
+        "node": "kuberag-worker-application",
+        "service": "kuberag-monitoring-kube-pr-kubelet"
+      }
+    },
+    {
+      "scrapePool": "serviceMonitor/observability/kuberag-monitoring-kube-pr-kubelet/2",
+      "scrapeUrl": "https://10.42.0.3:10250/metrics/probes",
+      "health": "up",
+      "lastError": "",
+      "labels": {
+        "endpoint": "https-metrics",
+        "instance": "10.42.0.3:10250",
+        "job": "kubelet",
+        "metrics_path": "/metrics/probes",
+        "namespace": "kube-system",
+        "node": "kuberag-worker-observability",
+        "service": "kuberag-monitoring-kube-pr-kubelet"
+      }
+    },
+    {
+      "scrapePool": "serviceMonitor/observability/kuberag-monitoring-kube-pr-kubelet/2",
+      "scrapeUrl": "https://10.42.0.2:10250/metrics/probes",
+      "health": "up",
+      "lastError": "",
+      "labels": {
+        "endpoint": "https-metrics",
+        "instance": "10.42.0.2:10250",
+        "job": "kubelet",
+        "metrics_path": "/metrics/probes",
+        "namespace": "kube-system",
+        "node": "kuberag-server",
+        "service": "kuberag-monitoring-kube-pr-kubelet"
+      }
+    },
+    {
+      "scrapePool": "serviceMonitor/observability/kuberag-monitoring-kube-pr-operator/0",
+      "scrapeUrl": "https://10.52.2.99:10250/metrics",
+      "health": "up",
+      "lastError": "",
+      "labels": {
+        "container": "kube-prometheus-stack",
+        "endpoint": "https",
+        "instance": "10.52.2.99:10250",
+        "job": "kuberag-monitoring-kube-pr-operator",
+        "namespace": "observability",
+        "pod": "kuberag-monitoring-kube-pr-operator-8db69cf4c-ztvlb",
+        "service": "kuberag-monitoring-kube-pr-operator"
+      }
+    },
+    {
+      "scrapePool": "serviceMonitor/observability/kuberag-monitoring-kube-pr-prometheus/0",
+      "scrapeUrl": "http://10.52.2.101:9090/metrics",
+      "health": "up",
+      "lastError": "",
+      "labels": {
+        "container": "prometheus",
+        "endpoint": "http-web",
+        "instance": "10.52.2.101:9090",
+        "job": "kuberag-monitoring-kube-pr-prometheus",
+        "namespace": "observability",
+        "pod": "prometheus-kuberag-monitoring-kube-pr-prometheus-0",
+        "service": "kuberag-monitoring-kube-pr-prometheus"
+      }
+    },
+    {
+      "scrapePool": "serviceMonitor/observability/kuberag-monitoring-kube-pr-prometheus/1",
+      "scrapeUrl": "http://10.52.2.101:8080/metrics",
+      "health": "up",
+      "lastError": "",
+      "labels": {
+        "container": "config-reloader",
+        "endpoint": "reloader-web",
+        "instance": "10.52.2.101:8080",
+        "job": "kuberag-monitoring-kube-pr-prometheus",
+        "namespace": "observability",
+        "pod": "prometheus-kuberag-monitoring-kube-pr-prometheus-0",
+        "service": "kuberag-monitoring-kube-pr-prometheus"
+      }
+    },
+    {
+      "scrapePool": "serviceMonitor/observability/kuberag-monitoring-kube-state-metrics/0",
+      "scrapeUrl": "http://10.52.2.97:8080/metrics",
+      "health": "up",
+      "lastError": "",
+      "labels": {
+        "container": "kube-state-metrics",
+        "endpoint": "http",
+        "instance": "10.52.2.97:8080",
+        "job": "kube-state-metrics",
+        "namespace": "observability",
+        "pod": "kuberag-monitoring-kube-state-metrics-7b7fb9cbc6-7fmnc",
+        "service": "kuberag-monitoring-kube-state-metrics"
+      }
+    },
+    {
+      "scrapePool": "serviceMonitor/observability/kuberag-otel-collector/0",
+      "scrapeUrl": "http://10.52.2.98:8888/metrics",
+      "health": "up",
+      "lastError": "",
+      "labels": {
+        "container": "opentelemetry-collector",
+        "endpoint": "metrics",
+        "instance": "10.52.2.98:8888",
+        "job": "kuberag-otel-collector",
+        "namespace": "observability",
+        "pod": "kuberag-otel-collector-6f8946d486-4bm89",
+        "service": "kuberag-otel-collector"
+      }
+    },
+    {
+      "scrapePool": "serviceMonitor/observability/kuberag-otel-ingestion/0",
+      "scrapeUrl": "http://10.52.2.98:8889/metrics",
+      "health": "up",
+      "lastError": "",
+      "labels": {
+        "container": "opentelemetry-collector",
+        "endpoint": "prometheus",
+        "instance": "10.52.2.98:8889",
+        "job": "kuberag-otel-collector",
+        "namespace": "observability",
+        "pod": "kuberag-otel-collector-6f8946d486-4bm89",
+        "service": "kuberag-otel-collector"
+      }
+    },
+    {
+      "scrapePool": "serviceMonitor/observability/kuberag-pyroscope/0",
+      "scrapeUrl": "http://10.52.2.105:4040/metrics",
+      "health": "up",
+      "lastError": "",
+      "labels": {
+        "container": "pyroscope",
+        "endpoint": "http2",
+        "instance": "10.52.2.105:4040",
+        "job": "kuberag-pyroscope",
+        "namespace": "observability",
+        "pod": "kuberag-pyroscope-0",
+        "service": "kuberag-pyroscope"
+      }
+    },
+    {
+      "scrapePool": "serviceMonitor/observability/kuberag-pyroscope/0",
+      "scrapeUrl": "http://10.52.2.105:4040/metrics",
+      "health": "up",
+      "lastError": "",
+      "labels": {
+        "container": "pyroscope",
+        "endpoint": "http2",
+        "instance": "10.52.2.105:4040",
+        "job": "kuberag-pyroscope-headless",
+        "namespace": "observability",
+        "pod": "kuberag-pyroscope-0",
+        "service": "kuberag-pyroscope-headless"
+      }
+    },
+    {
+      "scrapePool": "serviceMonitor/observability/kuberag-rag-api/0",
+      "scrapeUrl": "http://10.52.1.135:8000/metrics",
+      "health": "up",
+      "lastError": "",
+      "labels": {
+        "container": "api",
+        "endpoint": "http",
+        "instance": "10.52.1.135:8000",
+        "job": "kuberag-rag-api",
+        "namespace": "rag",
+        "pod": "kuberag-rag-api-78b997454b-dt66p",
+        "service": "kuberag-rag-api"
+      }
+    },
+    {
+      "scrapePool": "serviceMonitor/observability/kuberag-tempo/0",
+      "scrapeUrl": "http://10.52.2.103:3200/metrics",
+      "health": "up",
+      "lastError": "",
+      "labels": {
+        "container": "tempo",
+        "endpoint": "tempo-prom-metrics",
+        "instance": "10.52.2.103:3200",
+        "job": "kuberag-tempo",
+        "namespace": "observability",
+        "pod": "kuberag-tempo-0",
+        "service": "kuberag-tempo"
+      }
+    }
+  ]
+}
