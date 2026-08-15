@@ -1,0 +1,1 @@
+{"status":"success","data":{"resultType":"vector","result":[{"metric":{"stage":"retrieval"},"value":[1786701909.184,"0.2425"]},{"metric":{"stage":"prompt"},"value":[1786701909.184,"0.0095"]},{"metric":{"stage":"generation"},"value":[1786701909.184,"29"]}]}}
