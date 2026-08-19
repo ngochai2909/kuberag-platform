@@ -18,6 +18,10 @@ For an accurate deployed-versus-prepared summary, start with
 single-node local/GCP foundation, including Envoy smoke routing, and the next
 safe checkpoint.
 
+For a single consolidated technical overview (architecture, stack, data model,
+API, security, observability, and acceptance), read
+[`docs/TECHDOC.md`](docs/TECHDOC.md).
+
 ## Requirements
 
 - Python 3.12 or 3.13

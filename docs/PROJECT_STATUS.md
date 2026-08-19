@@ -201,6 +201,8 @@ item. SEC-009 still needs GitHub administrator settings evidence.
 
 ## Useful References
 
+- `docs/TECHDOC.md`: consolidated technical overview (architecture, stack,
+  data, API, security, observability, acceptance).
 - `docs/PROGRESS.md`: detailed phase log and ownership notes.
 - `docs/ARCHITECTURE.md`: target architecture and component boundaries.
 - `docs/data-model.md`: logical data model and the VnExpress ingestion decision.
